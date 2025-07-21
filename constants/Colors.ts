@@ -1,26 +1,38 @@
+
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Sircles app color scheme
  */
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#00B2A9'; // Calming Teal
+const tintColorDark = '#B2E2DF'; // Light Mint
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
+    text: '#212121', // Charcoal Ink
+    background: '#F6FDFC', // Mist White
+    surface: '#EEF4F3', // Frosted Blue Grey
+    tint: tintColorLight, // Calming Teal
+    secondary: '#B2E2DF', // Light Mint
+    accent: '#1E2D3B', // Deep Navy
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
+    success: '#66BB6A', // Soft Green
+    warning: '#FFB74D', // Muted Amber
+    error: '#EF5350', // Cool Red
   },
   dark: {
     text: '#ECEDEE',
     background: '#151718',
-    tint: tintColorDark,
+    surface: '#1E2D3B', // Deep Navy
+    tint: tintColorDark, // Light Mint
+    secondary: '#00B2A9', // Calming Teal
+    accent: '#B2E2DF', // Light Mint
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    success: '#66BB6A', // Soft Green
+    warning: '#FFB74D', // Muted Amber
+    error: '#EF5350', // Cool Red
   },
 };
