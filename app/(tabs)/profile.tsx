@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -455,22 +456,12 @@ export default function ProfileScreen() {
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: accentColor }]}
-            onPress={() => setShowPasswordModal(true)}
+            style={[styles.actionButton, { backgroundColor: tintColor }]}
+            onPress={() => router.push('/settings')}
           >
-            <IconSymbol name="key.fill" size={20} color="#fff" />
+            <IconSymbol name="gearshape.fill" size={20} color="#fff" />
             <ThemedText style={styles.actionButtonText}>
-              {texts.changePassword || 'Change Password'}
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: surfaceColor }]}
-            onPress={toggleLanguage}
-          >
-            <IconSymbol name="globe" size={20} color={textColor} />
-            <ThemedText style={[styles.actionButtonText, { color: textColor }]}>
-              {language === 'en' ? 'العربية' : 'English'}
+              {texts.settings || 'Settings'}
             </ThemedText>
           </TouchableOpacity>
 
