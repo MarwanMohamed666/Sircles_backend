@@ -157,6 +157,7 @@ export function IconSymbol({
       size={size}
       color={color || '#000'}
       style={style}
+      suppressHighlighting={true}
     />
   );
 }
