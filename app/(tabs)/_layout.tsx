@@ -1,4 +1,3 @@
-
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -62,7 +61,19 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          href: null, // Hide this tab
+          title: 'Explore',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? 'magnifyingglass' : 'magnifyingglass'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="circles"
+        options={{
+          title: 'My Circles',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? 'person.3.fill' : 'person.3'} color={color} />
+          ),
         }}
       />
     </Tabs>

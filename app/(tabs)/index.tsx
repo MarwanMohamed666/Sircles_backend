@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -41,10 +42,20 @@ export default function HomeScreen() {
 
   const [showAddPostModal, setShowAddPostModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [newPostContent, setNewPostContent] = useState('');
   const [newComment, setNewComment] = useState('');
   const [selectedCircle, setSelectedCircle] = useState('');
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: '',
+    time: '',
+    location: '',
+    description: '',
+    tag: 'Social',
+    circleId: '',
+  });
 
   // Mock data
   const [events, setEvents] = useState<Event[]>([
@@ -89,6 +100,32 @@ export default function HomeScreen() {
   ]);
 
   const circles = ['Tech Enthusiasts', 'Book Club', 'Fitness Group', 'Photography Club'];
+  const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
+
+  const handleCreateEvent = () => {
+    if (newEvent.title.trim() && newEvent.date && newEvent.time && newEvent.location.trim()) {
+      const event = {
+        id: Date.now().toString(),
+        ...newEvent,
+        rsvp: undefined,
+      };
+      
+      setEvents([event, ...events]);
+      setNewEvent({
+        title: '',
+        date: '',
+        time: '',
+        location: '',
+        description: '',
+        tag: 'Social',
+        circleId: '',
+      });
+      setShowCreateEventModal(false);
+      Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
+    } else {
+      Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all required fields.');
+    }
+  };
 
   const handleRSVP = (eventId: string, response: 'yes' | 'maybe' | 'no') => {
     setEvents(events.map(event =>
@@ -165,19 +202,28 @@ export default function HomeScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Action Buttons */}
         <View style={[styles.actionButtons, isRTL && styles.actionButtonsRTL]}>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: tintColor }]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: tintColor }]}
+            onPress={() => router.push('/explore')}
+          >
             <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
               {texts.findCircles || 'Find Circles'}
             </ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: accentColor }]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: accentColor }]}
+            onPress={() => router.push('/events')}
+          >
             <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
-              {texts.search || 'Search'}
+              {texts.findEvents || 'Find Events'}
             </ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, { backgroundColor: surfaceColor }]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: surfaceColor }]}
+            onPress={() => setShowCreateEventModal(true)}
+          >
             <ThemedText style={[styles.actionButtonText, { color: textColor }]}>
-              {texts.create || 'Create'}
+              {texts.createEvent || 'Create Event'}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -377,6 +423,177 @@ export default function HomeScreen() {
                 </ThemedText>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Create Event Modal */}
+      <Modal
+        visible={showCreateEventModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateEventModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
+              <ThemedText type="subtitle" style={styles.modalTitle}>
+                {texts.createEvent || 'Create Event'}
+              </ThemedText>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowCreateEventModal(false)}
+              >
+                <IconSymbol name="xmark" size={24} color={textColor} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.title || 'Title'} *</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
+                  ]}
+                  placeholder={texts.enterEventTitle || 'Enter event title'}
+                  placeholderTextColor={textColor + '80'}
+                  value={newEvent.title}
+                  onChangeText={(text) => setNewEvent({ ...newEvent, title: text })}
+                />
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.circle || 'Circle'}</ThemedText>
+                <View style={[styles.dropdownContainer, { backgroundColor }]}>
+                  <TouchableOpacity style={styles.dropdown}>
+                    <ThemedText style={styles.dropdownText}>
+                      {newEvent.circleId || texts.selectCircleOrGeneral || 'Select Circle or General Event'}
+                    </ThemedText>
+                    <IconSymbol name="chevron.down" size={16} color={textColor} />
+                  </TouchableOpacity>
+                  <View style={styles.dropdownOptions}>
+                    <TouchableOpacity
+                      style={styles.dropdownOption}
+                      onPress={() => setNewEvent({ ...newEvent, circleId: '' })}
+                    >
+                      <ThemedText>{texts.generalEvent || 'General Event'}</ThemedText>
+                    </TouchableOpacity>
+                    {circles.map((circle) => (
+                      <TouchableOpacity
+                        key={circle}
+                        style={styles.dropdownOption}
+                        onPress={() => setNewEvent({ ...newEvent, circleId: circle })}
+                      >
+                        <ThemedText>{circle}</ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.eventTag || 'Event Tag'}</ThemedText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.tagOptions}>
+                    {eventTags.map((tag) => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[
+                          styles.tagOption,
+                          {
+                            backgroundColor: newEvent.tag === tag ? tintColor : backgroundColor,
+                            borderColor: tintColor,
+                          }
+                        ]}
+                        onPress={() => setNewEvent({ ...newEvent, tag })}
+                      >
+                        <ThemedText style={[
+                          styles.tagOptionText,
+                          { color: newEvent.tag === tag ? '#fff' : textColor }
+                        ]}>
+                          {tag}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.date || 'Date'} *</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
+                  ]}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={textColor + '80'}
+                  value={newEvent.date}
+                  onChangeText={(text) => setNewEvent({ ...newEvent, date: text })}
+                />
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.time || 'Time'} *</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
+                  ]}
+                  placeholder="HH:MM AM/PM"
+                  placeholderTextColor={textColor + '80'}
+                  value={newEvent.time}
+                  onChangeText={(text) => setNewEvent({ ...newEvent, time: text })}
+                />
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.location || 'Location'} *</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
+                  ]}
+                  placeholder={texts.enterLocation || 'Enter location'}
+                  placeholderTextColor={textColor + '80'}
+                  value={newEvent.location}
+                  onChangeText={(text) => setNewEvent({ ...newEvent, location: text })}
+                />
+              </View>
+
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.description || 'Description'}</ThemedText>
+                <TextInput
+                  style={[
+                    styles.textArea,
+                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
+                  ]}
+                  placeholder={texts.enterDescription || 'Enter event description'}
+                  placeholderTextColor={textColor + '80'}
+                  value={newEvent.description}
+                  onChangeText={(text) => setNewEvent({ ...newEvent, description: text })}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
+                  onPress={() => setShowCreateEventModal(false)}
+                >
+                  <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: tintColor }]}
+                  onPress={handleCreateEvent}
+                >
+                  <ThemedText style={{ color: '#fff' }}>
+                    {texts.create || 'Create'}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -585,6 +802,74 @@ const styles = StyleSheet.create({
   cancelButton: {
     borderWidth: 1,
     borderColor: '#ccc',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalHeaderRTL: {
+    flexDirection: 'row-reverse',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  formField: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  textInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  textArea: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  dropdownContainer: {
+    borderRadius: 8,
+  },
+  dropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  dropdownText: {
+    flex: 1,
+  },
+  dropdownOptions: {
+    marginTop: 4,
+  },
+  dropdownOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tagOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tagOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  tagOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   rtlText: {
     textAlign: 'right',

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -272,14 +271,25 @@ export default function CircleScreen() {
           </View>
         </View>
         {!circle.isJoined && (
-          <TouchableOpacity
-            style={[styles.joinButton, { backgroundColor: tintColor }]}
-            onPress={handleJoinCircle}
-          >
-            <ThemedText style={[styles.joinButtonText, { color: '#fff' }]}>
-              {texts.joinCircle || 'Join Circle'}
-            </ThemedText>
-          </TouchableOpacity>
+          <View style={styles.circleActions}>
+                <TouchableOpacity
+                  style={[styles.chatNavButton, { backgroundColor: surfaceColor, borderColor: tintColor }]}
+                  onPress={() => router.push('/(tabs)/messages')}
+                >
+                  <IconSymbol name="message" size={16} color={tintColor} />
+                  <ThemedText style={[styles.chatNavButtonText, { color: tintColor }]}>
+                    {texts.chat || 'Chat'}
+                  </ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.joinButton, { backgroundColor: tintColor }]}
+                  onPress={handleJoinCircle}
+                >
+                  <ThemedText style={[styles.joinButtonText, { color: '#fff' }]}>
+                    {texts.joinCircle || 'Join Circle'}
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
         )}
       </View>
 
@@ -325,7 +335,7 @@ export default function CircleScreen() {
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {texts.addPost || 'Add Post'}
             </ThemedText>
-            
+
             <TextInput
               style={[
                 styles.postInput,
@@ -418,14 +428,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  circleActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  chatNavButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  chatNavButtonText: {
+    fontWeight: '600',
+  },
   joinButton: {
+    backgroundColor: '#00B2A9',
+    paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    flex: 1,
   },
   joinButtonText: {
-    fontSize: 16,
     fontWeight: '600',
+    color: '#fff',
   },
   tabBar: {
     flexDirection: 'row',
