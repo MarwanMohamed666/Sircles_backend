@@ -3,9 +3,77 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
 import { ComponentProps } from 'react';
-import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
+import { OpaqueColorValue, type StyleProp, type TextStyle, Platform } from 'react-native';
 
 type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
+
+// Icon mapping for MaterialIcons fallback
+const ICON_MAPPING: Partial<IconMapping> = {
+  'house.fill': 'home',
+  'house': 'home',
+  'person.circle.fill': 'account-circle',
+  'person.circle': 'account-circle',
+  'bell.fill': 'notifications',
+  'bell': 'notifications-none',
+  'calendar.fill': 'event',
+  'calendar': 'event',
+  'message.fill': 'message',
+  'message': 'message',
+  'person.3.fill': 'group',
+  'person.3': 'group',
+  'magnifyingglass': 'search',
+  'slider.horizontal.3': 'tune',
+  'xmark.circle.fill': 'cancel',
+  'checkmark': 'check',
+  'gear': 'settings',
+  'lock': 'lock',
+  'moon': 'dark-mode',
+  'sun.max': 'light-mode',
+  'globe': 'language',
+  'arrow.right': 'arrow-forward',
+  'chevron.right': 'chevron-right',
+};
+
+export function IconSymbol({
+  name,
+  size = 24,
+  color,
+  style,
+}: {
+  name: SymbolViewProps['name'];
+  size?: number;
+  color?: string | OpaqueColorValue;
+  style?: StyleProp<TextStyle>;
+}) {
+  if (Platform.OS === 'ios') {
+    // Use expo-symbols on iOS if available
+    try {
+      const { SymbolView } = require('expo-symbols');
+      return (
+        <SymbolView
+          name={name}
+          size={size}
+          tintColor={color}
+          style={style}
+        />
+      );
+    } catch {
+      // Fall back to MaterialIcons if expo-symbols is not available
+    }
+  }
+  
+  // Fallback to MaterialIcons for Android and web
+  const mappedName = ICON_MAPPING[name] || 'help';
+  
+  return (
+    <MaterialIcons
+      name={mappedName}
+      size={size}
+      color={color}
+      style={style}
+    />
+  );
+}
 type IconSymbolName = keyof typeof MAPPING;
 
 /**
