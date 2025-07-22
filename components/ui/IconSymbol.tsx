@@ -1,79 +1,9 @@
-// Fallback for using MaterialIcons on Android and web.
-
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle, Platform } from 'react-native';
 
 type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
-
-// Icon mapping for MaterialIcons fallback
-const ICON_MAPPING: Partial<IconMapping> = {
-  'house.fill': 'home',
-  'house': 'home',
-  'person.circle.fill': 'account-circle',
-  'person.circle': 'account-circle',
-  'bell.fill': 'notifications',
-  'bell': 'notifications-none',
-  'calendar.fill': 'event',
-  'calendar': 'event',
-  'message.fill': 'message',
-  'message': 'message',
-  'person.3.fill': 'group',
-  'person.3': 'group',
-  'magnifyingglass': 'search',
-  'slider.horizontal.3': 'tune',
-  'xmark.circle.fill': 'cancel',
-  'checkmark': 'check',
-  'gear': 'settings',
-  'lock': 'lock',
-  'moon': 'dark-mode',
-  'sun.max': 'light-mode',
-  'globe': 'language',
-  'arrow.right': 'arrow-forward',
-  'chevron.right': 'chevron-right',
-};
-
-export function IconSymbol({
-  name,
-  size = 24,
-  color,
-  style,
-}: {
-  name: SymbolViewProps['name'];
-  size?: number;
-  color?: string | OpaqueColorValue;
-  style?: StyleProp<TextStyle>;
-}) {
-  if (Platform.OS === 'ios') {
-    // Use expo-symbols on iOS if available
-    try {
-      const { SymbolView } = require('expo-symbols');
-      return (
-        <SymbolView
-          name={name}
-          size={size}
-          tintColor={color}
-          style={style}
-        />
-      );
-    } catch {
-      // Fall back to MaterialIcons if expo-symbols is not available
-    }
-  }
-  
-  // Fallback to MaterialIcons for Android and web
-  const mappedName = ICON_MAPPING[name] || 'help';
-  
-  return (
-    <MaterialIcons
-      name={mappedName}
-      size={size}
-      color={color}
-      style={style}
-    />
-  );
-}
 type IconSymbolName = keyof typeof MAPPING;
 
 /**
@@ -96,7 +26,7 @@ const MAPPING = {
   'magnifyingglass': 'search',
   'person.3': 'group',
   'person.3.fill': 'group',
-  
+
   // Action Icons
   'plus': 'add',
   'plus.circle': 'add-circle',
@@ -111,7 +41,7 @@ const MAPPING = {
   'location.fill': 'location-on',
   'clock': 'schedule',
   'clock.fill': 'schedule',
-  
+
   // Navigation Arrows
   'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
@@ -119,7 +49,7 @@ const MAPPING = {
   'chevron.down': 'keyboard-arrow-down',
   'arrow.left': 'arrow-back',
   'arrow.right': 'arrow-forward',
-  
+
   // Settings & Profile Icons
   'gear': 'settings',
   'gear.fill': 'settings',
@@ -135,7 +65,7 @@ const MAPPING = {
   'lock.fill': 'lock',
   'key': 'vpn-key',
   'key.fill': 'vpn-key',
-  
+
   // Content Icons
   'tag': 'local-offer',
   'tag.fill': 'local-offer',
@@ -145,7 +75,7 @@ const MAPPING = {
   'doc.fill': 'description',
   'folder': 'folder',
   'folder.fill': 'folder',
-  
+
   // Other Common Icons
   'ellipsis': 'more-horiz',
   'ellipsis.vertical': 'more-vert',
@@ -161,21 +91,21 @@ const MAPPING = {
   'trash.fill': 'delete',
   'pencil': 'edit',
   'pencil.fill': 'edit',
-  
+
   // Language & Theme
   'globe': 'language',
   'moon': 'brightness-3',
   'sun.max': 'brightness-7',
   'paintbrush': 'palette',
   'textformat': 'text-fields',
-  
+
   // Admin Icons
   'shield': 'security',
   'shield.fill': 'security',
   'chart.bar': 'bar-chart',
   'chart.line.uptrend.xyaxis': 'trending-up',
   'person.badge.shield': 'admin-panel-settings',
-  
+
   // Legacy mappings
   'chevron.left.forwardslash.chevron.right': 'code',
 } as IconMapping;
@@ -190,6 +120,7 @@ export function IconSymbol({
   size = 24,
   color,
   style,
+  weight,
 }: {
   name: IconSymbolName;
   size?: number;
@@ -197,5 +128,33 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  if (Platform.OS === 'ios') {
+    // Use expo-symbols on iOS if available
+    try {
+      const { SymbolView } = require('expo-symbols');
+      return (
+        <SymbolView
+          name={name}
+          size={size}
+          tintColor={color}
+          style={style}
+          weight={weight}
+        />
+      );
+    } catch {
+      // Fall back to MaterialIcons if expo-symbols is not available
+    }
+  }
+
+  // Fallback to MaterialIcons for Android and web
+  const mappedName = MAPPING[name] || 'help';
+
+  return (
+    <MaterialIcons
+      name={mappedName}
+      size={size}
+      color={color}
+      style={style}
+    />
+  );
 }
