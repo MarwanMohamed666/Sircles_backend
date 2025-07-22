@@ -195,38 +195,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <View style={styles.nameSection}>
-            {editingField === 'name' ? (
-              <View style={styles.editingContainer}>
-                <TextInput
-                  style={[
-                    styles.editInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  value={tempValue}
-                  onChangeText={setTempValue}
-                  autoFocus
-                />
-                <View style={styles.editActions}>
-                  <TouchableOpacity onPress={saveField}>
-                    <IconSymbol name="checkmark" size={20} color={tintColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={cancelEditing}>
-                    <IconSymbol name="xmark" size={20} color="#EF5350" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.editableField}
-                onPress={() => startEditing('name', profile.name)}
-              >
-                <ThemedText type="subtitle" style={[styles.userName, isRTL && styles.rtlText]}>
-                  {profile.name}
-                </ThemedText>
-                <IconSymbol name="pencil" size={16} color={textColor} />
-              </TouchableOpacity>
-            )}
-
+            <ThemedText type="subtitle" style={[styles.userName, isRTL && styles.rtlText]}>
+              {profile.name}
+            </ThemedText>
             <ThemedText style={[styles.userAge, isRTL && styles.rtlText]}>
               {calculateAge(profile.birthday)} {texts.yearsOld || 'years old'}
             </ThemedText>
@@ -242,75 +213,17 @@ export default function ProfileScreen() {
           {/* Email */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.email || 'Email'}</ThemedText>
-            {editingField === 'email' ? (
-              <View style={styles.editingContainer}>
-                <TextInput
-                  style={[
-                    styles.editInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  value={tempValue}
-                  onChangeText={setTempValue}
-                  keyboardType="email-address"
-                  autoFocus
-                />
-                <View style={styles.editActions}>
-                  <TouchableOpacity onPress={saveField}>
-                    <IconSymbol name="checkmark" size={20} color={tintColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={cancelEditing}>
-                    <IconSymbol name="xmark" size={20} color="#EF5350" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.editableField}
-                onPress={() => startEditing('email', profile.email)}
-              >
-                <ThemedText style={[styles.fieldValue, isRTL && styles.rtlText]}>
-                  {profile.email}
-                </ThemedText>
-                <IconSymbol name="pencil" size={16} color={textColor} />
-              </TouchableOpacity>
-            )}
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {profile.email}
+            </ThemedText>
           </View>
 
           {/* Phone */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.phone || 'Phone'}</ThemedText>
-            {editingField === 'phone' ? (
-              <View style={styles.editingContainer}>
-                <TextInput
-                  style={[
-                    styles.editInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  value={tempValue}
-                  onChangeText={setTempValue}
-                  keyboardType="phone-pad"
-                  autoFocus
-                />
-                <View style={styles.editActions}>
-                  <TouchableOpacity onPress={saveField}>
-                    <IconSymbol name="checkmark" size={20} color={tintColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={cancelEditing}>
-                    <IconSymbol name="xmark" size={20} color="#EF5350" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.editableField}
-                onPress={() => startEditing('phone', profile.phone)}
-              >
-                <ThemedText style={[styles.fieldValue, isRTL && styles.rtlText]}>
-                  {profile.phone}
-                </ThemedText>
-                <IconSymbol name="pencil" size={16} color={textColor} />
-              </TouchableOpacity>
-            )}
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {profile.phone}
+            </ThemedText>
           </View>
 
           {/* Birthday */}
@@ -324,50 +237,9 @@ export default function ProfileScreen() {
           {/* Gender */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.gender || 'Gender'}</ThemedText>
-            {editingField === 'gender' ? (
-              <View style={styles.editingContainer}>
-                <View style={styles.genderOptions}>
-                  {genderOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      style={[
-                        styles.genderOption,
-                        { 
-                          backgroundColor: tempValue === option ? tintColor : backgroundColor,
-                          borderColor: tintColor,
-                        }
-                      ]}
-                      onPress={() => setTempValue(option)}
-                    >
-                      <ThemedText style={[
-                        styles.genderOptionText,
-                        { color: tempValue === option ? '#fff' : textColor }
-                      ]}>
-                        {option}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.editActions}>
-                  <TouchableOpacity onPress={saveField}>
-                    <IconSymbol name="checkmark" size={20} color={tintColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={cancelEditing}>
-                    <IconSymbol name="xmark" size={20} color="#EF5350" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.editableField}
-                onPress={() => startEditing('gender', profile.gender)}
-              >
-                <ThemedText style={[styles.fieldValue, isRTL && styles.rtlText]}>
-                  {profile.gender}
-                </ThemedText>
-                <IconSymbol name="pencil" size={16} color={textColor} />
-              </TouchableOpacity>
-            )}
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {profile.gender}
+            </ThemedText>
           </View>
         </View>
 
@@ -382,37 +254,9 @@ export default function ProfileScreen() {
               <ThemedText style={styles.fieldLabel}>
                 {key.charAt(0).toUpperCase() + key.slice(1)}
               </ThemedText>
-              {editingField === `address.${key}` ? (
-                <View style={styles.editingContainer}>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                    ]}
-                    value={tempValue}
-                    onChangeText={setTempValue}
-                    autoFocus
-                  />
-                  <View style={styles.editActions}>
-                    <TouchableOpacity onPress={saveField}>
-                      <IconSymbol name="checkmark" size={20} color={tintColor} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={cancelEditing}>
-                      <IconSymbol name="xmark" size={20} color="#EF5350" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.editableField}
-                  onPress={() => startEditing(`address.${key}`, value)}
-                >
-                  <ThemedText style={[styles.fieldValue, isRTL && styles.rtlText]}>
-                    {value}
-                  </ThemedText>
-                  <IconSymbol name="pencil" size={16} color={textColor} />
-                </TouchableOpacity>
-              )}
+              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+                {value}
+              </ThemedText>
             </View>
           ))}
         </View>
