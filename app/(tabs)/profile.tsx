@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,7 +73,7 @@ export default function ProfileScreen() {
     const today = new Date();
     const age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       return age - 1;
     }
@@ -117,12 +116,12 @@ export default function ProfileScreen() {
       Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all fields.');
       return;
     }
-    
+
     if (passwordData.new !== passwordData.confirm) {
       Alert.alert(texts.error || 'Error', texts.passwordMismatch || 'New passwords do not match.');
       return;
     }
-    
+
     // Here you would typically validate the current password and update it
     Alert.alert(texts.success || 'Success', texts.passwordChanged || 'Password changed successfully!');
     setShowPasswordModal(false);
@@ -194,7 +193,7 @@ export default function ProfileScreen() {
               <IconSymbol name="pencil" size={16} color="#fff" />
             </View>
           </TouchableOpacity>
-          
+
           <View style={styles.nameSection}>
             {editingField === 'name' ? (
               <View style={styles.editingContainer}>
@@ -227,7 +226,7 @@ export default function ProfileScreen() {
                 <IconSymbol name="pencil" size={16} color={textColor} />
               </TouchableOpacity>
             )}
-            
+
             <ThemedText style={[styles.userAge, isRTL && styles.rtlText]}>
               {calculateAge(profile.birthday)} {texts.yearsOld || 'years old'}
             </ThemedText>

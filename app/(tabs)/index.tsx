@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -109,7 +108,7 @@ export default function HomeScreen() {
         ...newEvent,
         rsvp: undefined,
       };
-      
+
       setEvents([event, ...events]);
       setNewEvent({
         title: '',
@@ -182,6 +181,14 @@ export default function HomeScreen() {
     }
   };
 
+  const setShowFindCirclesModal = () => {
+    router.push('/explore');
+  }
+
+  const setShowFindEventsModal = () => {
+    router.push('/events');
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Top Bar */}
@@ -204,16 +211,18 @@ export default function HomeScreen() {
         <View style={[styles.actionButtons, isRTL && styles.actionButtonsRTL]}>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: tintColor }]}
-            onPress={() => router.push('/explore')}
+            onPress={() => setShowFindCirclesModal()}
           >
+            <IconSymbol name="magnifyingglass" size={18} color="#fff" />
             <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
               {texts.findCircles || 'Find Circles'}
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: accentColor }]}
-            onPress={() => router.push('/events')}
+            onPress={() => setShowFindEventsModal()}
           >
+            <IconSymbol name="calendar" size={18} color="#fff" />
             <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
               {texts.findEvents || 'Find Events'}
             </ThemedText>
@@ -222,6 +231,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { backgroundColor: surfaceColor }]}
             onPress={() => setShowCreateEventModal(true)}
           >
+            <IconSymbol name="plus.circle" size={18} color={textColor} />
             <ThemedText style={[styles.actionButtonText, { color: textColor }]}>
               {texts.createEvent || 'Create Event'}
             </ThemedText>
@@ -346,7 +356,7 @@ export default function HomeScreen() {
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {texts.addPost || 'Add Post'}
             </ThemedText>
-            
+
             <TextInput
               style={[
                 styles.postInput,
@@ -391,7 +401,7 @@ export default function HomeScreen() {
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {texts.addComment || 'Add Comment'}
             </ThemedText>
-            
+
             <TextInput
               style={[
                 styles.commentInput,
@@ -641,9 +651,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   actionButtonText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 14,
   },
   section: {
     paddingHorizontal: 16,

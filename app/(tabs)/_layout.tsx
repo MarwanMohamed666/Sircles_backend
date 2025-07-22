@@ -27,43 +27,53 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: texts.profile,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.circle" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? "person.circle.fill" : "person.circle"} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="notifications"
         options={{
           title: texts.notifications,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bell" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? "bell.fill" : "bell"} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="index"
         options={{
           title: texts.home,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? "house.fill" : "house"} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="events"
         options={{
           title: texts.events,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? "calendar.fill" : "calendar"} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: texts.messages,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={28} name={focused ? "message.fill" : "message"} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={28} name={focused ? 'magnifyingglass' : 'magnifyingglass'} color={color} />
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="magnifyingglass" color={color} />
           ),
         }}
       />

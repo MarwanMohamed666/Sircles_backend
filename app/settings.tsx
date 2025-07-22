@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput, Switch, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,7 +29,7 @@ export default function SettingsScreen() {
 
   // Theme settings
   const [isDarkMode, setIsDarkMode] = useState(colorScheme === 'dark');
-  
+
   // Notification settings
   const [notifications, setNotifications] = useState({
     messages: true,
@@ -44,17 +43,17 @@ export default function SettingsScreen() {
       Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all fields.');
       return;
     }
-    
+
     if (passwordData.new !== passwordData.confirm) {
       Alert.alert(texts.error || 'Error', texts.passwordMismatch || 'New passwords do not match.');
       return;
     }
-    
+
     if (passwordData.new.length < 6) {
       Alert.alert(texts.error || 'Error', 'Password must be at least 6 characters long.');
       return;
     }
-    
+
     // Here you would typically validate the current password and update it
     Alert.alert(texts.success || 'Success', texts.passwordChanged || 'Password changed successfully!');
     setShowPasswordModal(false);
@@ -78,8 +77,15 @@ export default function SettingsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol name={isRTL ? "chevron.right" : "chevron.left"} size={24} color={textColor} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <IconSymbol 
+            name={isRTL ? "chevron.right" : "chevron.left"} 
+            size={24} 
+            color={textColor} 
+          />
         </TouchableOpacity>
         <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
           {texts.settings || 'Settings'}
@@ -90,10 +96,13 @@ export default function SettingsScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Password Settings */}
         <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.passwordSettings || 'Password Settings'}
-          </ThemedText>
-          
+          <View style={styles.sectionHeader}>
+            <IconSymbol name="lock" size={20} color={tintColor} />
+            <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {texts.passwordSettings || 'Password Settings'}
+            </ThemedText>
+          </View>
+
           <TouchableOpacity
             style={[styles.settingItem, isRTL && styles.settingItemRTL]}
             onPress={() => setShowPasswordModal(true)}
@@ -110,10 +119,13 @@ export default function SettingsScreen() {
 
         {/* Theme Settings */}
         <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.themeSettings || 'Theme Settings'}
-          </ThemedText>
-          
+          <View style={styles.sectionHeader}>
+            <IconSymbol name={isDarkMode ? "moon.fill" : "sun.max.fill"} size={20} color={tintColor} />
+            <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {texts.themeSettings || 'Theme Settings'}
+            </ThemedText>
+          </View>
+
           <View style={[styles.settingItem, isRTL && styles.settingItemRTL]}>
             <View style={[styles.settingInfo, isRTL && styles.settingInfoRTL]}>
               <IconSymbol name={isDarkMode ? "moon.fill" : "sun.max.fill"} size={20} color={tintColor} />
@@ -137,10 +149,13 @@ export default function SettingsScreen() {
 
         {/* Language Settings */}
         <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.languageSettings || 'Language Settings'}
-          </ThemedText>
-          
+          <View style={styles.sectionHeader}>
+            <IconSymbol name="globe" size={20} color={tintColor} />
+            <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {texts.languageSettings || 'Language Settings'}
+            </ThemedText>
+          </View>
+
           <TouchableOpacity
             style={[styles.settingItem, isRTL && styles.settingItemRTL]}
             onPress={toggleLanguage}
@@ -166,10 +181,13 @@ export default function SettingsScreen() {
 
         {/* Notification Settings */}
         <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.notificationSettings || 'Notification Settings'}
-          </ThemedText>
-          
+          <View style={styles.sectionHeader}>
+            <IconSymbol name="bell" size={20} color={tintColor} />
+            <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {texts.notificationSettings || 'Notification Settings'}
+            </ThemedText>
+          </View>
+
           <View style={[styles.settingItem, isRTL && styles.settingItemRTL]}>
             <View style={[styles.settingInfo, isRTL && styles.settingInfoRTL]}>
               <IconSymbol name="message.fill" size={20} color={tintColor} />
@@ -370,9 +388,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   settingItem: {
     flexDirection: 'row',
