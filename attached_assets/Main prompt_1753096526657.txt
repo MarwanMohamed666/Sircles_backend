@@ -1,347 +1,201 @@
+**Updated Sircles App Prompt (With Feature Edits)**
+
 Create a gated-community bilingual social app called "Sircles" (default language is English, layout is LTR).
 All UI text must be implemented using an AppTexts object to support future dynamic language switching.
 Layout must be structured for mobile and designed with full RTL compatibility in mind for Arabic support.
 
-General Requirements:
+---
 
-App name: Sircles
-Language support: Arabic (RTL) and English (LTR)
-Implement a language toggle in Settings that switches all app text between Arabic and English, without mixing
-All UI must adapt layout direction based on language (RTL for Arabic, LTR for English)
-Use Material Design with a clean and modern look
+**General Requirements:**
 
-Use Firebase for:
-User Authentication
-Firestore for storing Events, Posts, RSVPs, Chat Messages, and User Profiles
-Firebase Cloud Messaging for Push Notifications
+* App name: Sircles
+* Language support: Arabic (RTL) and English (LTR)
+* Implement a language toggle in Settings that switches all app text between Arabic and English, without mixing
+* All UI must adapt layout direction based on language (RTL for Arabic, LTR for English)
+* Use Material Design with a clean and modern look
 
+**Use Firebase for:**
 
-Page & Interface Requirements:
+* User Authentication
+* Firestore for storing Events, Posts, RSVPs, Circle Messages, and User Profiles
+* Firebase Cloud Messaging for Push Notifications
 
-1. Login Page
+---
 
-Clean layout with centered Sircles logo in a circular container
-App title "Sircles" with “Welcome!” greeting
-Username and Password input fields with password toggle
-Checkbox: "Remember me"
-Text button: "Forgot your password?" (right-aligned)
-Full-width Login button
-Language toggle button (EN/AR) placed at the top-right corner to switch app text language and layout direction before login
-No signup or social login
-Must use AppTexts and be RTL-compatible
-No bottom navigation bar
+**Page & Interface Requirements:**
 
-2. Home Page
+**1. Login Page**
 
-Top bar:
-Left: Compound/community name
-Right: Circular notification bell (navigates to Notifications page) + Profile photo (navigates to Profile page)
+* Centered Sircles logo in circular container
+* Title "Sircles" + "Welcome!" greeting
+* Username and password input fields with toggle
+* "Remember me" checkbox
+* "Forgot your password?" text button
+* Full-width Login button (#FF6B00)
+* Language toggle in top-right
+* No sign-up or social login
+* RTL-ready
+* No bottom nav
 
-Action Buttons (above Upcoming Events, horizontal layout with icons and labels):
-Find Buddies → navigates to Search Page
-Search → navigates to Event Search
-Create → navigates to Create Event Page
+**2. Home Page**
 
-Upcoming Events Section:
-Title: "Upcoming Events:"
-Horizontal scroll list of event cards showing tag/title, time, date, location
-RSVP buttons: "Yes", "Maybe", "No" (stored in Firestore per user & event ID)
+* Top bar: community name (left), notifications + profile icon (right)
+* Action buttons (horizontal above events): Find Circles | Search | Create
+* Upcoming Events section:
 
-Community Feed:
-Title: "Feed" with "+ Add Post" button (top-right)
-Button opens a popup modal (not a full screen)
-Modal includes:
-Dropdown or list of Circles the user has joined
-Multiline text input for post content
-Optional image attachment (with preview)
-Submit button to post content to the selected Circle (stored in Firestore with user and Circle ID)
-Modal closes after submission or cancel action
-Vertical scrollable list of posts from joined Circles only
-Each post includes:
-User avatar and name
-Text content and optional image
-Like button (stores interaction in Firestore)
-Comment button → opens a popup with text-only comments (stored in Firestore), allows viewing and adding comments inline
-Tapping on a user’s avatar or name navigates to their profile page:
-If viewer and post author share a Circle → messaging option appears
-If not → profile is view-only (no DM button)
+  * Horizontal scroll of event cards (tag, time, date, location)
+  * RSVP buttons (Yes/Maybe/No)
+* Community Feed:
 
-Bottom Navigation Bar (persistent):
-Includes icons representing each section:
-Profile (user icon)
-Notifications (bell icon)
-Home (house icon, active)
-Events (calendar icon)
-Messages (chat icon)
+  * Title: "Feed" + "+ Add Post" button (opens popup)
+  * Popup includes:
 
-3. Messages Page
+    * Circle selector (dropdown)
+    * Post content (text input)
+    * Optional image attachment
+    * Submit/Cancel
+  * Posts shown from joined Circles only
+  * Post actions: like, comment (text-only popup), view poster profile
+* Admin Posts:
 
-Title: “Messages”
-Top search bar (search usernames or message content)
+  * Admin/Community Manager can post to entire community — appears in feed regardless of Circle
+* Bottom Nav: Icons for Profile, Notifications, Home, Events, Messages
 
-Vertical scroll list of conversation previews:
-User avatar, name, last message preview, timestamp
-Tapping on a user’s avatar or name navigates to their profile page
-If the viewer and the user share a Circle → messaging option remains
-If not → profile is view-only (no DM button)
+**3. Messages Page**
 
-Floating action button (“+”) to start new chat (only shows users from shared Circles)
+* Title: "Messages"
+* Each Circle has a group chat thread (named after the Circle)
+* Vertical scroll list of Circle chat previews
+* No search for users
+* No one-to-one messaging
+* Tapping a Circle opens full-screen group chat:
 
-When opening a chat:
-Full-screen modal with top bar:
-User photo, name, back button
-Tapping user photo or name also navigates to their profile page
-Same DM permission logic applies (based on Circle membership)
-Chat bubble layout with sender alignment (left/right)
-Bottom input section: text input + send button
+  * Top bar: Circle name
+  * Scrollable messages
+  * Text input + send
+  * RTL layout support
 
-Messages are stored in Firestore per thread
-RTL support includes full chat bubble alignment flipping
+**4. Profile Page**
 
-4. Profile Page
+* Top-left: editable avatar (image picker)
+* Right: full name
+* Editable fields:
 
-Top-left: circular avatar (editable — tapping opens image picker to change profile photo)
-Right: user full name (bold)
+  * Email, Phone
+  * Birthday (non-editable; used to calculate age)
+  * Gender (dropdown)
+  * Address: Apartment, Building, Block
+* Interests section:
 
-Editable fields:
-Email
-Phone Number
-Birthday (non-editable; used to calculate age for child content filtering)
-Gender (dropdown: Male/Female)
-Address (optional): Apartment, Building, Block
+  * Organized by categories (e.g. Education, Hobbies, Sports)
+  * User types into chip/tag input
+  * Suggestions shown per category
+  * Only system-defined items can be selected
+  * Example structure:
 
-Interests Section:
-Tag/chip-based input field that dynamically suggests hobbies and interests from a predefined system list as the user types
-The user can only select from the suggested options — custom entries are not allowed
-Suggested items appear in a dropdown below the input, and selected items appear as removable chips
-Suggested Interests List (predefined by system, compound-appropriate):
-["Yoga", "Running", "Walking", "Swimming", "Football", "Tennis", "Gym workouts", "Cooking", "Gardening", "Book club", "Board games", "Pet walking", "Photography", "Movie nights", "Tech & coding", "Arts & crafts", "Biking", "Pilates", "Meditation", "Kids playgroups"]
+    * Hobbies: \[Photography, Movie nights, Gardening]
+    * Sports: \[Swimming, Football, Tennis]
+    * Education: \[Book club, Tech & coding]
+* Buttons:
 
-Buttons:
+  * Change Password popup (current/new/confirm)
+  * Logout
+  * Language toggle (EN/AR)
+* Bottom nav included
 
-"Change Password" → opens a popup or page with:
-Current password
-New password
-Confirm new password
-Submit and Cancel buttons
-Connected to Firebase Auth
+**5. Search Page**
 
-"Logout"
+* **Now dedicated to Circles only**
+* Top: Search bar + Filter button
+* Filter modal includes:
 
-Language toggle (EN/AR) → updates app language and layout direction (LTR ↔ RTL)
+  * Interest Tag (Dropdown)
+  * Age Range (Dropdown)
+  * Gender (Dropdown)
+* Search results show Circle cards
+* Tapping a Circle opens Circle Page
 
-Bottom navigation bar (same as Home)
-All fields are synced to Firestore and update on save
-Full RTL compatibility for Arabic support
+**6. Circle Page**
 
-5. Search Page
+* Circle info: name, description, privacy settings (age/gender filters)
+* Join button (if eligible based on filters)
+* Tabs:
 
-Top switch (tabs): "Events" | "Buddies"
-Below:
-Free-text search bar
-Filter icon → opens a dynamic modal with filters based on the selected tab
-Filters (all implemented as dropdowns):
+  * **Feed**: Circle-only posts
+  * **Events**: Circle-only events
+  * **Chat**: group messaging (same as Messages Page logic)
+* Admins can invite users, moderate content, manage members
 
-If "Events" tab is selected:
-Day (Dropdown): Today, Tomorrow, This Week, This Month, This Year
-Time (Dropdown):
-Morning (6AM–12PM)
-Afternoon (12PM–6PM)
-Evening (6PM–10PM)
-Late Night (10PM+)
+**7. Create Event Page**
 
-Event Tag/Type (Dropdown):
-["Yoga", "Running", "Walking", "Swimming", "Football", "Tennis", "Gym workouts", "Cooking", "Gardening", "Book club", "Board games", "Pet walking", "Photography", "Movie nights", "Tech & coding", "Arts & crafts", "Biking", "Pilates", "Meditation", "Kids playgroups"]
+* Fields: Title, Circle Selector, Date, Time, Location, Event Tag, Visibility, Description
+* Buttons: Create, Cancel
+* All text uses AppTexts, full RTL support
 
-If "Buddies" tab is selected:
+**8. Admin Page**
 
-Gender (Dropdown): Male, Female
+* Login only via: Username = "admin", Password = "adminadmin"
+* Directs only to Admin Dashboard
+* Top-right: Logout button + Language toggle
+* Sections:
 
-Age Range (Dropdown):
-Under 18
-18–24
-25–34
-35–44
-45–54
-55–64
-65+
+  1. User Overview: total users, active users, gender/age charts, top interests
+  2. Circle Metrics: total Circles, activity heatmap, inactive Circles
+  3. Content Moderation:
 
-Interests (Dropdown): multi-select from predefined list (same as Profile Page)
+     * Tabs for Posts, Events, Comments
+     * View/delete with reason, notify user
+  4. Reports Review: list, type, message, resolution tools
+  5. Search & Manage: search bar for users/Circles/posts/events
 
-Results Section:
-If "Events" selected → show event cards: tag, time, date, location
-If "Buddies" selected → show user cards: avatar, name, interests, role
+---
 
-Tapping a user opens their profile page
-DM button is visible only if the user is in a shared Circle
-Tapping an event opens a dedicated Event Page:
-Displays full event details: title, tag, date, time, location, and optional description
-Shows RSVP buttons ("Yes", "Maybe", "No")
-RSVP buttons active only if the user is allowed to attend
-If event is private and the user is not in the Circle → show access denied message
-If the current user is the event creator (admin) → show "Edit" and "Delete" options
+**Updated Firestore Schema:**
 
+1. **users**
 
-Layout must fully support RTL flipping when Arabic is selected
-Results are fetched from Firestore with filters applied based on the active tab
+* id, name, email, dob, gender, phone, language, avatar
+* address: { apartment, building, block }
+* interests: { \[category]: string\[] }
+* joinedCircles: string\[]
+* role: string ("user", "admin")
 
-6. Create Event Page
+2. **circles**
 
-Header: "Create Event"
-Form Fields:
-Event Title (Text input)
-Circle Selector (Dropdown showing Circles the user is a member of)
-Date Picker (uses device-native calendar picker)
-Time Picker (dropdown or native time selector)
-Location (text input or Google Maps autocomplete if enabled)
-Event Tag/Type (Dropdown):
-["Yoga", "Running", "Walking", "Swimming", "Football", "Tennis", "Gym workouts", "Cooking", "Gardening", "Book club", "Board games", "Pet walking", "Photography", "Movie nights", "Tech & coding", "Arts & crafts", "Biking", "Pilates", "Meditation", "Kids playgroups"]
-Visibility (Dropdown): Public | Private to Circle
-Optional Description (Multiline text input)
+* id, name, description, tags\[], privacy: "public" | "invite-only"
+* agePreference: { min: number, max: number }
+* genderPreference: "Male" | "Female" | "Any"
+* members\[], admins\[]
 
-Buttons:
-"Create Event" → saves event to Firestore under the selected Circle
-"Cancel" → returns to previous screen
+3. **events**
 
-Layout must fully support RTL flipping when Arabic is selected
+* id, title, date, time, location, circleId, visibility, tags\[], description, createdBy, rsvps\[]
 
-7. Admin Page (Accessible only to compound administrators)
+4. **posts**
 
-Access Control:
-Accessible only by logging in with:
-Username: "admin"
-Password: "adminadmin"
-If authenticated, user is directed only to the Admin Page
-Includes a Logout button (top-right) that returns to Login Page
-Language toggle (EN/AR) next to the Logout button:
-Changes app language and flips layout direction (RTL/LTR)
-Page Layout
-Header: "Admin Dashboard"
-Top-right controls: Language toggle + Logout button
+* id, userId, content, image, circleId (optional if global), likes\[], comments\[], createdAt
 
-Dashboard Sections:
+5. **messages**
 
-User Overview:
-Total registered users
-Number of active users (based on recent activity)
-Most common interests (top 5)
+* id, circleId, userId, content, timestamp (group chat only)
 
-Circle Metrics:
-Total number of Circles
-List of inactive Circles (no activity in past 30 days)
+6. **notifications**
 
-Content Moderation:
-Tabs: Posts | Events | Comments
-Table view for each:
-Content snippet
-Author info
-Date/time
-Delete button
-Tap to view full content
-Deleting an item prompts for a reason
-A notification is sent to the user with the reason
+* id, userId, type, content, read, timestamp, linkedItemId
 
-Reports Review:
-List of submitted reports by users
-Includes report type, reporter, target item, and message
-Admin can mark as resolved and/or take moderation action
+7. **reports**
 
-Search & Manage:
-Search bar to look up any user, Circle, post, or event
-Option to delete or view details
+* id, userId, type, targetId, message, status, adminResponse, timestamp
 
-Technical Notes:
-Admin tools bypass all age/content filters
-Real-time data pulled from Firestore
-Entire interface supports RTL compatibility
+---
 
-Firestore Collections Schema Overview:
+**Additional Technical Notes:**
 
-1. users
-id: string (user UID)
-name: string (full name)
-email: string
-dob: timestamp (used to calculate age dynamically)
-gender: string ("Male", "Female")
-interests: string[] (selected from predefined interest list only)
-joinedCircles: string[] (IDs of Circles the user is a member of)
-language: string ("en" or "ar")
-avatar: string (URL or file path to profile photo)
-phone: string
-address: { apartment: string, building: string, block: string }
-role: string (optional: "user", "admin")
-dmOptIn: boolean (whether the user accepts DMs)
-
-2. circles
-id: string
-name: string
-description: string
-tags: string[] (used for interest matching and search filters)
-privacy: string ("public" or "invite-only")
-members: string[] (user IDs)
-admins: string[] (user IDs)
-
-3. events
-id: string
-title: string
-date: timestamp
-time: string (optional formatted time or combined with date)
-location: string
-circleId: string
-visibility: string ("public" or "private")
-tags: string[] (from the compound interest tag list)
-description: string (optional)
-createdBy: string (user ID)
-rsvps: { userId: string, status: "yes" | "maybe" | "no" }[]
-
-4. posts
-id: string
-userId: string
-content: string
-image: string (optional)
-circleId: string
-likes: string[] (user IDs who liked)
-comments: {
-userId: string,
-text: string,
-timestamp: timestamp
-}[]
-createdAt: timestamp
-
-5. messages
-id: string
-senderId: string
-receiverId: string
-circleId: string (only users from same Circle can chat)
-content: string
-timestamp: timestamp
-
-6. notifications
-id: string
-userId: string
-type: string ("message", "event", "moderation", etc.)
-content: string
-read: boolean
-timestamp: timestamp
-linkedItemId: string (e.g., related post or event)
-
-7. reports
-id: string
-userId: string (who submitted the report)
-type: string ("post", "event", "user", "bug", etc.)
-targetId: string (ID of the reported item)
-message: string (user’s explanation)
-status: string ("pending", "resolved")
-adminResponse: string (optional admin resolution message)
-timestamp: timestamp
-
-Technical Notes:
-Age should be calculated from DOB (not stored statically)
-Only users in shared Circles can message each other
-Private events are only visible to Circle members
-Messaging and feed content filtered based on age logic
-All features must use AppTexts and be designed mobile-first
-Support for dynamic RTL flipping is required in all layouts
-The app must support two separate interface languages: Arabic and English, based on the user's selection.
-All text in the interface (labels, buttons, menus, messages, error messages) should be shown in one language at a time — not mixed.
-When Arabic is selected, the layout should switch to RTL (right-to-left). When English is selected, use LTR (left-to-right) layout.
+* Age calculated from DOB
+* No one-to-one messaging
+* All chats are per-Circle (group only)
+* Admins can post globally and create global events
+* Content filtered by Circle age/gender preferences
+* All features must use AppTexts with full RTL/LTR switching
+* App supports a clean mobile UI with persistent nav
+* All content lives in Firestore collections
