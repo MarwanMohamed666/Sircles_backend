@@ -88,7 +88,7 @@ export default function ProfileScreen() {
   const saveField = () => {
     if (editingField && tempValue.trim()) {
       if (editingField.includes('address.')) {
-        const addressField = editingField.split('.')[1];
+        const addressField = editingField.split('.')[1] as keyof typeof profile.address;
         setProfile({
           ...profile,
           address: {
@@ -99,7 +99,7 @@ export default function ProfileScreen() {
       } else if (editingField === 'gender') {
         setProfile({ ...profile, gender: tempValue });
       } else {
-        setProfile({ ...profile, [editingField]: tempValue });
+        setProfile({ ...profile, [editingField as keyof UserProfile]: tempValue } as UserProfile);
       }
     }
     setEditingField(null);

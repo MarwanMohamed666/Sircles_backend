@@ -1,110 +1,625 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import React, { useState } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function TabTwoScreen() {
+interface Circle {
+  id: string;
+  name: string;
+  description: string;
+  privacy: 'public' | 'invite-only';
+  agePreference: { min: number; max: number };
+  genderPreference: 'Male' | 'Female' | 'Any';
+  memberCount: number;
+  tags: string[];
+  isJoined: boolean;
+}
+
+interface SearchFilters {
+  interestTag: string;
+  ageRange: string;
+  gender: string;
+}
+
+export default function ExploreScreen() {
+  const { texts, isRTL } = useLanguage();
+  const backgroundColor = useThemeColor({}, 'background');
+  const surfaceColor = useThemeColor({}, 'surface');
+  const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
+  const accentColor = useThemeColor({}, 'accent');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>({
+    interestTag: '',
+    ageRange: '',
+    gender: '',
+  });
+
+  const [circles, setCircles] = useState<Circle[]>([
+    {
+      id: '1',
+      name: 'Tech Enthusiasts',
+      description: 'A community for technology lovers to share ideas and collaborate on projects.',
+      privacy: 'public',
+      agePreference: { min: 18, max: 65 },
+      genderPreference: 'Any',
+      memberCount: 24,
+      tags: ['Technology', 'Programming', 'Innovation'],
+      isJoined: false,
+    },
+    {
+      id: '2',
+      name: 'Book Club',
+      description: 'Monthly book discussions and literary conversations.',
+      privacy: 'invite-only',
+      agePreference: { min: 25, max: 55 },
+      genderPreference: 'Any',
+      memberCount: 18,
+      tags: ['Reading', 'Literature', 'Discussion'],
+      isJoined: true,
+    },
+    {
+      id: '3',
+      name: 'Photography Club',
+      description: 'Capture and share the beauty around us through photography.',
+      privacy: 'public',
+      agePreference: { min: 20, max: 60 },
+      genderPreference: 'Any',
+      memberCount: 31,
+      tags: ['Photography', 'Arts', 'Creative'],
+      isJoined: false,
+    },
+    {
+      id: '4',
+      name: 'Fitness Group',
+      description: 'Stay healthy and motivated together with workout sessions and fitness tips.',
+      privacy: 'public',
+      agePreference: { min: 18, max: 45 },
+      genderPreference: 'Any',
+      memberCount: 42,
+      tags: ['Fitness', 'Health', 'Sports'],
+      isJoined: false,
+    },
+  ]);
+
+  const interestTags = ['Technology', 'Programming', 'Reading', 'Photography', 'Fitness', 'Arts', 'Sports', 'Health'];
+  const ageRanges = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+'];
+  const genderOptions = ['Any', 'Male', 'Female'];
+
+  const filteredCircles = circles.filter(circle => {
+    const matchesSearch = circle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         circle.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesInterest = !filters.interestTag || 
+                           circle.tags.some(tag => tag.toLowerCase().includes(filters.interestTag.toLowerCase()));
+    
+    const matchesGender = !filters.gender || filters.gender === 'Any' || 
+                         circle.genderPreference === 'Any' || circle.genderPreference === filters.gender;
+    
+    // Age range matching would require user's age context
+    const matchesAge = !filters.ageRange; // Simplified for now
+    
+    return matchesSearch && matchesInterest && matchesGender && matchesAge;
+  });
+
+  const handleCirclePress = (circleId: string) => {
+    router.push(`/circle/${circleId}`);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      interestTag: '',
+      ageRange: '',
+      gender: '',
+    });
+  };
+
+  const applyFilters = () => {
+    setShowFilters(false);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
+        <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {texts.searchCircles || 'Search Circles'}
         </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
+      </View>
+
+      {/* Search Bar */}
+      <View style={[styles.searchSection, { backgroundColor: surfaceColor }]}>
+        <View style={[styles.searchBar, { backgroundColor }]}>
+          <IconSymbol name="magnifyingglass" size={20} color={textColor} />
+          <TextInput
+            style={[
+              styles.searchInput,
+              { color: textColor, textAlign: isRTL ? 'right' : 'left' }
+            ]}
+            placeholder={texts.searchCircles || 'Search circles...'}
+            placeholderTextColor={textColor + '80'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: tintColor }]}
+          onPress={() => setShowFilters(true)}
+        >
+          <IconSymbol name="slider.horizontal.3" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Active Filters */}
+      {(filters.interestTag || filters.ageRange || filters.gender) && (
+        <View style={[styles.activeFilters, { backgroundColor: surfaceColor }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {filters.interestTag && (
+              <View style={[styles.filterChip, { backgroundColor: tintColor + '20' }]}>
+                <ThemedText style={[styles.filterChipText, { color: tintColor }]}>
+                  {filters.interestTag}
+                </ThemedText>
+                <TouchableOpacity onPress={() => setFilters({...filters, interestTag: ''})}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={tintColor} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.ageRange && (
+              <View style={[styles.filterChip, { backgroundColor: tintColor + '20' }]}>
+                <ThemedText style={[styles.filterChipText, { color: tintColor }]}>
+                  {filters.ageRange}
+                </ThemedText>
+                <TouchableOpacity onPress={() => setFilters({...filters, ageRange: ''})}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={tintColor} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.gender && filters.gender !== 'Any' && (
+              <View style={[styles.filterChip, { backgroundColor: tintColor + '20' }]}>
+                <ThemedText style={[styles.filterChipText, { color: tintColor }]}>
+                  {filters.gender}
+                </ThemedText>
+                <TouchableOpacity onPress={() => setFilters({...filters, gender: ''})}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={tintColor} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              style={[styles.clearFiltersButton, { backgroundColor: accentColor }]}
+              onPress={clearFilters}
+            >
+              <ThemedText style={[styles.clearFiltersText, { color: '#fff' }]}>
+                {texts.clearAll || 'Clear All'}
+              </ThemedText>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Search Results */}
+      <ScrollView style={styles.searchResults} showsVerticalScrollIndicator={false}>
+        {filteredCircles.map((circle) => (
+          <TouchableOpacity
+            key={circle.id}
+            style={[styles.circleCard, { backgroundColor: surfaceColor }]}
+            onPress={() => handleCirclePress(circle.id)}
+          >
+            <View style={[styles.circleHeader, isRTL && styles.circleHeaderRTL]}>
+              <View style={styles.circleInfo}>
+                <ThemedText type="defaultSemiBold" style={[styles.circleName, isRTL && styles.rtlText]}>
+                  {circle.name}
+                </ThemedText>
+                <View style={styles.circleStats}>
+                  <ThemedText style={styles.memberCount}>
+                    {circle.memberCount} {texts.members || 'members'}
+                  </ThemedText>
+                  <View style={[styles.privacyBadge, { 
+                    backgroundColor: circle.privacy === 'public' ? '#66BB6A' + '20' : '#FFB74D' + '20' 
+                  }]}>
+                    <ThemedText style={[styles.privacyText, { 
+                      color: circle.privacy === 'public' ? '#66BB6A' : '#FFB74D' 
+                    }]}>
+                      {circle.privacy === 'public' ? texts.public || 'Public' : texts.inviteOnly || 'Invite Only'}
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+              {circle.isJoined && (
+                <View style={[styles.joinedBadge, { backgroundColor: tintColor }]}>
+                  <IconSymbol name="checkmark" size={16} color="#fff" />
+                </View>
+              )}
+            </View>
+            
+            <ThemedText style={[styles.circleDescription, isRTL && styles.rtlText]}>
+              {circle.description}
             </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+            
+            <View style={styles.circleTags}>
+              {circle.tags.map((tag, index) => (
+                <View key={index} style={[styles.tag, { backgroundColor: tintColor + '15' }]}>
+                  <ThemedText style={[styles.tagText, { color: tintColor }]}>
+                    {tag}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+            
+            <View style={[styles.circlePreferences, isRTL && styles.circlePreferencesRTL]}>
+              <ThemedText style={styles.preferenceText}>
+                {texts.age || 'Age'}: {circle.agePreference.min}-{circle.agePreference.max}
+              </ThemedText>
+              <ThemedText style={styles.preferenceText}>
+                {texts.gender || 'Gender'}: {circle.genderPreference}
+              </ThemedText>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {filteredCircles.length === 0 && (
+          <View style={styles.emptyState}>
+            <IconSymbol name="magnifyingglass" size={48} color={textColor + '40'} />
+            <ThemedText style={[styles.emptyStateText, isRTL && styles.rtlText]}>
+              {texts.noCirclesFound || 'No circles found'}
+            </ThemedText>
+            <ThemedText style={[styles.emptyStateSubtext, isRTL && styles.rtlText]}>
+              {texts.tryDifferentSearch || 'Try adjusting your search or filters'}
+            </ThemedText>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+            <ThemedText type="subtitle" style={styles.modalTitle}>
+              {texts.filters || 'Filters'}
+            </ThemedText>
+
+            {/* Interest Tag Filter */}
+            <View style={styles.filterSection}>
+              <ThemedText style={styles.filterLabel}>
+                {texts.interestTag || 'Interest Tag'}
+              </ThemedText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.filterOptions}>
+                  {interestTags.map((tag) => (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[
+                        styles.filterOption,
+                        {
+                          backgroundColor: filters.interestTag === tag ? tintColor : backgroundColor,
+                          borderColor: tintColor,
+                        }
+                      ]}
+                      onPress={() => setFilters({...filters, interestTag: filters.interestTag === tag ? '' : tag})}
+                    >
+                      <ThemedText style={[
+                        styles.filterOptionText,
+                        { color: filters.interestTag === tag ? '#fff' : textColor }
+                      ]}>
+                        {tag}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Age Range Filter */}
+            <View style={styles.filterSection}>
+              <ThemedText style={styles.filterLabel}>
+                {texts.ageRange || 'Age Range'}
+              </ThemedText>
+              <View style={styles.filterOptions}>
+                {ageRanges.map((range) => (
+                  <TouchableOpacity
+                    key={range}
+                    style={[
+                      styles.filterOption,
+                      {
+                        backgroundColor: filters.ageRange === range ? tintColor : backgroundColor,
+                        borderColor: tintColor,
+                      }
+                    ]}
+                    onPress={() => setFilters({...filters, ageRange: filters.ageRange === range ? '' : range})}
+                  >
+                    <ThemedText style={[
+                      styles.filterOptionText,
+                      { color: filters.ageRange === range ? '#fff' : textColor }
+                    ]}>
+                      {range}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Gender Filter */}
+            <View style={styles.filterSection}>
+              <ThemedText style={styles.filterLabel}>
+                {texts.gender || 'Gender'}
+              </ThemedText>
+              <View style={styles.filterOptions}>
+                {genderOptions.map((gender) => (
+                  <TouchableOpacity
+                    key={gender}
+                    style={[
+                      styles.filterOption,
+                      {
+                        backgroundColor: filters.gender === gender ? tintColor : backgroundColor,
+                        borderColor: tintColor,
+                      }
+                    ]}
+                    onPress={() => setFilters({...filters, gender: filters.gender === gender ? '' : gender})}
+                  >
+                    <ThemedText style={[
+                      styles.filterOptionText,
+                      { color: filters.gender === gender ? '#fff' : textColor }
+                    ]}>
+                      {gender}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
+                onPress={() => setShowFilters(false)}
+              >
+                <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={applyFilters}
+              >
+                <ThemedText style={{ color: '#fff' }}>
+                  {texts.applyFilters || 'Apply Filters'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
   },
-  titleContainer: {
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    elevation: 2,
+  },
+  headerTitle: {
+    fontSize: 24,
+  },
+  searchSection: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
     gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeFilters: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    gap: 4,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  searchResults: {
+    flex: 1,
+    padding: 16,
+  },
+  circleCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 1,
+  },
+  circleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  circleHeaderRTL: {
+    flexDirection: 'row-reverse',
+  },
+  circleInfo: {
+    flex: 1,
+  },
+  circleName: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  circleStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  memberCount: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  privacyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  privacyText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  joinedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleDescription: {
+    marginBottom: 12,
+    lineHeight: 18,
+    opacity: 0.8,
+  },
+  circleTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  circlePreferences: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  circlePreferencesRTL: {
+    flexDirection: 'row-reverse',
+  },
+  preferenceText: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    opacity: 0.6,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    padding: 20,
+    borderRadius: 12,
+  },
+  modalTitle: {
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  filterOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
