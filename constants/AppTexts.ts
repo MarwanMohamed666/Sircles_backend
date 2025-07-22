@@ -77,13 +77,6 @@ export const AppTexts = {
     public: 'Public',
     private: 'Private',
 
-    // Admin
-    adminDashboard: 'Admin Dashboard',
-    userOverview: 'User Overview',
-    circleMetrics: 'Circle Metrics',
-    contentModeration: 'Content Moderation',
-    reportsReview: 'Reports Review',
-
     // Circles
     searchCircles: 'Search Circles',
     joinCircle: 'Join Circle',
@@ -99,6 +92,14 @@ export const AppTexts = {
     noCirclesFound: 'No circles found',
     tryDifferentSearch: 'Try adjusting your search or filters',
     chatComingSoon: 'Group chat coming soon...',
+
+    // Admin
+    adminDashboard: 'Admin Dashboard',
+    userOverview: 'User Overview',
+    circleMetrics: 'Circle Metrics',
+    contentModeration: 'Content Moderation',
+    reportsReview: 'Reports Review',
+    searchManage: 'Search & Manage',
   },
 
   ar: {
@@ -179,12 +180,19 @@ export const AppTexts = {
     public: 'عام',
     private: 'خاص',
 
+    // Circles
+    searchCircles: 'ابحث عن الدوائر',
+    joinCircle: 'انضم للدائرة',
+    circlePosts: 'منشورات الدائرة',
+    chatComingSoon: 'الدردشة الجماعية قريباً...',
+
     // Admin
-    adminDashboard: 'لوحة الإدارة',
+    adminDashboard: 'لوحة تحكم الإدارة',
     userOverview: 'نظرة عامة على المستخدمين',
     circleMetrics: 'مقاييس الدوائر',
     contentModeration: 'إدارة المحتوى',
     reportsReview: 'مراجعة التقارير',
+    searchManage: 'البحث والإدارة',
   },
 };
 
