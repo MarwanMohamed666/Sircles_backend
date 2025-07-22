@@ -1,12 +1,9 @@
 
-import { useEffect } from 'react';
-import { router } from 'expo-router';
+import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
 
 export default function RootIndex() {
-  useEffect(() => {
-    // Redirect to login page immediately
-    router.replace('/login');
-  }, []);
-
-  return null;
+  // Redirect to login page
+  return <Redirect href="/login" />;
 }
