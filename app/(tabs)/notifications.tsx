@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -8,122 +8,224 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/database';
 
 interface Notification {
   id: string;
-  type: 'event' | 'message' | 'post' | 'rsvp' | 'circle';
-  title: string;
+  type: string;
   content: string;
-  timestamp: string;
   read: boolean;
+  timestamp: string;
   linkedItemId?: string;
+  linkedItemType?: string;
 }
 
 export default function NotificationsScreen() {
+  const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
 
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'event',
-      title: 'New Event: Community BBQ',
-      content: 'A new event has been created in your community. Join us for a fun BBQ evening!',
-      timestamp: '2 minutes ago',
-      read: false,
-    },
-    {
-      id: '2',
-      type: 'message',
-      title: 'New message in Tech Enthusiasts',
-      content: 'Ahmed Ali: Great discussion about AI trends today! 🚀',
-      timestamp: '15 minutes ago',
-      read: false,
-    },
-    {
-      id: '3',
-      type: 'rsvp',
-      title: 'RSVP Reminder',
-      content: 'Don\'t forget to RSVP for the Book Club Meeting tomorrow at 7:30 PM.',
-      timestamp: '1 hour ago',
-      read: true,
-    },
-    {
-      id: '4',
-      type: 'circle',
-      title: 'Circle Invitation',
-      content: 'You\'ve been invited to join the Photography Club circle.',
-      timestamp: '2 hours ago',
-      read: false,
-    },
-    {
-      id: '5',
-      type: 'post',
-      title: 'New post in Fitness Group',
-      content: 'Sara Mohamed shared tips for staying motivated during winter workouts.',
-      timestamp: '3 hours ago',
-      read: true,
-    },
-    {
-      id: '6',
-      type: 'event',
-      title: 'Event Update',
-      content: 'Photography Workshop has been moved to the Community Center.',
-      timestamp: '1 day ago',
-      read: true,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+
+  const loadNotifications = async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      const { data, error } = await getUserNotifications(user.id);
+      
+      if (error) {
+        console.error('Error loading notifications:', error);
+        Alert.alert('Error', 'Failed to load notifications');
+        return;
+      }
+
+      const formattedNotifications: Notification[] = data?.map(notif => ({
+        id: notif.id,
+        type: notif.type || 'general',
+        content: notif.content || '',
+        read: notif.read || false,
+        timestamp: notif.timestamp,
+        linkedItemId: notif.linkedItemId || undefined,
+        linkedItemType: notif.linkedItemType || undefined,
+      })) || [];
+
+      setNotifications(formattedNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadNotifications();
+    setRefreshing(false);
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      const { error } = await markNotificationAsRead(notificationId);
+      
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === notificationId ? { ...notif, read: true } : notif
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await markAllNotificationsAsRead(user.id);
+      
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        Alert.alert('Error', 'Failed to mark all notifications as read');
+        return;
+      }
+
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, [user]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'event':
+      case 'circle_join':
+        return 'person.badge.plus';
+      case 'circle_invite':
+        return 'person.3.fill';
+      case 'event_reminder':
         return 'calendar';
-      case 'message':
-        return 'message';
-      case 'post':
-        return 'doc.text';
-      case 'rsvp':
-        return 'clock';
-      case 'circle':
-        return 'person.3';
+      case 'new_message':
+        return 'message.fill';
+      case 'event_created':
+        return 'calendar.badge.plus';
+      case 'post_like':
+        return 'heart.fill';
+      case 'comment':
+        return 'bubble.left.fill';
       default:
-        return 'bell';
+        return 'bell.fill';
     }
   };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'event':
+      case 'circle_join':
+      case 'circle_invite':
+        return '#4CAF50';
+      case 'event_reminder':
+      case 'event_created':
         return '#FF9800';
-      case 'message':
-        return tintColor;
-      case 'post':
+      case 'new_message':
+        return '#2196F3';
+      case 'post_like':
+        return '#E91E63';
+      case 'comment':
         return '#9C27B0';
-      case 'rsvp':
-        return '#FFB74D';
-      case 'circle':
-        return '#66BB6A';
       default:
         return tintColor;
     }
   };
 
-  const markAsRead = (notificationId: string) => {
-    setNotifications(notifications.map(notification =>
-      notification.id === notificationId
-        ? { ...notification, read: true }
-        : notification
-    ));
+  const formatNotificationTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
+    const diffInHours = diffInMinutes / 60;
+    const diffInDays = diffInHours / 24;
+
+    if (diffInMinutes < 1) {
+      return texts.justNow || 'Just now';
+    } else if (diffInMinutes < 60) {
+      return `${Math.floor(diffInMinutes)}m`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h`;
+    } else if (diffInDays < 7) {
+      return `${Math.floor(diffInDays)}d`;
+    } else {
+      return date.toLocaleDateString();
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => ({ ...notification, read: true })));
-  };
+  const filteredNotifications = notifications.filter(notification => 
+    filter === 'all' || !notification.read
+  );
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const renderNotification = (notification: Notification) => (
+    <TouchableOpacity
+      key={notification.id}
+      style={[
+        styles.notificationItem,
+        { backgroundColor: notification.read ? 'transparent' : tintColor + '10' }
+      ]}
+      onPress={() => {
+        if (!notification.read) {
+          handleMarkAsRead(notification.id);
+        }
+      }}
+    >
+      <View style={[styles.notificationContent, isRTL && styles.notificationContentRTL]}>
+        <View style={[
+          styles.iconContainer,
+          { backgroundColor: getNotificationColor(notification.type) + '20' }
+        ]}>
+          <IconSymbol 
+            name={getNotificationIcon(notification.type)} 
+            size={20} 
+            color={getNotificationColor(notification.type)} 
+          />
+        </View>
+
+        <View style={styles.textContainer}>
+          <ThemedText style={[
+            styles.notificationText,
+            { fontWeight: notification.read ? 'normal' : '600' },
+            isRTL && styles.rtlText
+          ]}>
+            {notification.content}
+          </ThemedText>
+          
+          <View style={[styles.notificationFooter, isRTL && styles.notificationFooterRTL]}>
+            <ThemedText style={styles.notificationTime}>
+              {formatNotificationTime(notification.timestamp)}
+            </ThemedText>
+            {!notification.read && (
+              <View style={[styles.unreadDot, { backgroundColor: tintColor }]} />
+            )}
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -134,90 +236,78 @@ export default function NotificationsScreen() {
         </ThemedText>
         {unreadCount > 0 && (
           <TouchableOpacity
-            style={[styles.markAllReadButton, { backgroundColor: tintColor }]}
-            onPress={markAllAsRead}
+            style={[styles.markAllButton, { backgroundColor: tintColor }]}
+            onPress={handleMarkAllAsRead}
           >
-            <ThemedText style={styles.markAllReadText}>
+            <ThemedText style={styles.markAllButtonText}>
               {texts.markAllRead || 'Mark All Read'}
             </ThemedText>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Unread Count */}
-      {unreadCount > 0 && (
-        <View style={[styles.unreadSection, { backgroundColor: surfaceColor }]}>
-          <ThemedText style={[styles.unreadText, isRTL && styles.rtlText]}>
-            {unreadCount} {texts.unreadNotifications || 'unread notifications'}
+      {/* Filter Tabs */}
+      <View style={[styles.filterContainer, { backgroundColor: surfaceColor }]}>
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            filter === 'all' && { backgroundColor: tintColor }
+          ]}
+          onPress={() => setFilter('all')}
+        >
+          <ThemedText style={[
+            styles.filterTabText,
+            filter === 'all' && { color: '#fff' }
+          ]}>
+            {texts.all || 'All'} ({notifications.length})
           </ThemedText>
-        </View>
-      )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            filter === 'unread' && { backgroundColor: tintColor }
+          ]}
+          onPress={() => setFilter('unread')}
+        >
+          <ThemedText style={[
+            styles.filterTabText,
+            filter === 'unread' && { color: '#fff' }
+          ]}>
+            {texts.unread || 'Unread'} ({unreadCount})
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
 
       {/* Notifications List */}
-      <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
-        {notifications.length === 0 ? (
-          <View style={styles.emptyState}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
+          </View>
+        ) : filteredNotifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
             <IconSymbol name="bell" size={64} color={textColor + '40'} />
-            <ThemedText style={[styles.emptyStateText, isRTL && styles.rtlText]}>
-              {texts.noNotifications || 'No notifications yet'}
+            <ThemedText style={styles.emptyText}>
+              {filter === 'unread' 
+                ? texts.noUnreadNotifications || 'No unread notifications'
+                : texts.noNotifications || 'No notifications yet'
+              }
             </ThemedText>
-            <ThemedText style={[styles.emptyStateSubtext, isRTL && styles.rtlText]}>
-              {texts.notificationsWillAppear || 'Your notifications will appear here'}
+            <ThemedText style={styles.emptySubText}>
+              {texts.notificationsWillAppear || 'Notifications will appear here when you have updates'}
             </ThemedText>
           </View>
         ) : (
-          notifications.map((notification) => (
-            <TouchableOpacity
-              key={notification.id}
-              style={[
-                styles.notificationItem,
-                {
-                  backgroundColor: notification.read ? backgroundColor : surfaceColor,
-                  borderLeftColor: getNotificationColor(notification.type),
-                }
-              ]}
-              onPress={() => markAsRead(notification.id)}
-            >
-              <View style={[styles.notificationContent, isRTL && styles.notificationContentRTL]}>
-                <View style={[
-                  styles.notificationIcon,
-                  { backgroundColor: getNotificationColor(notification.type) + '20' }
-                ]}>
-                  <IconSymbol
-                    name={getNotificationIcon(notification.type)}
-                    size={20}
-                    color={getNotificationColor(notification.type)}
-                  />
-                </View>
-
-                <View style={styles.notificationText}>
-                  <View style={[styles.notificationHeader, isRTL && styles.notificationHeaderRTL]}>
-                    <ThemedText
-                      type="defaultSemiBold"
-                      style={[styles.notificationTitle, isRTL && styles.rtlText]}
-                      numberOfLines={1}
-                    >
-                      {notification.title}
-                    </ThemedText>
-                    {!notification.read && (
-                      <View style={[styles.unreadDot, { backgroundColor: tintColor }]} />
-                    )}
-                  </View>
-
-                  <ThemedText
-                    style={[styles.notificationBody, isRTL && styles.rtlText]}
-                    numberOfLines={2}
-                  >
-                    {notification.content}
-                  </ThemedText>
-
-                  <ThemedText style={[styles.notificationTime, isRTL && styles.rtlText]}>
-                    {notification.timestamp}
-                  </ThemedText>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
+          <View style={styles.notificationsList}>
+            {filteredNotifications.map(renderNotification)}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -239,61 +329,59 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
   },
-  markAllReadButton: {
+  markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
-  markAllReadText: {
+  markAllButtonText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
-  unreadSection: {
+  filterContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 8,
+    gap: 8,
   },
-  unreadText: {
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  filterTabText: {
     fontSize: 14,
-    opacity: 0.8,
+    fontWeight: '600',
   },
-  notificationsList: {
+  content: {
     flex: 1,
   },
-  emptyState: {
+  loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 32,
+    paddingVertical: 40,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    opacity: 0.7,
-    textAlign: 'center',
+  notificationsList: {
+    paddingVertical: 8,
   },
   notificationItem: {
-    borderLeftWidth: 4,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 8,
-    elevation: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   notificationContent: {
     flexDirection: 'row',
-    padding: 16,
     alignItems: 'flex-start',
   },
   notificationContentRTL: {
     flexDirection: 'row-reverse',
   },
-  notificationIcon: {
+  iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -301,37 +389,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  notificationText: {
+  textContainer: {
     flex: 1,
   },
-  notificationHeader: {
+  notificationText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  notificationFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
-  notificationHeaderRTL: {
+  notificationFooterRTL: {
     flexDirection: 'row-reverse',
   },
-  notificationTitle: {
-    flex: 1,
-    fontSize: 16,
+  notificationTime: {
+    fontSize: 12,
+    opacity: 0.6,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginLeft: 8,
   },
-  notificationBody: {
-    fontSize: 14,
-    opacity: 0.8,
-    lineHeight: 20,
-    marginBottom: 8,
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+    gap: 16,
   },
-  notificationTime: {
-    fontSize: 12,
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
     opacity: 0.6,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    fontSize: 14,
+    opacity: 0.5,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   rtlText: {
     textAlign: 'right',

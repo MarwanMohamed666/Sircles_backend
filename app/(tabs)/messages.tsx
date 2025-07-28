@@ -1,293 +1,366 @@
 
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCircleMessages, getCirclesByUser, sendMessage } from '@/lib/database';
 
 interface Message {
   id: string;
-  userId: string;
-  userName: string;
   content: string;
+  senderId: string;
+  senderName?: string;
   timestamp: string;
-  isCurrentUser: boolean;
+  type: string;
+  attachment?: string;
 }
 
-interface CircleChat {
+interface CircleConversation {
   id: string;
   name: string;
-  lastMessage: string;
-  lastMessageTime: string;
+  lastMessage?: string;
+  lastMessageTime?: string;
   unreadCount: number;
-  messages: Message[];
 }
 
 export default function MessagesScreen() {
+  const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
 
-  const [selectedChat, setSelectedChat] = useState<CircleChat | null>(null);
+  const [conversations, setConversations] = useState<CircleConversation[]>([]);
+  const [selectedCircle, setSelectedCircle] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [circles, setCircles] = useState<CircleChat[]>([
-    {
-      id: '1',
-      name: 'Tech Enthusiasts',
-      lastMessage: 'Great discussion about AI trends today!',
-      lastMessageTime: '10:30 AM',
-      unreadCount: 3,
-      messages: [
-        {
-          id: '1',
-          userId: '1',
-          userName: 'Ahmed Ali',
-          content: 'Hello everyone! How are you doing?',
-          timestamp: '09:15 AM',
-          isCurrentUser: false,
-        },
-        {
-          id: '2',
-          userId: '2',
-          userName: 'You',
-          content: 'Hi Ahmed! I\'m doing great, thanks for asking.',
-          timestamp: '09:18 AM',
-          isCurrentUser: true,
-        },
-        {
-          id: '3',
-          userId: '3',
-          userName: 'Sara Mohamed',
-          content: 'Great discussion about AI trends today!',
-          timestamp: '10:30 AM',
-          isCurrentUser: false,
-        },
-      ],
-    },
-    {
-      id: '2',
-      name: 'Book Club',
-      lastMessage: 'Next book selection voting starts tomorrow',
-      lastMessageTime: 'Yesterday',
-      unreadCount: 0,
-      messages: [
-        {
-          id: '1',
-          userId: '1',
-          userName: 'Fatima Hassan',
-          content: 'What did everyone think about the last chapter?',
-          timestamp: 'Yesterday 8:20 PM',
-          isCurrentUser: false,
-        },
-        {
-          id: '2',
-          userId: '2',
-          userName: 'Omar Ahmed',
-          content: 'Next book selection voting starts tomorrow',
-          timestamp: 'Yesterday 9:45 PM',
-          isCurrentUser: false,
-        },
-      ],
-    },
-    {
-      id: '3',
-      name: 'Photography Club',
-      lastMessage: 'Beautiful sunset shots from yesterday\'s walk!',
-      lastMessageTime: '2 days ago',
-      unreadCount: 1,
-      messages: [
-        {
-          id: '1',
-          userId: '1',
-          userName: 'Layla Mahmoud',
-          content: 'Beautiful sunset shots from yesterday\'s walk!',
-          timestamp: '2 days ago',
-          isCurrentUser: false,
-        },
-      ],
-    },
-  ]);
+  const loadConversations = async () => {
+    if (!user?.id) return;
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() && selectedChat) {
-      const message: Message = {
-        id: Date.now().toString(),
-        userId: 'current',
-        userName: 'You',
-        content: newMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isCurrentUser: true,
-      };
+    try {
+      setLoading(true);
+      const { data: userCircles, error } = await getCirclesByUser(user.id);
+      
+      if (error) {
+        console.error('Error loading conversations:', error);
+        return;
+      }
 
-      setCircles(circles.map(circle =>
-        circle.id === selectedChat.id
-          ? {
-              ...circle,
-              messages: [...circle.messages, message],
-              lastMessage: newMessage,
-              lastMessageTime: 'Just now',
-            }
-          : circle
-      ));
+      // Transform circles to conversations
+      const circleConversations: CircleConversation[] = userCircles?.map(uc => ({
+        id: uc.circleId,
+        name: uc.circles?.name || 'Circle',
+        lastMessage: 'No messages yet',
+        lastMessageTime: '',
+        unreadCount: 0
+      })) || [];
 
-      setSelectedChat({
-        ...selectedChat,
-        messages: [...selectedChat.messages, message],
-        lastMessage: newMessage,
-        lastMessageTime: 'Just now',
-      });
-
-      setNewMessage('');
+      setConversations(circleConversations);
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const openChat = (circle: CircleChat) => {
-    setSelectedChat(circle);
-    // Mark as read
-    setCircles(circles.map(c =>
-      c.id === circle.id ? { ...c, unreadCount: 0 } : c
-    ));
+  const loadMessages = async (circleId: string) => {
+    try {
+      const { data, error } = await getCircleMessages(circleId);
+      
+      if (error) {
+        console.error('Error loading messages:', error);
+        return;
+      }
+
+      const formattedMessages: Message[] = data?.map(msg => ({
+        id: msg.id,
+        content: msg.content || '',
+        senderId: msg.senderId,
+        senderName: msg.users?.name || 'Unknown User',
+        timestamp: msg.timestamp,
+        type: msg.type || 'text',
+        attachment: msg.attachment || undefined
+      })) || [];
+
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
   };
 
-  const closeChat = () => {
-    setSelectedChat(null);
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedCircle || !user?.id) return;
+
+    try {
+      const { error } = await sendMessage({
+        circleId: selectedCircle,
+        senderId: user.id,
+        content: newMessage.trim(),
+        type: 'text'
+      });
+
+      if (error) {
+        console.error('Error sending message:', error);
+        return;
+      }
+
+      setNewMessage('');
+      await loadMessages(selectedCircle);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
-  if (selectedChat) {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadConversations();
+    if (selectedCircle) {
+      await loadMessages(selectedCircle);
+    }
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadConversations();
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedCircle) {
+      loadMessages(selectedCircle);
+    }
+  }, [selectedCircle]);
+
+  const formatMessageTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 24 * 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
+
+  const renderConversationItem = (conversation: CircleConversation) => (
+    <TouchableOpacity
+      key={conversation.id}
+      style={[
+        styles.conversationItem,
+        { backgroundColor: selectedCircle === conversation.id ? tintColor + '20' : 'transparent' }
+      ]}
+      onPress={() => setSelectedCircle(conversation.id)}
+    >
+      <View style={[styles.avatarContainer, { backgroundColor: tintColor }]}>
+        <IconSymbol name="person.3.fill" size={24} color="#fff" />
+      </View>
+      
+      <View style={styles.conversationInfo}>
+        <View style={[styles.conversationHeader, isRTL && styles.conversationHeaderRTL]}>
+          <ThemedText type="defaultSemiBold" style={[styles.conversationName, isRTL && styles.rtlText]}>
+            {conversation.name}
+          </ThemedText>
+          {conversation.lastMessageTime && (
+            <ThemedText style={styles.conversationTime}>
+              {conversation.lastMessageTime}
+            </ThemedText>
+          )}
+        </View>
+        
+        <View style={[styles.conversationFooter, isRTL && styles.conversationFooterRTL]}>
+          <ThemedText style={[styles.lastMessage, isRTL && styles.rtlText]} numberOfLines={1}>
+            {conversation.lastMessage}
+          </ThemedText>
+          {conversation.unreadCount > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: tintColor }]}>
+              <ThemedText style={styles.unreadCount}>
+                {conversation.unreadCount}
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderMessage = (message: Message) => {
+    const isMyMessage = message.senderId === user?.id;
+    
+    return (
+      <View
+        key={message.id}
+        style={[
+          styles.messageContainer,
+          isMyMessage ? styles.myMessageContainer : styles.otherMessageContainer,
+          isRTL && (isMyMessage ? styles.myMessageContainerRTL : styles.otherMessageContainerRTL)
+        ]}
+      >
+        <View
+          style={[
+            styles.messageBubble,
+            {
+              backgroundColor: isMyMessage ? tintColor : surfaceColor,
+              marginLeft: isMyMessage ? 40 : 0,
+              marginRight: isMyMessage ? 0 : 40,
+            }
+          ]}
+        >
+          {!isMyMessage && (
+            <ThemedText style={[styles.senderName, { color: tintColor }]}>
+              {message.senderName}
+            </ThemedText>
+          )}
+          <ThemedText style={[
+            styles.messageText,
+            { color: isMyMessage ? '#fff' : textColor },
+            isRTL && styles.rtlText
+          ]}>
+            {message.content}
+          </ThemedText>
+          <ThemedText style={[
+            styles.messageTime,
+            { color: isMyMessage ? '#fff' : textColor },
+            isRTL && styles.rtlText
+          ]}>
+            {formatMessageTime(message.timestamp)}
+          </ThemedText>
+        </View>
+      </View>
+    );
+  };
+
+  if (!selectedCircle) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
-        {/* Chat Header */}
-        <View style={[styles.chatHeader, { backgroundColor: surfaceColor }]}>
-          <TouchableOpacity style={styles.backButton} onPress={closeChat}>
-            <IconSymbol 
-              name={isRTL ? "chevron.right" : "chevron.left"} 
-              size={24} 
-              color={textColor} 
-            />
-          </TouchableOpacity>
-          <ThemedText type="defaultSemiBold" style={styles.chatTitle}>
-            {selectedChat.name}
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: surfaceColor }]}>
+          <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
+            {texts.messages || 'Messages'}
           </ThemedText>
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.chatContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        {/* Conversations List */}
+        <ScrollView
+          style={styles.conversationsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
         >
-          {/* Messages */}
-          <ScrollView style={styles.messagesContainer} showsVerticalScrollIndicator={false}>
-            {selectedChat.messages.map((message) => (
-              <View
-                key={message.id}
-                style={[
-                  styles.messageContainer,
-                  message.isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage,
-                  isRTL && styles.messageContainerRTL,
-                ]}
-              >
-                {!message.isCurrentUser && (
-                  <ThemedText style={styles.messageSender}>{message.userName}</ThemedText>
-                )}
-                <View
-                  style={[
-                    styles.messageBubble,
-                    {
-                      backgroundColor: message.isCurrentUser ? tintColor : surfaceColor,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.messageText,
-                      { color: message.isCurrentUser ? '#fff' : textColor },
-                      isRTL && styles.messageTextRTL,
-                    ]}
-                  >
-                    {message.content}
-                  </ThemedText>
-                </View>
-                <ThemedText style={styles.messageTime}>{message.timestamp}</ThemedText>
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Message Input */}
-          <View style={[styles.inputContainer, { backgroundColor: surfaceColor }]}>
-            <TextInput
-              style={[
-                styles.messageInput,
-                { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-              ]}
-              placeholder={texts.typeMessage || 'Type a message...'}
-              placeholderTextColor={textColor + '80'}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, { backgroundColor: tintColor }]}
-              onPress={handleSendMessage}
-            >
-              <IconSymbol 
-                name={isRTL ? "arrow.left" : "arrow.right"} 
-                size={20} 
-                color="#fff" 
-              />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
+            </View>
+          ) : conversations.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <IconSymbol name="message" size={64} color={textColor + '40'} />
+              <ThemedText style={styles.emptyText}>
+                {texts.noConversations || 'No conversations yet'}
+              </ThemedText>
+              <ThemedText style={styles.emptySubText}>
+                {texts.joinCircleToChat || 'Join a circle to start chatting'}
+              </ThemedText>
+            </View>
+          ) : (
+            conversations.map(renderConversationItem)
+          )}
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
+  const selectedConversation = conversations.find(c => c.id === selectedCircle);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-        <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {texts.messages || 'Messages'}
-        </ThemedText>
+      {/* Chat Header */}
+      <View style={[styles.chatHeader, { backgroundColor: surfaceColor }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => setSelectedCircle(null)}
+        >
+          <IconSymbol name={isRTL ? "chevron.right" : "chevron.left"} size={24} color={textColor} />
+        </TouchableOpacity>
+        
+        <View style={styles.chatHeaderInfo}>
+          <ThemedText type="defaultSemiBold" style={[styles.chatTitle, isRTL && styles.rtlText]}>
+            {selectedConversation?.name || 'Circle Chat'}
+          </ThemedText>
+        </View>
       </View>
 
-      {/* Circle Chats List */}
-      <ScrollView style={styles.chatsList} showsVerticalScrollIndicator={false}>
-        {circles.map((circle) => (
-          <TouchableOpacity
-            key={circle.id}
-            style={[styles.chatItem, { backgroundColor: surfaceColor }]}
-            onPress={() => openChat(circle)}
-          >
-            <View style={[styles.chatItemContent, isRTL && styles.chatItemContentRTL]}>
-              <View style={styles.chatInfo}>
-                <ThemedText type="defaultSemiBold" style={[styles.chatName, isRTL && styles.rtlText]}>
-                  {circle.name}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.lastMessage, isRTL && styles.rtlText]}
-                  numberOfLines={1}
-                >
-                  {circle.lastMessage}
-                </ThemedText>
-              </View>
-              <View style={[styles.chatMeta, isRTL && styles.chatMetaRTL]}>
-                <ThemedText style={styles.messageTime}>{circle.lastMessageTime}</ThemedText>
-                {circle.unreadCount > 0 && (
-                  <View style={[styles.unreadBadge, { backgroundColor: tintColor }]}>
-                    <ThemedText style={styles.unreadCount}>{circle.unreadCount}</ThemedText>
-                  </View>
-                )}
-              </View>
+      {/* Messages */}
+      <KeyboardAvoidingView 
+        style={styles.chatContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.messagesContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
+          {messages.length === 0 ? (
+            <View style={styles.emptyMessagesContainer}>
+              <IconSymbol name="message" size={64} color={textColor + '40'} />
+              <ThemedText style={styles.emptyText}>
+                {texts.noMessages || 'No messages yet'}
+              </ThemedText>
+              <ThemedText style={styles.emptySubText}>
+                {texts.startConversation || 'Start the conversation!'}
+              </ThemedText>
             </View>
+          ) : (
+            messages.map(renderMessage)
+          )}
+        </ScrollView>
+
+        {/* Message Input */}
+        <View style={[styles.messageInputContainer, { backgroundColor: surfaceColor }]}>
+          <TextInput
+            style={[
+              styles.messageInput,
+              { 
+                backgroundColor,
+                color: textColor,
+                textAlign: isRTL ? 'right' : 'left'
+              }
+            ]}
+            placeholder={texts.typeMessage || 'Type a message...'}
+            placeholderTextColor={textColor + '60'}
+            value={newMessage}
+            onChangeText={setNewMessage}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              { 
+                backgroundColor: newMessage.trim() ? tintColor : textColor + '40'
+              }
+            ]}
+            onPress={handleSendMessage}
+            disabled={!newMessage.trim()}
+          >
+            <IconSymbol name={isRTL ? "paperplane.fill" : "paperplane.fill"} size={20} color="#fff" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -304,44 +377,60 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
   },
-  chatsList: {
+  conversationsList: {
     flex: 1,
-    padding: 16,
   },
-  chatItem: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
-  chatItemContent: {
+  conversationItem: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  conversationInfo: {
+    flex: 1,
+  },
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  conversationHeaderRTL: {
+    flexDirection: 'row-reverse',
+  },
+  conversationName: {
+    fontSize: 16,
+  },
+  conversationTime: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  conversationFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  chatItemContentRTL: {
+  conversationFooterRTL: {
     flexDirection: 'row-reverse',
-  },
-  chatInfo: {
-    flex: 1,
-  },
-  chatName: {
-    fontSize: 16,
-    marginBottom: 4,
   },
   lastMessage: {
     fontSize: 14,
     opacity: 0.7,
-  },
-  chatMeta: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  chatMetaRTL: {
-    alignItems: 'flex-start',
-  },
-  messageTime: {
-    fontSize: 12,
-    opacity: 0.6,
+    flex: 1,
   },
   unreadBadge: {
     minWidth: 20,
@@ -350,22 +439,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+    marginLeft: 8,
   },
   unreadCount: {
     fontSize: 12,
-    color: '#fff',
     fontWeight: 'bold',
+    color: '#fff',
   },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     elevation: 2,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 12,
     padding: 4,
+  },
+  chatHeaderInfo: {
+    flex: 1,
   },
   chatTitle: {
     fontSize: 18,
@@ -380,45 +473,53 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginVertical: 4,
   },
-  messageContainerRTL: {
+  myMessageContainer: {
     alignItems: 'flex-end',
   },
-  currentUserMessage: {
-    alignItems: 'flex-end',
-  },
-  otherUserMessage: {
+  myMessageContainerRTL: {
     alignItems: 'flex-start',
   },
-  messageSender: {
-    fontSize: 12,
-    opacity: 0.7,
-    marginBottom: 4,
-    marginHorizontal: 8,
+  otherMessageContainer: {
+    alignItems: 'flex-start',
+  },
+  otherMessageContainerRTL: {
+    alignItems: 'flex-end',
   },
   messageBubble: {
-    padding: 12,
-    borderRadius: 16,
     maxWidth: '80%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 20,
   },
-  messageTextRTL: {
-    textAlign: 'right',
+  messageTime: {
+    fontSize: 11,
+    opacity: 0.7,
+    marginTop: 4,
   },
-  inputContainer: {
+  messageInputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 16,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    elevation: 2,
   },
   messageInput: {
     flex: 1,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginRight: 12,
     maxHeight: 100,
+    fontSize: 16,
   },
   sendButton: {
     width: 40,
@@ -426,6 +527,30 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  emptyMessagesContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    opacity: 0.6,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    fontSize: 14,
+    opacity: 0.5,
+    textAlign: 'center',
   },
   rtlText: {
     textAlign: 'right',

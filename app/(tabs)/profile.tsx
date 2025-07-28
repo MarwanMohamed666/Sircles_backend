@@ -201,43 +201,17 @@ export default function ProfileScreen() {
     }
   };
 
-  const [userProfile, setUserProfile] = useState({
-    name: user?.userProfile?.name || 'User',
-    email: user?.userProfile?.email || user?.user?.email || '',
-    role: user?.userProfile?.role || 'Community Member',
-    joinedDate: user?.userProfile?.creationDate ? new Date(user.userProfile.creationDate).toLocaleDateString() : 'Recently',
-    avatar: user?.userProfile?.avatar || '',
-    phone: user?.userProfile?.phone || '',
-    address: {
-      apartment: user?.userProfile?.address_apartment || '',
-      building: user?.userProfile?.address_building || '',
-      block: user?.userProfile?.address_block || '',
-    },
-    interests: ['Technology', 'Reading', 'Photography'], // You can fetch from user_interests table
-    circlesJoined: 0, // You can fetch from user_circles table
-    eventsAttended: 0, // You can implement based on event attendance
-  });
-
   useEffect(() => {
-    if (user?.userProfile) {
-      setUserProfile({
-        name: user.userProfile.name || 'User',
-        email: user.userProfile.email || user.user?.email || '',
-        role: user.userProfile.role || 'Community Member',
-        joinedDate: user.userProfile.creationDate ? new Date(user.userProfile.creationDate).toLocaleDateString() : 'Recently',
-        avatar: user.userProfile.avatar || '',
-        phone: user.userProfile.phone || '',
-        address: {
-          apartment: user.userProfile.address_apartment || '',
-          building: user.userProfile.address_building || '',
-          block: user.userProfile.address_block || '',
-        },
-        interests: ['Technology', 'Reading', 'Photography'],
-        circlesJoined: 0,
-        eventsAttended: 0,
+    if (userProfile) {
+      setEditedProfile({
+        name: userProfile.name || '',
+        phone: userProfile.phone || '',
+        address_apartment: userProfile.address_apartment || '',
+        address_building: userProfile.address_building || '',
+        address_block: userProfile.address_block || '',
       });
     }
-  }, [user]);
+  }, [userProfile]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
