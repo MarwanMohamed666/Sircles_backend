@@ -1,0 +1,137 @@
+-- Base Tables
+
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT,
+  dob TIMESTAMP,
+  gender TEXT,
+  language TEXT,
+  avatar TEXT,
+  phone TEXT,
+  address_apartment TEXT,
+  address_building TEXT,
+  address_block TEXT,
+  role TEXT,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE interests (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  category TEXT,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE circles (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  description TEXT,
+  privacy TEXT,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE events (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  date TIMESTAMP,
+  time TEXT,
+  location TEXT,
+  circleId TEXT REFERENCES circles(id),
+  visibility TEXT,
+  description TEXT,
+  createdBy TEXT REFERENCES users(id),
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE posts (
+  id TEXT PRIMARY KEY,
+  userId TEXT REFERENCES users(id),
+  content TEXT,
+  image TEXT,
+  circleId TEXT REFERENCES circles(id),
+  createdAt TIMESTAMP,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE comments (
+  id TEXT PRIMARY KEY,
+  postId TEXT REFERENCES posts(id),
+  userId TEXT REFERENCES users(id),
+  text TEXT,
+  timestamp TIMESTAMP,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE circle_messages (
+  id TEXT PRIMARY KEY,
+  circleId TEXT REFERENCES circles(id),
+  senderId TEXT REFERENCES users(id),
+  content TEXT,
+  type TEXT,
+  attachment TEXT,
+  timestamp TIMESTAMP,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE notifications (
+  id TEXT PRIMARY KEY,
+  userId TEXT REFERENCES users(id),
+  type TEXT,
+  content TEXT,
+  read BOOLEAN,
+  timestamp TIMESTAMP,
+  linkedItemId TEXT,
+  linkedItemType TEXT,
+  creationDate TIMESTAMPTZ
+);
+
+CREATE TABLE reports (
+  id TEXT PRIMARY KEY,
+  userId TEXT REFERENCES users(id),
+  type TEXT,
+  targetId TEXT,
+  message TEXT,
+  status TEXT,
+  adminResponse TEXT,
+  timestamp TIMESTAMP,
+  creationDate TIMESTAMPTZ
+);
+
+-- Join Tables
+
+CREATE TABLE user_interests (
+  userId TEXT REFERENCES users(id),
+  interestId TEXT REFERENCES interests(id),
+  PRIMARY KEY (userId, interestId)
+);
+
+CREATE TABLE user_circles (
+  userId TEXT REFERENCES users(id),
+  circleId TEXT REFERENCES circles(id),
+  PRIMARY KEY (userId, circleId)
+);
+
+CREATE TABLE circle_interests (
+  circleId TEXT REFERENCES circles(id),
+  interestId TEXT REFERENCES interests(id),
+  PRIMARY KEY (circleId, interestId)
+);
+
+CREATE TABLE circle_admins (
+  circleId TEXT REFERENCES circles(id),
+  userId TEXT REFERENCES users(id),
+  PRIMARY KEY (circleId, userId)
+);
+
+CREATE TABLE event_interests (
+  eventId TEXT REFERENCES events(id),
+  interestId TEXT REFERENCES interests(id),
+  PRIMARY KEY (eventId, interestId)
+);
+
+CREATE TABLE post_likes (
+  postId TEXT REFERENCES posts(id),
+  userId TEXT REFERENCES users(id),
+  PRIMARY KEY (postId, userId)
+);
