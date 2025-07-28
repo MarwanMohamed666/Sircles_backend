@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { DatabaseService } from '@/lib/database';
 
 interface Circle {
   id: string;
@@ -44,52 +45,38 @@ export default function ExploreScreen() {
     gender: '',
   });
 
-  const [circles, setCircles] = useState<Circle[]>([
-    {
-      id: '1',
-      name: 'Tech Enthusiasts',
-      description: 'A community for technology lovers to share ideas and collaborate on projects.',
-      privacy: 'public',
-      agePreference: { min: 18, max: 65 },
-      genderPreference: 'Any',
-      memberCount: 24,
-      tags: ['Technology', 'Programming', 'Innovation'],
-      isJoined: false,
-    },
-    {
-      id: '2',
-      name: 'Book Club',
-      description: 'Monthly book discussions and literary conversations.',
-      privacy: 'invite-only',
-      agePreference: { min: 25, max: 55 },
-      genderPreference: 'Any',
-      memberCount: 18,
-      tags: ['Reading', 'Literature', 'Discussion'],
-      isJoined: true,
-    },
-    {
-      id: '3',
-      name: 'Photography Club',
-      description: 'Capture and share the beauty around us through photography.',
-      privacy: 'public',
-      agePreference: { min: 20, max: 60 },
-      genderPreference: 'Any',
-      memberCount: 31,
-      tags: ['Photography', 'Arts', 'Creative'],
-      isJoined: false,
-    },
-    {
-      id: '4',
-      name: 'Fitness Group',
-      description: 'Stay healthy and motivated together with workout sessions and fitness tips.',
-      privacy: 'public',
-      agePreference: { min: 18, max: 45 },
-      genderPreference: 'Any',
-      memberCount: 42,
-      tags: ['Fitness', 'Health', 'Sports'],
-      isJoined: false,
-    },
-  ]);
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCircles();
+  }, []);
+
+  const fetchCircles = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await DatabaseService.getCircles();
+      if (error) {
+        console.error('Error fetching circles:', error);
+      } else if (data) {
+        // Transform data to match our interface
+        const transformedCircles = data.map((circle: any) => ({
+          ...circle,
+          privacy: circle.privacy || 'public',
+          agePreference: { min: 18, max: 65 }, // Default values since not in DB
+          genderPreference: 'Any', // Default value since not in DB
+          memberCount: Math.floor(Math.random() * 50) + 1, // Mock data for now
+          tags: ['General'], // Mock data for now
+          isJoined: false, // You can implement this based on user_circles table
+        }));
+        setCircles(transformedCircles);
+      }
+    } catch (error) {
+      console.error('Error fetching circles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const interestTags = ['Technology', 'Programming', 'Reading', 'Photography', 'Fitness', 'Arts', 'Sports', 'Health'];
   const ageRanges = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+'];

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -8,36 +8,47 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { DatabaseService } from '@/lib/database';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Event {
   id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  tag: string;
+  title?: string;
+  date?: string;
+  time?: string;
+  location?: string;
+  tag?: string;
+  circleId?: string;
+  visibility?: string;
+  description?: string;
+  createdBy?: string;
   rsvp?: 'yes' | 'maybe' | 'no';
 }
 
 interface Post {
   id: string;
-  userName: string;
-  content: string;
+  userId?: string;
+  content?: string;
   circleId?: string;
+  createdAt?: string;
+  userName?: string;
   circleName?: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
-  timestamp: string;
+  likes?: number;
+  comments?: number;
+  liked?: boolean;
+  timestamp?: string;
 }
 
 export default function HomeScreen() {
   const { texts, isRTL } = useLanguage();
+  const { user } = useAuth();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'accent');
+
+  const [loading, setLoading] = useState(true);
 
   const [showAddPostModal, setShowAddPostModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -56,71 +67,108 @@ export default function HomeScreen() {
     circleId: '',
   });
 
-  // Mock data
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      title: 'Community BBQ',
-      date: '2024-01-15',
-      time: '6:00 PM',
-      location: 'Community Garden',
-      tag: 'Social',
-    },
-    {
-      id: '2',
-      title: 'Book Club Meeting',
-      date: '2024-01-18',
-      time: '7:30 PM',
-      location: 'Library Hall',
-      tag: 'Education',
-    },
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
 
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: '1',
-      userName: 'Ahmed Ali',
-      content: 'Just finished reading an amazing book! Would love to discuss it with fellow book lovers.',
-      circleName: 'Book Club',
-      likes: 12,
-      comments: 5,
-      liked: false,
-      timestamp: '2 hours ago',
-    },
-    {
-      id: '2',
-      userName: 'Sarah Mohamed',
-      content: 'Great turnout at yesterday\'s community meeting! Thank you everyone for participating.',
-      likes: 24,
-      comments: 8,
-      liked: true,
-      timestamp: '1 day ago',
-    },
-  ]);
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch events
+      const { data: eventsData, error: eventsError } = await DatabaseService.getEvents();
+      if (eventsError) {
+        console.error('Error fetching events:', eventsError);
+      } else if (eventsData) {
+        setEvents(eventsData);
+      }
+
+      // Fetch posts
+      const { data: postsData, error: postsError } = await DatabaseService.getPosts();
+      if (postsError) {
+        console.error('Error fetching posts:', postsError);
+      } else if (postsData) {
+        // Transform the data to match our interface
+        const transformedPosts = postsData.map((post: any) => ({
+          ...post,
+          userName: post.author?.name || 'Unknown User',
+          circleName: post.circle?.name,
+          likes: post.likes?.length || 0,
+          comments: post.comments?.count || 0,
+          liked: false, // You can implement this based on user likes
+          timestamp: formatTimestamp(post.createdAt),
+        }));
+        setPosts(transformedPosts);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimestamp = (timestamp?: string) => {
+    if (!timestamp) return 'Just now';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
 
   const circles = ['Tech Enthusiasts', 'Book Club', 'Fitness Group', 'Photography Club'];
   const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
 
-  const handleCreateEvent = () => {
-    if (newEvent.title.trim() && newEvent.date && newEvent.time && newEvent.location.trim()) {
-      const event = {
-        id: Date.now().toString(),
-        ...newEvent,
-        rsvp: undefined,
-      };
+  const handleCreateEvent = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create events');
+      return;
+    }
 
-      setEvents([event, ...events]);
-      setNewEvent({
-        title: '',
-        date: '',
-        time: '',
-        location: '',
-        description: '',
-        tag: 'Social',
-        circleId: '',
-      });
-      setShowCreateEventModal(false);
-      Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
+    if (newEvent.title?.trim() && newEvent.date && newEvent.time && newEvent.location?.trim()) {
+      try {
+        const eventData = {
+          title: newEvent.title,
+          date: new Date(newEvent.date).toISOString(),
+          time: newEvent.time,
+          location: newEvent.location,
+          description: newEvent.description,
+          visibility: 'public',
+          createdBy: user.id,
+          circleId: newEvent.circleId || null,
+        };
+
+        const { data, error } = await DatabaseService.createEvent(eventData);
+        
+        if (error) {
+          Alert.alert('Error', 'Failed to create event');
+          console.error('Error creating event:', error);
+        } else {
+          // Refresh events
+          await fetchData();
+          setNewEvent({
+            title: '',
+            date: '',
+            time: '',
+            location: '',
+            description: '',
+            tag: 'Social',
+            circleId: '',
+          });
+          setShowCreateEventModal(false);
+          Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
+        }
+      } catch (error) {
+        console.error('Error creating event:', error);
+        Alert.alert('Error', 'Failed to create event');
+      }
     } else {
       Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all required fields.');
     }
@@ -144,22 +192,36 @@ export default function HomeScreen() {
     ));
   };
 
-  const handleAddPost = () => {
+  const handleAddPost = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to create posts');
+      return;
+    }
+
     if (newPostContent.trim()) {
-      const newPost: Post = {
-        id: Date.now().toString(),
-        userName: 'You',
-        content: newPostContent,
-        circleName: selectedCircle || undefined,
-        likes: 0,
-        comments: 0,
-        liked: false,
-        timestamp: 'Just now',
-      };
-      setPosts([newPost, ...posts]);
-      setNewPostContent('');
-      setSelectedCircle('');
-      setShowAddPostModal(false);
+      try {
+        const postData = {
+          userId: user.id,
+          content: newPostContent,
+          circleId: selectedCircle || null,
+        };
+
+        const { data, error } = await DatabaseService.createPost(postData);
+        
+        if (error) {
+          Alert.alert('Error', 'Failed to create post');
+          console.error('Error creating post:', error);
+        } else {
+          // Refresh posts
+          await fetchData();
+          setNewPostContent('');
+          setSelectedCircle('');
+          setShowAddPostModal(false);
+        }
+      } catch (error) {
+        console.error('Error creating post:', error);
+        Alert.alert('Error', 'Failed to create post');
+      }
     }
   };
 

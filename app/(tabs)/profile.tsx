@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -200,6 +200,44 @@ export default function ProfileScreen() {
       Alert.alert('Success', 'Profile updated successfully');
     }
   };
+
+  const [userProfile, setUserProfile] = useState({
+    name: user?.userProfile?.name || 'User',
+    email: user?.userProfile?.email || user?.user?.email || '',
+    role: user?.userProfile?.role || 'Community Member',
+    joinedDate: user?.userProfile?.creationDate ? new Date(user.userProfile.creationDate).toLocaleDateString() : 'Recently',
+    avatar: user?.userProfile?.avatar || '',
+    phone: user?.userProfile?.phone || '',
+    address: {
+      apartment: user?.userProfile?.address_apartment || '',
+      building: user?.userProfile?.address_building || '',
+      block: user?.userProfile?.address_block || '',
+    },
+    interests: ['Technology', 'Reading', 'Photography'], // You can fetch from user_interests table
+    circlesJoined: 0, // You can fetch from user_circles table
+    eventsAttended: 0, // You can implement based on event attendance
+  });
+
+  useEffect(() => {
+    if (user?.userProfile) {
+      setUserProfile({
+        name: user.userProfile.name || 'User',
+        email: user.userProfile.email || user.user?.email || '',
+        role: user.userProfile.role || 'Community Member',
+        joinedDate: user.userProfile.creationDate ? new Date(user.userProfile.creationDate).toLocaleDateString() : 'Recently',
+        avatar: user.userProfile.avatar || '',
+        phone: user.userProfile.phone || '',
+        address: {
+          apartment: user.userProfile.address_apartment || '',
+          building: user.userProfile.address_building || '',
+          block: user.userProfile.address_block || '',
+        },
+        interests: ['Technology', 'Reading', 'Photography'],
+        circlesJoined: 0,
+        eventsAttended: 0,
+      });
+    }
+  }, [user]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>

@@ -160,4 +160,29 @@ export const DatabaseService = {
       .eq('id', notificationId);
     return { data, error };
   },
+
+  // Additional helper functions
+  async joinCircle(userId: string, circleId: string) {
+    const { data, error } = await supabase
+      .from('user_circles')
+      .insert({ userId, circleId });
+    return { data, error };
+  },
+
+  async leaveCircle(userId: string, circleId: string) {
+    const { data, error } = await supabase
+      .from('user_circles')
+      .delete()
+      .eq('userId', userId)
+      .eq('circleId', circleId);
+    return { data, error };
+  },
+
+  async getUserJoinedCircles(userId: string) {
+    const { data, error } = await supabase
+      .from('user_circles')
+      .select('circleId')
+      .eq('userId', userId);
+    return { data, error };
+  },
 };

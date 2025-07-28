@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -45,55 +44,36 @@ export default function EventsScreen() {
     circleId: '',
   });
 
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      title: 'Community BBQ',
-      date: '2024-01-15',
-      time: '6:00 PM',
-      location: 'Community Garden',
-      tag: 'Social',
-      description: 'Join us for a fun community barbecue evening with games and great food!',
-      createdBy: 'Community Manager',
-      attendees: { yes: 24, maybe: 8, no: 2 },
-    },
-    {
-      id: '2',
-      title: 'Book Club Meeting',
-      date: '2024-01-18',
-      time: '7:30 PM',
-      location: 'Library Hall',
-      tag: 'Education',
-      description: 'Discussion of this month\'s book selection. Come prepared with your thoughts!',
-      circleName: 'Book Club',
-      createdBy: 'Ahmed Ali',
-      attendees: { yes: 12, maybe: 3, no: 1 },
-    },
-    {
-      id: '3',
-      title: 'Photography Workshop',
-      date: '2024-01-20',
-      time: '10:00 AM',
-      location: 'Community Center',
-      tag: 'Workshop',
-      description: 'Learn basic photography techniques and composition tips from a professional photographer.',
-      circleName: 'Photography Club',
-      createdBy: 'Sara Mohamed',
-      attendees: { yes: 15, maybe: 5, no: 0 },
-    },
-    {
-      id: '4',
-      title: 'Fitness Boot Camp',
-      date: '2024-01-22',
-      time: '7:00 AM',
-      location: 'Community Gym',
-      tag: 'Fitness',
-      description: 'High-intensity workout session for all fitness levels. Bring your water bottle!',
-      circleName: 'Fitness Group',
-      createdBy: 'Omar Hassan',
-      attendees: { yes: 18, maybe: 7, no: 1 },
-    },
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      // Assuming DatabaseService is available globally or imported elsewhere
+      // For example: import DatabaseService from '@/services/DatabaseService';
+      const { data, error } = await DatabaseService.getEvents();
+      if (error) {
+        console.error('Error fetching events:', error);
+      } else if (data) {
+        // Transform data to match our interface
+        const transformedEvents = data.map((event: any) => ({
+          ...event,
+          tag: 'General', // Default tag since not in current DB schema
+          attendees: { yes: 0, maybe: 0, no: 0 }, // Mock data for now
+        }));
+        setEvents(transformedEvents);
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
   const circles = ['Tech Enthusiasts', 'Book Club', 'Photography Club', 'Fitness Group'];
@@ -102,15 +82,15 @@ export default function EventsScreen() {
     setEvents(events.map(event => {
       if (event.id === eventId) {
         const updatedAttendees = { ...event.attendees };
-        
+
         // Remove from previous RSVP if exists
         if (event.rsvp) {
           updatedAttendees[event.rsvp] = Math.max(0, updatedAttendees[event.rsvp] - 1);
         }
-        
+
         // Add to new RSVP
         updatedAttendees[response] = updatedAttendees[response] + 1;
-        
+
         return {
           ...event,
           rsvp: response,
@@ -137,7 +117,7 @@ export default function EventsScreen() {
         circleName: circles.find(c => c === newEvent.circleId) || undefined,
         attendees: { yes: 0, maybe: 0, no: 0 },
       };
-      
+
       setEvents([event, ...events]);
       setNewEvent({
         title: '',
