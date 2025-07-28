@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -18,23 +19,37 @@ import { Colors } from '@/constants/Colors';
 
 export default function LoginScreen() {
   const { texts, toggleLanguage, language, isRTL } = useLanguage();
-  const [username, setUsername] = useState('');
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const surfaceColor = useThemeColor({}, 'surface');
 
-  const handleLogin = () => {
-    if (username === 'admin' && password === 'adminadmin') {
-      router.replace('/admin');
-    } else if (username && password) {
-      router.replace('/(tabs)');
-    } else {
-      Alert.alert('Error', 'Please enter username and password');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
     }
+
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    
+    if (error) {
+      Alert.alert('Login Error', error.message);
+    } else {
+      // Check if admin user (you can customize this logic)
+      if (email === 'admin@example.com') {
+        router.replace('/admin');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -73,10 +88,11 @@ export default function LoginScreen() {
               styles.input,
               { backgroundColor: surfaceColor, textAlign: isRTL ? 'right' : 'left' }
             ]}
-            placeholder={texts.username}
-            value={username}
-            onChangeText={setUsername}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
             autoCapitalize="none"
+            keyboardType="email-address"
           />
 
           <View style={styles.passwordContainer}>
@@ -119,11 +135,12 @@ export default function LoginScreen() {
 
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: tintColor }]}
+            style={[styles.loginButton, { backgroundColor: tintColor, opacity: loading ? 0.7 : 1 }]}
             onPress={handleLogin}
+            disabled={loading}
           >
             <ThemedText style={[styles.loginButtonText, { color: '#fff' }]}>
-              {texts.login}
+              {loading ? 'Signing in...' : texts.login}
             </ThemedText>
           </TouchableOpacity>
         </View>

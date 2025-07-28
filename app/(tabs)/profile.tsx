@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserProfile {
   name: string;
@@ -155,16 +156,22 @@ export default function ProfileScreen() {
     });
   };
 
+  const { signOut } = useAuth();
+
   const handleLogout = () => {
     Alert.alert(
       texts.logout || 'Logout',
       texts.logoutConfirm || 'Are you sure you want to logout?',
       [
         { text: texts.cancel || 'Cancel', style: 'cancel' },
-        { text: texts.logout || 'Logout', style: 'destructive', onPress: () => {
-          // Handle logout logic here
-          Alert.alert(texts.success || 'Success', texts.loggedOut || 'Logged out successfully!');
-        }},
+        { 
+          text: texts.logout || 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            router.replace('/login');
+          }
+        },
       ]
     );
   };
