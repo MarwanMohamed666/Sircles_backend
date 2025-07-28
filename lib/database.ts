@@ -36,10 +36,10 @@ export const DatabaseService = {
     const { data, error } = await supabase
       .from('user_circles')
       .select(`
-        circleId,
+        circleid,
         circles (*)
       `)
-      .eq('userId', userId);
+      .eq('userid', userId);
     return { data, error };
   },
 
@@ -64,8 +64,8 @@ export const DatabaseService = {
       .from('events')
       .select(`
         *,
-        creator:users!createdBy(name),
-        circle:circles(name)
+        creator:users!events_createdby_fkey(name),
+        circle:circles!events_circleid_fkey(name)
       `)
       .order('date', { ascending: true });
     return { data, error };
@@ -92,15 +92,15 @@ export const DatabaseService = {
       .from('posts')
       .select(`
         *,
-        author:users!userId(name, avatar),
-        circle:circles(name),
+        author:users!posts_userid_fkey(name, avatar),
+        circle:circles!posts_circleid_fkey(name),
         likes:post_likes(userId),
         comments(count)
       `)
-      .order('createdAt', { ascending: false });
+      .order('createdat', { ascending: false });
     
     if (circleId) {
-      query = query.eq('circleId', circleId);
+      query = query.eq('circleid', circleId);
     }
     
     const { data, error } = await query;
@@ -136,10 +136,10 @@ export const DatabaseService = {
     const { data, error } = await supabase
       .from('user_interests')
       .select(`
-        interestId,
+        interestid,
         interests (*)
       `)
-      .eq('userId', userId);
+      .eq('userid', userId);
     return { data, error };
   },
 
@@ -148,7 +148,7 @@ export const DatabaseService = {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('userId', userId)
+      .eq('userid', userId)
       .order('timestamp', { ascending: false });
     return { data, error };
   },
@@ -165,7 +165,7 @@ export const DatabaseService = {
   async joinCircle(userId: string, circleId: string) {
     const { data, error } = await supabase
       .from('user_circles')
-      .insert({ userId, circleId });
+      .insert({ userid: userId, circleid: circleId });
     return { data, error };
   },
 
@@ -173,16 +173,16 @@ export const DatabaseService = {
     const { data, error } = await supabase
       .from('user_circles')
       .delete()
-      .eq('userId', userId)
-      .eq('circleId', circleId);
+      .eq('userid', userId)
+      .eq('circleid', circleId);
     return { data, error };
   },
 
   async getUserJoinedCircles(userId: string) {
     const { data, error } = await supabase
       .from('user_circles')
-      .select('circleId')
-      .eq('userId', userId);
+      .select('circleid')
+      .eq('userid', userId);
     return { data, error };
   },
 };

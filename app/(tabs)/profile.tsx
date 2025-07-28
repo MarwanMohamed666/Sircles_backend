@@ -246,10 +246,10 @@ export default function ProfileScreen() {
 
           <View style={styles.nameSection}>
             <ThemedText type="subtitle" style={[styles.userName, isRTL && styles.rtlText]}>
-              {profile.name}
+              {userProfile?.name || 'User'}
             </ThemedText>
             <ThemedText style={[styles.userAge, isRTL && styles.rtlText]}>
-              {calculateAge(profile.birthday)} {texts.yearsOld || 'years old'}
+              {userProfile?.dob ? calculateAge(userProfile.dob) : 0} {texts.yearsOld || 'years old'}
             </ThemedText>
           </View>
         </View>
@@ -260,9 +260,9 @@ export default function ProfileScreen() {
             {texts.personalInformation || 'Personal Information'}
           </ThemedText>
 
-          {/* Email */}
+          {/* Name */}
           <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.email || 'Email'}</ThemedText>
+            <ThemedText style={styles.fieldLabel}>{texts.name || 'Name'}</ThemedText>
              {isEditing ? (
               <TextInput
                 style={[
@@ -275,9 +275,17 @@ export default function ProfileScreen() {
               />
             ) : (
               <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {user?.email}
+                {userProfile?.name || 'Not set'}
               </ThemedText>
             )}
+          </View>
+
+          {/* Email */}
+          <View style={styles.fieldContainer}>
+            <ThemedText style={styles.fieldLabel}>{texts.email || 'Email'}</ThemedText>
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {user?.email}
+            </ThemedText>
           </View>
 
           {/* Phone */}
@@ -304,7 +312,7 @@ export default function ProfileScreen() {
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.birthday || 'Birthday'}</ThemedText>
             <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {profile.birthday}
+              {userProfile?.dob ? new Date(userProfile.dob).toLocaleDateString() : 'Not set'}
             </ThemedText>
           </View>
 
@@ -312,7 +320,7 @@ export default function ProfileScreen() {
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.gender || 'Gender'}</ThemedText>
             <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {profile.gender}
+              {userProfile?.gender || 'Not set'}
             </ThemedText>
           </View>
         </View>

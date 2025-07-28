@@ -107,11 +107,11 @@ export interface Database {
           date: string | null
           time: string | null
           location: string | null
-          circleId: string | null
+          circleid: string | null
           visibility: string | null
           description: string | null
-          createdBy: string | null
-          creationDate: string | null
+          createdby: string | null
+          creationdate: string | null
         }
         Insert: {
           id: string
@@ -119,11 +119,11 @@ export interface Database {
           date?: string | null
           time?: string | null
           location?: string | null
-          circleId?: string | null
+          circleid?: string | null
           visibility?: string | null
           description?: string | null
-          createdBy?: string | null
-          creationDate?: string | null
+          createdby?: string | null
+          creationdate?: string | null
         }
         Update: {
           id?: string
@@ -131,40 +131,40 @@ export interface Database {
           date?: string | null
           time?: string | null
           location?: string | null
-          circleId?: string | null
+          circleid?: string | null
           visibility?: string | null
           description?: string | null
-          createdBy?: string | null
-          creationDate?: string | null
+          createdby?: string | null
+          creationdate?: string | null
         }
       }
       posts: {
         Row: {
           id: string
-          userId: string | null
+          userid: string | null
           content: string | null
           image: string | null
-          circleId: string | null
-          createdAt: string | null
-          creationDate: string | null
+          circleid: string | null
+          createdat: string | null
+          creationdate: string | null
         }
         Insert: {
           id: string
-          userId?: string | null
+          userid?: string | null
           content?: string | null
           image?: string | null
-          circleId?: string | null
-          createdAt?: string | null
-          creationDate?: string | null
+          circleid?: string | null
+          createdat?: string | null
+          creationdate?: string | null
         }
         Update: {
           id?: string
-          userId?: string | null
+          userid?: string | null
           content?: string | null
           image?: string | null
-          circleId?: string | null
-          createdAt?: string | null
-          creationDate?: string | null
+          circleid?: string | null
+          createdat?: string | null
+          creationdate?: string | null
         }
       }
       comments: {
