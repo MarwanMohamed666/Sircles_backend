@@ -293,15 +293,15 @@ export default function EventsScreen() {
                   </ThemedText>
                   <View style={styles.attendeesStats}>
                     <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees.yes}</ThemedText>
+                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.yes || 0}</ThemedText>
                       <ThemedText style={styles.statLabel}>{texts.going || 'Going'}</ThemedText>
                     </View>
                     <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees.maybe}</ThemedText>
+                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.maybe || 0}</ThemedText>
                       <ThemedText style={styles.statLabel}>{texts.maybe || 'Maybe'}</ThemedText>
                     </View>
                     <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees.no}</ThemedText>
+                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.no || 0}</ThemedText>
                       <ThemedText style={styles.statLabel}>{texts.cantGo || "Can't Go"}</ThemedText>
                     </View>
                   </View>
