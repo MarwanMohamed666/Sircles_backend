@@ -221,10 +221,13 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     try {
       await signOut();
+      // Force navigation to login screen
       router.replace('/login');
     } catch (error) {
       console.error('Error during logout:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      // Even if logout fails, navigate to login screen to be safe
+      router.replace('/login');
+      Alert.alert('Warning', 'Logout may not have completed properly. You have been redirected to login.');
     }
   };
 
