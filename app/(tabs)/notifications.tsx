@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,7 +39,7 @@ export default function NotificationsScreen() {
     try {
       setLoading(true);
       const { data, error } = await getUserNotifications(user.id);
-      
+
       if (error) {
         console.error('Error loading notifications:', error);
         Alert.alert('Error', 'Failed to load notifications');
@@ -74,7 +73,7 @@ export default function NotificationsScreen() {
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       const { error } = await markNotificationAsRead(notificationId);
-      
+
       if (error) {
         console.error('Error marking notification as read:', error);
         return;
@@ -95,7 +94,7 @@ export default function NotificationsScreen() {
 
     try {
       const { error } = await markAllNotificationsAsRead(user.id);
-      
+
       if (error) {
         console.error('Error marking all notifications as read:', error);
         Alert.alert('Error', 'Failed to mark all notifications as read');
@@ -213,7 +212,7 @@ export default function NotificationsScreen() {
           ]}>
             {notification.content}
           </ThemedText>
-          
+
           <View style={[styles.notificationFooter, isRTL && styles.notificationFooterRTL]}>
             <ThemedText style={styles.notificationTime}>
               {formatNotificationTime(notification.timestamp)}
@@ -262,7 +261,7 @@ export default function NotificationsScreen() {
             {texts.all || 'All'} ({notifications.length})
           </ThemedText>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.filterTab,

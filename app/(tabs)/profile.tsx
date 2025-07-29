@@ -177,18 +177,20 @@ export default function ProfileScreen() {
         { 
           text: texts.logout || 'Logout', 
           style: 'destructive',
-          onPress: async () => {
-            await authSignOut();
-            router.replace('/login');
-          }
+          onPress: handleSignOut
         },
       ]
     );
   };
 
   const handleSignOut = async () => {
-    await authSignOut();
-    router.replace('/login');
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
   };
 
   const handleSaveProfile = async () => {

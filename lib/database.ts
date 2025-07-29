@@ -28,7 +28,7 @@ export const DatabaseService = {
     const { data, error } = await supabase
       .from('circles')
       .select('*')
-      .order('creationDate', { ascending: false });
+      .order('creationdate', { ascending: false });
     return { data, error };
   },
 
@@ -43,11 +43,11 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createCircle(circle: Omit<Circle, 'id' | 'creationDate'>) {
+  async createCircle(circle: Omit<Circle, 'id' | 'creationdate'>) {
     const newCircle = {
       id: crypto.randomUUID(),
       ...circle,
-      creationDate: new Date().toISOString(),
+      creationdate: new Date().toISOString(),
     };
     
     const { data, error } = await supabase
@@ -71,11 +71,11 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationDate'>) {
+  async createEvent(event: Omit<Event, 'id' | 'creationdate'>) {
     const newEvent = {
       id: crypto.randomUUID(),
       ...event,
-      creationDate: new Date().toISOString(),
+      creationdate: new Date().toISOString(),
     };
     
     const { data, error } = await supabase
@@ -94,10 +94,10 @@ export const DatabaseService = {
         *,
         author:users!posts_userid_fkey(name, avatar),
         circle:circles!posts_circleid_fkey(name),
-        likes:post_likes(userId),
+        likes:post_likes(userid),
         comments(count)
       `)
-      .order('createdat', { ascending: false });
+      .order('creationdate', { ascending: false });
     
     if (circleId) {
       query = query.eq('circleid', circleId);
@@ -107,12 +107,11 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createPost(post: Omit<Post, 'id' | 'creationDate'>) {
+  async createPost(post: Omit<Post, 'id' | 'creationdate'>) {
     const newPost = {
       id: crypto.randomUUID(),
       ...post,
-      createdAt: new Date().toISOString(),
-      creationDate: new Date().toISOString(),
+      creationdate: new Date().toISOString(),
     };
     
     const { data, error } = await supabase
@@ -183,6 +182,41 @@ export const DatabaseService = {
       .from('user_circles')
       .select('circleid')
       .eq('userid', userId);
+    return { data, error };
+  },
+
+  // Messages operations
+  async getCircleMessages(circleId: string) {
+    const { data, error } = await supabase
+      .from('circle_messages')
+      .select(`
+        *,
+        sender:users!circle_messages_senderid_fkey(name, avatar)
+      `)
+      .eq('circleid', circleId)
+      .order('timestamp', { ascending: true });
+    return { data, error };
+  },
+
+  async sendMessage(message: {
+    circleid: string;
+    senderid: string;
+    content: string;
+    type: string;
+    attachment?: string;
+  }) {
+    const newMessage = {
+      id: crypto.randomUUID(),
+      ...message,
+      timestamp: new Date().toISOString(),
+      creationdate: new Date().toISOString(),
+    };
+    
+    const { data, error } = await supabase
+      .from('circle_messages')
+      .insert(newMessage)
+      .select()
+      .single();
     return { data, error };
   },
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +35,7 @@ export default function CirclesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
-  
+
   const [newCircle, setNewCircle] = useState({
     name: '',
     description: '',
@@ -44,8 +43,10 @@ export default function CirclesScreen() {
   });
 
   const loadCircles = async () => {
+    if (!user) return;
+
+    setLoading(true);
     try {
-      setLoading(true);
       const [allCirclesResult, userCirclesResult] = await Promise.all([
         getCircles(),
         user?.id ? getCirclesByUser(user.id) : Promise.resolve({ data: [], error: null })
@@ -62,7 +63,7 @@ export default function CirclesScreen() {
       }
 
       const userCircleIds = new Set(userCirclesResult.data?.map(uc => uc.circleId) || []);
-      
+
       const circlesWithJoinStatus = allCirclesResult.data?.map(circle => ({
         ...circle,
         isJoined: userCircleIds.has(circle.id),
@@ -175,7 +176,7 @@ export default function CirclesScreen() {
             </View>
           </View>
         </View>
-        
+
         <TouchableOpacity
           style={[
             styles.joinButton,

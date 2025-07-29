@@ -115,10 +115,10 @@ export default function HomeScreen() {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   };
@@ -146,7 +146,7 @@ export default function HomeScreen() {
         };
 
         const { data, error } = await DatabaseService.createEvent(eventData);
-        
+
         if (error) {
           Alert.alert('Error', 'Failed to create event');
           console.error('Error creating event:', error);
@@ -207,7 +207,7 @@ export default function HomeScreen() {
         };
 
         const { data, error } = await DatabaseService.createPost(postData);
-        
+
         if (error) {
           Alert.alert('Error', 'Failed to create post');
           console.error('Error creating post:', error);

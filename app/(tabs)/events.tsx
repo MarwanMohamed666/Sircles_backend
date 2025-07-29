@@ -52,21 +52,15 @@ export default function EventsScreen() {
   }, []);
 
   const fetchEvents = async () => {
+    if (!user) return;
+
     setLoading(true);
     try {
-      // Assuming DatabaseService is available globally or imported elsewhere
-      // For example: import DatabaseService from '@/services/DatabaseService';
       const { data, error } = await DatabaseService.getEvents();
       if (error) {
         console.error('Error fetching events:', error);
-      } else if (data) {
-        // Transform data to match our interface
-        const transformedEvents = data.map((event: any) => ({
-          ...event,
-          tag: 'General', // Default tag since not in current DB schema
-          attendees: { yes: 0, maybe: 0, no: 0 }, // Mock data for now
-        }));
-        setEvents(transformedEvents);
+      } else {
+        setEvents(data || []);
       }
     } catch (error) {
       console.error('Error fetching events:', error);

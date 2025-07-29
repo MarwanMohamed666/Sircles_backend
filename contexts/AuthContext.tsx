@@ -41,14 +41,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && data) {
+        setUserProfile(data);
+      } else if (error) {
+        console.error('Error fetching user profile:', error);
+        // Create user profile if it doesn't exist
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          await createUserProfile(authUser.user);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching user profile:', err);
+    }
+  };
+
+  const createUserProfile = async (authUser: any) => {
+    const newProfile = {
+      id: authUser.id,
+      email: authUser.email,
+      name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+      creationdate: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase
       .from('users')
-      .select('*')
-      .eq('id', userId)
+      .insert(newProfile)
+      .select()
       .single();
-    
+
     if (!error && data) {
       setUserProfile(data);
+    } else {
+      console.error('Error creating user profile:', error);
     }
   };
 
@@ -101,7 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .insert({
           id: data.user.id,
           email: data.user.email,
-          creationDate: new Date().toISOString(),
+          name: data.user.email?.split('@')[0] || 'User',
+          creationdate: new Date().toISOString(),
         });
       
       if (profileError) {
@@ -129,7 +162,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const value = {
