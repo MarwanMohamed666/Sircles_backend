@@ -30,7 +30,7 @@ interface UserProfile {
 }
 
 export default function ProfileScreen() {
-  const { user, userProfile, signOut, updateUserProfile } = useAuth();
+  const { user, userProfile, signOut, updateUserProfile, loading } = useAuth();
   const { texts, language, toggleLanguage, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
@@ -298,6 +298,23 @@ export default function ProfileScreen() {
       console.error('Error fetching available interests:', error);
     }
   };
+
+  // Show loading if auth is still loading
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ThemedText>Loading...</ThemedText>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // If no user, redirect to login
+  if (!user) {
+    router.replace('/login');
+    return null;
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>

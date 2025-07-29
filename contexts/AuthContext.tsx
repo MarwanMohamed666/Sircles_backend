@@ -50,30 +50,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error fetching user profile:', error);
 
-        // If user doesn't exist, try to insert a new profile
+        // If user doesn't exist, create a minimal profile from auth data
         if (error.code === 'PGRST116') {
           const { data: authUser } = await supabase.auth.getUser();
           if (authUser.user) {
-            // Try to insert using Supabase client directly to handle RLS
+            const minimalProfile = {
+              id: userId,
+              email: authUser.user.email || '',
+              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+              phone: null,
+              dob: null,
+              gender: null,
+              address_apartment: null,
+              address_building: null,
+              address_block: null,
+              avatar_url: null,
+              bio: null,
+              creationdate: new Date().toISOString(),
+            };
+
+            // Try to insert the profile
             const { data: insertedUser, error: insertError } = await supabase
               .from('users')
-              .insert({
-                id: userId,
-                email: authUser.user.email,
-                name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-                creationdate: new Date().toISOString(),
-              })
+              .insert(minimalProfile)
               .select()
               .single();
 
             if (insertError) {
               console.error('Error creating user profile:', insertError);
-              // Set a minimal profile if database insert fails
-              setUserProfile({
-                id: userId,
-                email: authUser.user.email || '',
-                name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-              });
+              // If insert fails due to RLS, still set the minimal profile in state
+              setUserProfile(minimalProfile as any);
             } else {
               setUserProfile(insertedUser);
             }
@@ -85,6 +91,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserProfile(data);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      // In case of any error, try to get auth user data
+      try {
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          setUserProfile({
+            id: userId,
+            email: authUser.user.email || '',
+            name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+          } as any);
+        }
+      } catch (authError) {
+        console.error('Error getting auth user:', authError);
+      }
     }
   };
 
@@ -188,18 +207,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Error signing out:', error);
-        throw error;
-      }
-      // Clear state after successful signout
+      // Clear local state first
       setUser(null);
       setUserProfile(null);
       setSession(null);
+      
+      // Then sign out from Supabase
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Error signing out:', error);
+        // Don't throw error since we already cleared local state
+      }
     } catch (error) {
       console.error('Error signing out:', error);
-      throw error;
+      // Don't throw error since we want logout to always succeed
     }
   };
 
