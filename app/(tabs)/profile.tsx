@@ -9,6 +9,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { DatabaseService } from '@/lib/database';
+import { supabase } from '@/lib/supabase';
 
 interface UserProfile {
   name: string;
@@ -75,8 +77,9 @@ export default function ProfileScreen() {
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState('');
+  const [userInterests, setUserInterests] = useState<{[category: string]: any[]}>({});
+  const [availableInterests, setAvailableInterests] = useState<{[category: string]: any[]}>({});
 
-  const interestCategories = ['Education', 'Hobbies', 'Sports', 'Arts', 'Technology', 'Health'];
   const genderOptions = ['Male', 'Female', 'Prefer not to say'];
 
   const calculateAge = (birthday: string) => {
@@ -139,31 +142,63 @@ export default function ProfileScreen() {
     setPasswordData({ current: '', new: '', confirm: '' });
   };
 
-  const addInterest = () => {
-    if (newInterest.trim() && selectedCategory) {
-      const categoryInterests = profile.interests[selectedCategory] || [];
-      if (!categoryInterests.includes(newInterest.trim())) {
-        setProfile({
-          ...profile,
-          interests: {
-            ...profile.interests,
-            [selectedCategory]: [...categoryInterests, newInterest.trim()],
-          },
-        });
+  const addInterest = async () => {
+    if (selectedCategory && user?.id) {
+      try {
+        // Find the selected interest from available interests
+        const selectedInterest = availableInterests[selectedCategory]?.find(
+          interest => interest.id === selectedCategory
+        );
+        
+        if (selectedInterest) {
+          // Add to user_interests table
+          const { error } = await supabase
+            .from('user_interests')
+            .insert({
+              userid: user.id,
+              interestid: selectedInterest.id
+            });
+          
+          if (error) {
+            console.error('Error adding interest:', error);
+            Alert.alert('Error', 'Failed to add interest');
+          } else {
+            // Refresh user interests
+            await fetchUserInterests();
+            Alert.alert('Success', 'Interest added successfully');
+          }
+        }
+      } catch (error) {
+        console.error('Error adding interest:', error);
+        Alert.alert('Error', 'Failed to add interest');
       }
-      setNewInterest('');
+      
+      setSelectedCategory('');
       setShowInterestModal(false);
     }
   };
 
-  const removeInterest = (category: string, interest: string) => {
-    setProfile({
-      ...profile,
-      interests: {
-        ...profile.interests,
-        [category]: profile.interests[category].filter(i => i !== interest),
-      },
-    });
+  const removeInterest = async (category: string, interestId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_interests')
+        .delete()
+        .eq('userid', user.id)
+        .eq('interestid', interestId);
+      
+      if (error) {
+        console.error('Error removing interest:', error);
+        Alert.alert('Error', 'Failed to remove interest');
+      } else {
+        // Refresh user interests
+        await fetchUserInterests();
+      }
+    } catch (error) {
+      console.error('Error removing interest:', error);
+      Alert.alert('Error', 'Failed to remove interest');
+    }
   };
 
   const { signOut: authSignOut } = useAuth();
@@ -214,6 +249,52 @@ export default function ProfileScreen() {
       });
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserInterests();
+    }
+    fetchAvailableInterests();
+  }, [user]);
+
+  const fetchUserInterests = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await DatabaseService.getUserInterests(user.id);
+      if (error) {
+        console.error('Error fetching user interests:', error);
+      } else if (data) {
+        // Group user interests by category
+        const groupedInterests: {[category: string]: any[]} = {};
+        data.forEach((item: any) => {
+          if (item.interests) {
+            const category = item.interests.category || 'Other';
+            if (!groupedInterests[category]) {
+              groupedInterests[category] = [];
+            }
+            groupedInterests[category].push(item.interests);
+          }
+        });
+        setUserInterests(groupedInterests);
+      }
+    } catch (error) {
+      console.error('Error fetching user interests:', error);
+    }
+  };
+
+  const fetchAvailableInterests = async () => {
+    try {
+      const { data, error } = await DatabaseService.getInterestsByCategory();
+      if (error) {
+        console.error('Error fetching available interests:', error);
+      } else if (data) {
+        setAvailableInterests(data);
+      }
+    } catch (error) {
+      console.error('Error fetching available interests:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -408,18 +489,18 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {Object.entries(profile.interests).map(([category, interests]) => (
+          {Object.entries(userInterests).map(([category, interests]) => (
             <View key={category} style={styles.interestCategory}>
               <ThemedText style={[styles.categoryTitle, isRTL && styles.rtlText]}>
                 {category}
               </ThemedText>
               <View style={styles.interestTags}>
                 {interests.map((interest, index) => (
-                  <View key={index} style={[styles.interestTag, { backgroundColor: tintColor + '20' }]}>
+                  <View key={interest.id} style={[styles.interestTag, { backgroundColor: tintColor + '20' }]}>
                     <ThemedText style={[styles.interestTagText, { color: tintColor }]}>
-                      {interest}
+                      {interest.title}
                     </ThemedText>
-                    <TouchableOpacity onPress={() => removeInterest(category, interest)}>
+                    <TouchableOpacity onPress={() => removeInterest(category, interest.id)}>
                       <IconSymbol name="xmark.circle.fill" size={16} color={tintColor} />
                     </TouchableOpacity>
                   </View>
@@ -427,6 +508,12 @@ export default function ProfileScreen() {
               </View>
             </View>
           ))}
+          
+          {Object.keys(userInterests).length === 0 && (
+            <ThemedText style={[styles.emptyInterests, isRTL && styles.rtlText]}>
+              {texts.noInterestsYet || 'No interests added yet'}
+            </ThemedText>
+          )}
         </View>
 
         {/* Action Buttons */}
@@ -565,44 +652,35 @@ export default function ProfileScreen() {
               <ThemedText style={styles.fieldLabel}>
                 {texts.category || 'Category'}
               </ThemedText>
-              <View style={styles.categoryGrid}>
-                {interestCategories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryOption,
-                      {
-                        backgroundColor: selectedCategory === category ? tintColor : backgroundColor,
-                        borderColor: tintColor,
-                      }
-                    ]}
-                    onPress={() => setSelectedCategory(category)}
-                  >
-                    <ThemedText style={[
-                      styles.categoryOptionText,
-                      { color: selectedCategory === category ? '#fff' : textColor }
-                    ]}>
-                      {category}
-                    </ThemedText>
-                  </TouchableOpacity>
+              <ScrollView style={{ maxHeight: 300 }}>
+                {Object.entries(availableInterests).map(([category, categoryInterests]) => (
+                  <View key={category} style={styles.categorySection}>
+                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
+                    <View style={styles.categoryGrid}>
+                      {categoryInterests.map((interest) => (
+                        <TouchableOpacity
+                          key={interest.id}
+                          style={[
+                            styles.categoryOption,
+                            {
+                              backgroundColor: selectedCategory === interest.id ? tintColor : backgroundColor,
+                              borderColor: tintColor,
+                            }
+                          ]}
+                          onPress={() => setSelectedCategory(interest.id)}
+                        >
+                          <ThemedText style={[
+                            styles.categoryOptionText,
+                            { color: selectedCategory === interest.id ? '#fff' : textColor }
+                          ]}>
+                            {interest.title}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
                 ))}
-              </View>
-            </View>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.interest || 'Interest'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.enterInterest || 'Enter interest'}
-                placeholderTextColor={textColor + '80'}
-                value={newInterest}
-                onChangeText={setNewInterest}
-              />
+              </ScrollView>
             </View>
 
             <View style={styles.modalActions}>
@@ -611,7 +689,6 @@ export default function ProfileScreen() {
                 onPress={() => {
                   setShowInterestModal(false);
                   setSelectedCategory('');
-                  setNewInterest('');
                 }}
               >
                 <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
@@ -877,5 +954,20 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: 'right',
+  },
+  categorySection: {
+    marginBottom: 16,
+  },
+  categoryHeader: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    opacity: 0.8,
+  },
+  emptyInterests: {
+    textAlign: 'center',
+    opacity: 0.6,
+    fontStyle: 'italic',
+    marginTop: 16,
   },
 });

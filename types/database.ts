@@ -17,8 +17,8 @@ export interface User {
 
 export interface Interest {
   id: string;
-  title?: string;
-  category?: string;
+  title: string;
+  category: string;
   creationDate?: string;
 }
 

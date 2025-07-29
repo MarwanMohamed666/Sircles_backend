@@ -126,8 +126,8 @@ export const DatabaseService = {
   async getInterests() {
     const { data, error } = await supabase
       .from('interests')
-      .select('*')
-      .order('title');
+      .select('id, title, category')
+      .order('category, title');
     return { data, error };
   },
 
@@ -136,10 +136,31 @@ export const DatabaseService = {
       .from('user_interests')
       .select(`
         interestid,
-        interests (*)
+        interests (id, title, category)
       `)
       .eq('userid', userId);
     return { data, error };
+  },
+
+  async getInterestsByCategory() {
+    const { data, error } = await supabase
+      .from('interests')
+      .select('id, title, category')
+      .order('category, title');
+    
+    if (error) return { data: null, error };
+    
+    // Group interests by category
+    const groupedInterests: { [key: string]: any[] } = {};
+    data?.forEach(interest => {
+      const category = interest.category || 'Other';
+      if (!groupedInterests[category]) {
+        groupedInterests[category] = [];
+      }
+      groupedInterests[category].push(interest);
+    });
+    
+    return { data: groupedInterests, error: null };
   },
 
   // Notification operations

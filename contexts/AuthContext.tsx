@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -47,19 +46,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', userId)
         .single();
-      
-      if (!error && data) {
-        setUserProfile(data);
-      } else if (error) {
+
+      if (error) {
         console.error('Error fetching user profile:', error);
-        // Create user profile if it doesn't exist
-        const { data: authUser } = await supabase.auth.getUser();
-        if (authUser.user) {
-          await createUserProfile(authUser.user);
+
+        // If user doesn't exist, try to insert a new profile
+        if (error.code === 'PGRST116') {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user) {
+            // Try to insert using Supabase client directly to handle RLS
+            const { data: insertedUser, error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: userId,
+                email: authUser.user.email,
+                name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+                creationdate: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (insertError) {
+              console.error('Error creating user profile:', insertError);
+              // Set a minimal profile if database insert fails
+              setUserProfile({
+                id: userId,
+                email: authUser.user.email || '',
+                name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+              });
+            } else {
+              setUserProfile(insertedUser);
+            }
+          }
         }
+        return;
       }
-    } catch (err) {
-      console.error('Unexpected error fetching user profile:', err);
+
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
     }
   };
 
@@ -125,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
-    
+
     // Create user profile after signup
     if (!error && data.user) {
       const { error: profileError } = await supabase
@@ -136,28 +161,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: data.user.email?.split('@')[0] || 'User',
           creationdate: new Date().toISOString(),
         });
-      
+
       if (profileError) {
         console.error('Error creating user profile:', profileError);
       }
     }
-    
+
     return { error };
   };
 
   const updateUserProfile = async (profile: Partial<User>) => {
     if (!user) return { error: new Error('No user logged in') };
-    
+
     const { error } = await supabase
       .from('users')
       .update(profile)
       .eq('id', user.id);
-    
+
     if (!error) {
       // Refresh user profile
       await fetchUserProfile(user.id);
     }
-    
+
     return { error };
   };
 

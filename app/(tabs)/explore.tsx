@@ -46,10 +46,12 @@ export default function ExploreScreen() {
   });
 
   const [circles, setCircles] = useState<Circle[]>([]);
+  const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchCircles();
+    fetchInterests();
   }, []);
 
   const fetchCircles = async () => {
@@ -78,7 +80,18 @@ export default function ExploreScreen() {
     }
   };
 
-  const interestTags = ['Technology', 'Programming', 'Reading', 'Photography', 'Fitness', 'Arts', 'Sports', 'Health'];
+  const fetchInterests = async () => {
+    try {
+      const { data, error } = await DatabaseService.getInterestsByCategory();
+      if (error) {
+        console.error('Error fetching interests:', error);
+      } else if (data) {
+        setInterests(data);
+      }
+    } catch (error) {
+      console.error('Error fetching interests:', error);
+    }
+  };
   const ageRanges = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+'];
   const genderOptions = ['Any', 'Male', 'Female'];
 
@@ -283,29 +296,34 @@ export default function ExploreScreen() {
               <ThemedText style={styles.filterLabel}>
                 {texts.interestTag || 'Interest Tag'}
               </ThemedText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.filterOptions}>
-                  {interestTags.map((tag) => (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[
-                        styles.filterOption,
-                        {
-                          backgroundColor: filters.interestTag === tag ? tintColor : backgroundColor,
-                          borderColor: tintColor,
-                        }
-                      ]}
-                      onPress={() => setFilters({...filters, interestTag: filters.interestTag === tag ? '' : tag})}
-                    >
-                      <ThemedText style={[
-                        styles.filterOptionText,
-                        { color: filters.interestTag === tag ? '#fff' : textColor }
-                      ]}>
-                        {tag}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+                {Object.entries(interests).map(([category, categoryInterests]) => (
+                  <View key={category} style={styles.categorySection}>
+                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
+                    <View style={styles.filterOptions}>
+                      {categoryInterests.map((interest) => (
+                        <TouchableOpacity
+                          key={interest.id}
+                          style={[
+                            styles.filterOption,
+                            {
+                              backgroundColor: filters.interestTag === interest.id ? tintColor : backgroundColor,
+                              borderColor: tintColor,
+                            }
+                          ]}
+                          onPress={() => setFilters({...filters, interestTag: filters.interestTag === interest.id ? '' : interest.id})}
+                        >
+                          <ThemedText style={[
+                            styles.filterOptionText,
+                            { color: filters.interestTag === interest.id ? '#fff' : textColor }
+                          ]}>
+                            {interest.title}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
               </ScrollView>
             </View>
 
@@ -591,6 +609,15 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  categorySection: {
+    marginBottom: 12,
+  },
+  categoryHeader: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    opacity: 0.8,
   },
   modalActions: {
     flexDirection: 'row',

@@ -7,6 +7,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { DatabaseService } from '@/lib/database';
 
 interface Event {
   id: string;
@@ -25,6 +27,7 @@ interface Event {
 
 export default function EventsScreen() {
   const { texts, isRTL } = useLanguage();
+  const { user } = useAuth();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
@@ -45,10 +48,12 @@ export default function EventsScreen() {
   });
 
   const [events, setEvents] = useState<Event[]>([]);
+  const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchEvents();
+    fetchInterests();
   }, []);
 
   const fetchEvents = async () => {
@@ -66,6 +71,19 @@ export default function EventsScreen() {
       console.error('Error fetching events:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInterests = async () => {
+    try {
+      const { data, error } = await DatabaseService.getInterestsByCategory();
+      if (error) {
+        console.error('Error fetching interests:', error);
+      } else if (data) {
+        setInterests(data);
+      }
+    } catch (error) {
+      console.error('Error fetching interests:', error);
     }
   };
 
