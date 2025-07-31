@@ -81,7 +81,6 @@ export default function ProfileScreen() {
   const [availableInterests, setAvailableInterests] = useState<{[category: string]: any[]}>({});
 
   const genderOptions = ['Male', 'Female', 'Prefer not to say'];
-  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
 
   const calculateAge = (birthday: string) => {
     const birthDate = new Date(birthday);
@@ -143,67 +142,56 @@ export default function ProfileScreen() {
     setPasswordData({ current: '', new: '', confirm: '' });
   };
 
-  const addInterest = async () => {
-    if (selectedInterest && user?.id) {
-      try {
-        // Find the selected interest from available interests
-        const selectedInterestObj = Object.values(availableInterests)
-          .flat()
-          .find(interest => interest.id === selectedInterest);
-
-        if (selectedInterestObj) {
-          // Add to user_interests table
-          const { error } = await supabase
-            .from('user_interests')
-            .insert({
-              userid: user.id,
-              interestid: selectedInterestObj.id
-            });
-
-          if (error) {
-            console.error('Error adding interest:', error);
-            Alert.alert('Error', 'Failed to add interest');
-          } else {
-            // Refresh user interests
-            await fetchUserInterests();
-            Alert.alert('Success', 'Interest added successfully');
-          }
-        }
-      } catch (error) {
-        console.error('Error adding interest:', error);
-        Alert.alert('Error', 'Failed to add interest');
-      }
-
-      setSelectedInterest(null);
-      setShowInterestModal(false);
-    }
-  };
-
-  const removeInterest = async (category: string, interestId: string) => {
+  const toggleInterest = async (interest: any) => {
     if (!user?.id) return;
 
-    try {
-      const { error } = await supabase
-        .from('user_interests')
-        .delete()
-        .eq('userid', user.id)
-        .eq('interestid', interestId);
+    const isSelected = Object.values(userInterests)
+      .flat()
+      .some(userInt => userInt.id === interest.id);
 
-      if (error) {
-        console.error('Error removing interest:', error);
-        // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          Alert.alert('Error', 'You do not have permission to remove this interest');
-        } else {
-          Alert.alert('Error', 'Failed to remove interest');
+    try {
+      if (isSelected) {
+        // Remove interest
+        const { error } = await supabase
+          .from('user_interests')
+          .delete()
+          .eq('userid', user.id)
+          .eq('interestid', interest.id);
+
+        if (error) {
+          console.error('Error removing interest:', error);
+          if (error.code === 'PGRST001' || error.code === '42501') {
+            Alert.alert('Error', 'You do not have permission to remove this interest');
+          } else {
+            Alert.alert('Error', 'Failed to remove interest');
+          }
+          return;
         }
       } else {
-        await fetchUserInterests();
-        Alert.alert('Success', 'Interest removed successfully');
+        // Add interest
+        const { error } = await supabase
+          .from('user_interests')
+          .insert({
+            userid: user.id,
+            interestid: interest.id
+          });
+
+        if (error) {
+          console.error('Error adding interest:', error);
+          if (error.code === 'PGRST001' || error.code === '42501') {
+            Alert.alert('Error', 'You do not have permission to add this interest');
+          } else {
+            Alert.alert('Error', 'Failed to add interest');
+          }
+          return;
+        }
       }
+
+      // Refresh user interests
+      await fetchUserInterests();
     } catch (error) {
-      console.error('Error removing interest:', error);
-      Alert.alert('Error', 'Failed to remove interest');
+      console.error('Error toggling interest:', error);
+      Alert.alert('Error', 'Failed to update interest');
     }
   };
 
@@ -511,7 +499,7 @@ export default function ProfileScreen() {
               style={[styles.addButton, { backgroundColor: tintColor }]}
               onPress={() => setShowInterestModal(true)}
             >
-              <IconSymbol name="plus" size={16} color="#fff" />
+              <IconSymbol name="pencil" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
 
@@ -526,9 +514,6 @@ export default function ProfileScreen() {
                     <ThemedText style={[styles.interestTagText, { color: tintColor }]}>
                       {interest.title}
                     </ThemedText>
-                    <TouchableOpacity onPress={() => removeInterest(category, interest.id)}>
-                      <IconSymbol name="xmark.circle.fill" size={16} color={tintColor} />
-                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -661,7 +646,7 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Add Interest Modal */}
+      {/* Edit Interests Modal */}
       <Modal
         visible={showInterestModal}
         animationType="slide"
@@ -671,60 +656,57 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.addInterest || 'Add Interest'}
+              {texts.editInterests || 'Edit Interests'}
             </ThemedText>
 
             <View style={styles.formField}>
               <ThemedText style={styles.fieldLabel}>
-                {texts.category || 'Category'}
+                {texts.selectInterests || 'Select your interests'}
               </ThemedText>
-              <ScrollView style={{ maxHeight: 300 }}>
-                  {Object.entries(availableInterests).map(([category, interests]) => (
-                    <View key={category} style={styles.categorySection}>
-                      <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
-                      <View style={styles.categoryGrid}>
-                        {interests.map((interest) => (
+              <ScrollView style={{ maxHeight: 400 }}>
+                {Object.entries(availableInterests).map(([category, interests]) => (
+                  <View key={category} style={styles.categorySection}>
+                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
+                    <View style={styles.categoryGrid}>
+                      {interests.map((interest) => {
+                        const isSelected = Object.values(userInterests)
+                          .flat()
+                          .some(userInt => userInt.id === interest.id);
+                        
+                        return (
                           <TouchableOpacity
                             key={interest.id}
                             style={[
                               styles.categoryOption,
                               {
-                                backgroundColor: selectedInterest === interest.id ? tintColor : 'transparent',
+                                backgroundColor: isSelected ? tintColor : 'transparent',
                                 borderColor: tintColor,
                               }
                             ]}
-                            onPress={() => setSelectedInterest(selectedInterest === interest.id ? '' : interest.id)}
+                            onPress={() => toggleInterest(interest)}
                           >
                             <ThemedText style={[
                               styles.categoryOptionText,
-                              { color: selectedInterest === interest.id ? '#fff' : textColor }
+                              { color: isSelected ? '#fff' : textColor }
                             ]}>
                               {interest.title}
                             </ThemedText>
                           </TouchableOpacity>
-                        ))}
-                      </View>
+                        );
+                      })}
                     </View>
-                  ))}
-                </ScrollView>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
-                onPress={() => {
-                  setShowInterestModal(false);
-                  setSelectedCategory('');
-                }}
-              >
-                <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={addInterest}
+                onPress={() => setShowInterestModal(false)}
               >
                 <ThemedText style={{ color: '#fff' }}>
-                  {texts.add || 'Add'}
+                  {texts.done || 'Done'}
                 </ThemedText>
               </TouchableOpacity>
             </View>
