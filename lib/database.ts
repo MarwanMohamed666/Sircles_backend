@@ -2,6 +2,50 @@
 import { supabase } from './supabase';
 import type { User, Circle, Event, Post, Interest } from '@/types/database';
 
+// Export individual functions for easier importing
+export const getUser = (id: string) => DatabaseService.getUser(id);
+export const updateUser = (id: string, updates: Partial<User>) => DatabaseService.updateUser(id, updates);
+export const getCircles = () => DatabaseService.getCircles();
+export const getUserCircles = (userId: string) => DatabaseService.getUserCircles(userId);
+export const createCircle = (circle: Omit<Circle, 'id' | 'creationdate'>) => DatabaseService.createCircle(circle);
+export const getEvents = () => DatabaseService.getEvents();
+export const createEvent = (event: Omit<Event, 'id' | 'creationdate'>) => DatabaseService.createEvent(event);
+export const getPosts = (circleId?: string) => DatabaseService.getPosts(circleId);
+export const createPost = (post: Omit<Post, 'id' | 'creationdate'>) => DatabaseService.createPost(post);
+export const getInterests = () => DatabaseService.getInterests();
+export const getUserInterests = (userId: string) => DatabaseService.getUserInterests(userId);
+export const getInterestsByCategory = () => DatabaseService.getInterestsByCategory();
+export const getUserNotifications = (userId: string) => DatabaseService.getUserNotifications(userId);
+export const markNotificationAsRead = (notificationId: string) => DatabaseService.markNotificationAsRead(notificationId);
+export const joinCircle = (userId: string, circleId: string) => DatabaseService.joinCircle(userId, circleId);
+export const leaveCircle = (userId: string, circleId: string) => DatabaseService.leaveCircle(userId, circleId);
+export const getUserJoinedCircles = (userId: string) => DatabaseService.getUserJoinedCircles(userId);
+export const getCircleMessages = (circleId: string) => DatabaseService.getCircleMessages(circleId);
+export const sendMessage = (message: any) => DatabaseService.sendMessage(message);
+
+// Add missing functions
+export const getCirclesByUser = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('user_circles')
+    .select(`
+      circleid,
+      circles!inner(
+        id,
+        name,
+        description
+      )
+    `)
+    .eq('userid', userId);
+  
+  return { 
+    data: data?.map(uc => ({
+      circleId: uc.circleid,
+      circles: uc.circles
+    })), 
+    error 
+  };
+};
+
 export const DatabaseService = {
   // User operations
   async getUser(id: string) {
@@ -212,7 +256,7 @@ export const DatabaseService = {
       .from('circle_messages')
       .select(`
         *,
-        sender:users!circle_messages_senderid_fkey(name, avatar)
+        users:senderid(name, avatar)
       `)
       .eq('circleid', circleId)
       .order('timestamp', { ascending: true });
@@ -220,15 +264,19 @@ export const DatabaseService = {
   },
 
   async sendMessage(message: {
-    circleid: string;
-    senderid: string;
+    circleId: string;
+    senderId: string;
     content: string;
     type: string;
     attachment?: string;
   }) {
     const newMessage = {
       id: crypto.randomUUID(),
-      ...message,
+      circleid: message.circleId,
+      senderid: message.senderId,
+      content: message.content,
+      type: message.type,
+      attachment: message.attachment,
       timestamp: new Date().toISOString(),
       creationdate: new Date().toISOString(),
     };
