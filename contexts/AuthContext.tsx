@@ -8,10 +8,13 @@ interface AuthContextType {
   userProfile: User | null;
   session: Session | null;
   loading: boolean;
+  needsPasswordSetup: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateUserProfile: (profile: Partial<User>) => Promise<{ error: any }>;
+  setupFirstTimePassword: (email: string, password: string) => Promise<{ error: any }>;
+  checkUserExists: (email: string) => Promise<{ exists: boolean; error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,10 +22,13 @@ const AuthContext = createContext<AuthContextType>({
   userProfile: null,
   session: null,
   loading: true,
+  needsPasswordSetup: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
+  setupFirstTimePassword: async () => ({ error: null }),
+  checkUserExists: async () => ({ exists: false, error: null }),
 });
 
 export const useAuth = () => {
@@ -38,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -223,15 +230,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setupFirstTimePassword = async (email: string, password: string) => {
+    // Implementation for setting up the password for the first time.
+    // This might involve calling a Supabase function or using the admin API.
+    // The exact implementation depends on how you want to handle this flow.
+
+    // Placeholder implementation:
+    console.log('Setting up first time password for:', email);
+    return { error: null };
+  };
+
+  const checkUserExists = async (email: string) => {
+    // Check if a user exists in the auth table.
+    // This can be done by querying the auth.users table directly.
+    console.log('checking if user exist with email:', email);
+    return { exists: false, error: null };
+  };
+
   const value = {
     user,
     userProfile,
     session,
     loading,
+    needsPasswordSetup,
     signIn,
     signUp,
     signOut,
     updateUserProfile,
+    setupFirstTimePassword,
+    checkUserExists,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

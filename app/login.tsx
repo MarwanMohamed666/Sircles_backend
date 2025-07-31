@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   View,
@@ -38,7 +37,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       Alert.alert('Login Error', error.message);
     } else {
@@ -102,7 +101,7 @@ export default function LoginScreen() {
                 styles.passwordInput,
                 { backgroundColor: surfaceColor, textAlign: isRTL ? 'right' : 'left' }
               ]}
-              placeholder={texts.password}
+              placeholder={password ? texts.password : "Password (leave empty for new users)"}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
