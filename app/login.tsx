@@ -18,7 +18,7 @@ import { Colors } from '@/constants/Colors';
 
 export default function LoginScreen() {
   const { texts, toggleLanguage, language, isRTL } = useLanguage();
-  const { signIn } = useAuth();
+  const { signIn, checkUserExists } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -30,25 +30,81 @@ export default function LoginScreen() {
   const surfaceColor = useThemeColor({}, 'surface');
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
     setLoading(true);
-    const { error } = await signIn(email, password);
 
-    if (error) {
-      Alert.alert('Login Error', error.message);
-    } else {
-      // Check if admin user (you can customize this logic)
-      if (email === 'admin@example.com') {
-        router.replace('/admin');
-      } else {
-        router.replace('/(tabs)');
+    try {
+      // If no password is provided, check if user exists and handle first-time setup
+      if (!password) {
+        const { exists, error: checkError } = await checkUserExists(email);
+        
+        if (checkError) {
+          Alert.alert('Error', 'Failed to check user status');
+          setLoading(false);
+          return;
+        }
+
+        if (!exists) {
+          // New user - redirect to password setup
+          router.push({
+            pathname: '/password-setup',
+            params: { email }
+          });
+          setLoading(false);
+          return;
+        } else {
+          // Existing user but no password provided
+          Alert.alert('Error', 'Please enter your password');
+          setLoading(false);
+          return;
+        }
       }
+
+      // Regular login flow with email and password
+      const { error } = await signIn(email, password);
+
+      if (error) {
+        // If sign in fails, check if it's because user doesn't exist in auth
+        if (error.message?.includes('Invalid login credentials')) {
+          const { exists } = await checkUserExists(email);
+          if (!exists) {
+            Alert.alert(
+              'Account Not Found',
+              'This email is not registered. Please check your email or create a new account.',
+              [
+                {
+                  text: 'Create Account',
+                  onPress: () => router.push({
+                    pathname: '/password-setup',
+                    params: { email }
+                  })
+                },
+                { text: 'Cancel' }
+              ]
+            );
+          } else {
+            Alert.alert('Login Error', 'Invalid email or password');
+          }
+        } else {
+          Alert.alert('Login Error', error.message);
+        }
+      } else {
+        // Check if admin user
+        if (email === 'admin@example.com') {
+          router.replace('/admin');
+        } else {
+          router.replace('/(tabs)');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

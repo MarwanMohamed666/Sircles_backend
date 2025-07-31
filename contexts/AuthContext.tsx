@@ -14,6 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateUserProfile: (profile: Partial<User>) => Promise<{ error: any }>;
   setupFirstTimePassword: (email: string, password: string) => Promise<{ error: any }>;
+  setupInitialPassword: (email: string, password: string) => Promise<{ error: any }>;
   checkUserExists: (email: string) => Promise<{ exists: boolean; error: any }>;
 }
 
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
   setupFirstTimePassword: async () => ({ error: null }),
+  setupInitialPassword: async () => ({ error: null }),
   checkUserExists: async () => ({ exists: false, error: null }),
 });
 
@@ -231,20 +233,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setupFirstTimePassword = async (email: string, password: string) => {
-    // Implementation for setting up the password for the first time.
-    // This might involve calling a Supabase function or using the admin API.
-    // The exact implementation depends on how you want to handle this flow.
+    try {
+      // Sign up the user with email and password
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    // Placeholder implementation:
-    console.log('Setting up first time password for:', email);
-    return { error: null };
+      if (error) {
+        console.error('Error signing up user:', error);
+        return { error };
+      }
+
+      // Create user profile after successful signup
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.email?.split('@')[0] || 'User',
+            creationdate: new Date().toISOString(),
+          });
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+          return { error: profileError };
+        }
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error in setupFirstTimePassword:', error);
+      return { error };
+    }
   };
 
   const checkUserExists = async (email: string) => {
-    // Check if a user exists in the auth table.
-    // This can be done by querying the auth.users table directly.
-    console.log('checking if user exist with email:', email);
-    return { exists: false, error: null };
+    try {
+      // Check if user exists in our users table
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        // If error code is PGRST116, it means no rows found (user doesn't exist)
+        if (error.code === 'PGRST116') {
+          return { exists: false, error: null };
+        }
+        console.error('Error checking user existence:', error);
+        return { exists: false, error };
+      }
+
+      return { exists: !!data, error: null };
+    } catch (error) {
+      console.error('Error in checkUserExists:', error);
+      return { exists: false, error };
+    }
   };
 
   const value = {
@@ -258,6 +305,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     updateUserProfile,
     setupFirstTimePassword,
+    setupInitialPassword: setupFirstTimePassword, // Alias for consistency
     checkUserExists,
   };
 
