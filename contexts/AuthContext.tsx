@@ -234,32 +234,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setupFirstTimePassword = async (email: string, password: string) => {
     try {
-      // Sign up the user with email and password
-      const { data, error } = await supabase.auth.signUp({
+      // Check if user exists in database
+      const { exists, error: checkError } = await checkUserExists(email);
+      
+      if (checkError) {
+        console.error('Error checking user existence:', checkError);
+        return { error: checkError };
+      }
+
+      if (!exists) {
+        return { error: new Error('User not found in database. Please contact admin to create your account.') };
+      }
+
+      // User exists in database, update their password using admin function
+      // Since signup is disabled, we assume users are pre-created by admin
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) {
+        console.error('Error updating user password:', error);
+        return { error };
+      }
+
+      // Now sign them in with the new password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('Error signing up user:', error);
-        return { error };
-      }
-
-      // Create user profile after successful signup
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.email?.split('@')[0] || 'User',
-            creationdate: new Date().toISOString(),
-          });
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-          return { error: profileError };
-        }
+      if (signInError) {
+        console.error('Error signing in after password setup:', signInError);
+        return { error: signInError };
       }
 
       return { error: null };
