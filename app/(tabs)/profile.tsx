@@ -39,13 +39,6 @@ export default function ProfileScreen() {
   const accentColor = useThemeColor({}, 'accent');
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({
-    name: userProfile?.name || '',
-    phone: userProfile?.phone || '',
-    address_apartment: userProfile?.address_apartment || '',
-    address_building: userProfile?.address_building || '',
-    address_block: userProfile?.address_block || '',
-  });
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
@@ -225,27 +218,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSaveProfile = async () => {
-    const { error } = await updateUserProfile(editedProfile);
-    if (error) {
-      Alert.alert('Error', 'Failed to update profile');
-    } else {
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
-    }
-  };
-
-  useEffect(() => {
-    if (userProfile) {
-      setEditedProfile({
-        name: userProfile.name || '',
-        phone: userProfile.phone || '',
-        address_apartment: userProfile.address_apartment || '',
-        address_building: userProfile.address_building || '',
-        address_block: userProfile.address_block || '',
-      });
-    }
-  }, [userProfile]);
 
   useEffect(() => {
     if (user?.id) {
@@ -360,21 +332,9 @@ export default function ProfileScreen() {
           {/* Name */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.name || 'Name'}</ThemedText>
-             {isEditing ? (
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                value={editedProfile.name}
-                onChangeText={(text) => setEditedProfile(prev => ({ ...prev, name: text }))}
-                placeholder="Enter your name"
-              />
-            ) : (
-              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {userProfile?.name || 'Not set'}
-              </ThemedText>
-            )}
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {userProfile?.name || 'Not set'}
+            </ThemedText>
           </View>
 
           {/* Email */}
@@ -388,21 +348,9 @@ export default function ProfileScreen() {
           {/* Phone */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>{texts.phone || 'Phone'}</ThemedText>
-            {isEditing ? (
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                value={editedProfile.phone}
-                onChangeText={(text) => setEditedProfile(prev => ({ ...prev, phone: text }))}
-                placeholder="Enter your phone"
-              />
-            ) : (
-              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {userProfile?.phone || 'Not set'}
-              </ThemedText>
-            )}
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+              {userProfile?.phone || 'Not set'}
+            </ThemedText>
           </View>
 
           {/* Birthday */}
@@ -431,61 +379,25 @@ export default function ProfileScreen() {
            {/* Address - Apartment */}
            <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>Address - Apartment:</ThemedText>
-            {isEditing ? (
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                value={editedProfile.address_apartment}
-                onChangeText={(text) => setEditedProfile(prev => ({ ...prev, address_apartment: text }))}
-                placeholder="Apartment"
-              />
-            ) : (
-              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
                 {userProfile?.address_apartment || 'Not set'}
               </ThemedText>
-            )}
           </View>
 
           {/* Address - Building */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>Address - Building:</ThemedText>
-            {isEditing ? (
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                value={editedProfile.address_building}
-                onChangeText={(text) => setEditedProfile(prev => ({ ...prev, address_building: text }))}
-                placeholder="Building"
-              />
-            ) : (
-              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
                 {userProfile?.address_building || 'Not set'}
               </ThemedText>
-            )}
           </View>
 
           {/* Address - Block */}
           <View style={styles.fieldContainer}>
             <ThemedText style={styles.fieldLabel}>Address - Block:</ThemedText>
-            {isEditing ? (
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                value={editedProfile.address_block}
-                onChangeText={(text) => setEditedProfile(prev => ({ ...prev, address_block: text }))}
-                placeholder="Block"
-              />
-            ) : (
-              <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
+            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
                 {userProfile?.address_block || 'Not set'}
               </ThemedText>
-            )}
           </View>
         </View>
 
@@ -529,17 +441,7 @@ export default function ProfileScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          {isEditing && (
-             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: tintColor }]}
-              onPress={handleSaveProfile}
-            >
-              <IconSymbol name="checkmark.circle.fill" size={20} color="#fff" />
-              <ThemedText style={styles.actionButtonText}>
-                {texts.save || 'Save'}
-              </ThemedText>
-            </TouchableOpacity>
-          )}
+          
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: tintColor }]}
             onPress={() => router.push('/settings')}
@@ -672,7 +574,7 @@ export default function ProfileScreen() {
                         const isSelected = Object.values(userInterests)
                           .flat()
                           .some(userInt => userInt.id === interest.id);
-                        
+
                         return (
                           <TouchableOpacity
                             key={interest.id}
