@@ -205,14 +205,29 @@ export const DatabaseService = {
   },
 
   async getUserInterests(userId: string) {
-    const { data, error } = await supabase
-      .from('user_interests')
-      .select(`
-        interestid,
-        interests (id, title, category)
-      `)
-      .eq('userid', userId);
-    return { data, error };
+    try {
+      const { data, error } = await supabase
+        .from('user_interests')
+        .select(`
+          interestid,
+          interests (id, title, category)
+        `)
+        .eq('userid', userId);
+      
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          console.log('RLS policy prevented access to user interests');
+          return { data: [], error: null };
+        }
+        return { data: null, error };
+      }
+      
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getUserInterests:', error);
+      return { data: [], error: null };
+    }
   },
 
   async getInterestsByCategory() {

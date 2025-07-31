@@ -81,6 +81,7 @@ export default function ProfileScreen() {
   const [availableInterests, setAvailableInterests] = useState<{[category: string]: any[]}>({});
 
   const genderOptions = ['Male', 'Female', 'Prefer not to say'];
+  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
 
   const calculateAge = (birthday: string) => {
     const birthDate = new Date(birthday);
@@ -143,22 +144,22 @@ export default function ProfileScreen() {
   };
 
   const addInterest = async () => {
-    if (selectedCategory && user?.id) {
+    if (selectedInterest && user?.id) {
       try {
         // Find the selected interest from available interests
-        const selectedInterest = availableInterests[selectedCategory]?.find(
-          interest => interest.id === selectedCategory
-        );
-        
-        if (selectedInterest) {
+        const selectedInterestObj = Object.values(availableInterests)
+          .flat()
+          .find(interest => interest.id === selectedInterest);
+
+        if (selectedInterestObj) {
           // Add to user_interests table
           const { error } = await supabase
             .from('user_interests')
             .insert({
               userid: user.id,
-              interestid: selectedInterest.id
+              interestid: selectedInterestObj.id
             });
-          
+
           if (error) {
             console.error('Error adding interest:', error);
             Alert.alert('Error', 'Failed to add interest');
@@ -172,28 +173,33 @@ export default function ProfileScreen() {
         console.error('Error adding interest:', error);
         Alert.alert('Error', 'Failed to add interest');
       }
-      
-      setSelectedCategory('');
+
+      setSelectedInterest(null);
       setShowInterestModal(false);
     }
   };
 
   const removeInterest = async (category: string, interestId: string) => {
     if (!user?.id) return;
-    
+
     try {
       const { error } = await supabase
         .from('user_interests')
         .delete()
         .eq('userid', user.id)
         .eq('interestid', interestId);
-      
+
       if (error) {
         console.error('Error removing interest:', error);
-        Alert.alert('Error', 'Failed to remove interest');
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          Alert.alert('Error', 'You do not have permission to remove this interest');
+        } else {
+          Alert.alert('Error', 'Failed to remove interest');
+        }
       } else {
-        // Refresh user interests
         await fetchUserInterests();
+        Alert.alert('Success', 'Interest removed successfully');
       }
     } catch (error) {
       console.error('Error removing interest:', error);
@@ -262,7 +268,7 @@ export default function ProfileScreen() {
 
   const fetchUserInterests = async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await DatabaseService.getUserInterests(user.id);
       if (error) {
@@ -528,7 +534,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           ))}
-          
+
           {Object.keys(userInterests).length === 0 && (
             <ThemedText style={[styles.emptyInterests, isRTL && styles.rtlText]}>
               {texts.noInterestsYet || 'No interests added yet'}
@@ -673,34 +679,34 @@ export default function ProfileScreen() {
                 {texts.category || 'Category'}
               </ThemedText>
               <ScrollView style={{ maxHeight: 300 }}>
-                {Object.entries(availableInterests).map(([category, categoryInterests]) => (
-                  <View key={category} style={styles.categorySection}>
-                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
-                    <View style={styles.categoryGrid}>
-                      {categoryInterests.map((interest) => (
-                        <TouchableOpacity
-                          key={interest.id}
-                          style={[
-                            styles.categoryOption,
-                            {
-                              backgroundColor: selectedCategory === interest.id ? tintColor : backgroundColor,
-                              borderColor: tintColor,
-                            }
-                          ]}
-                          onPress={() => setSelectedCategory(interest.id)}
-                        >
-                          <ThemedText style={[
-                            styles.categoryOptionText,
-                            { color: selectedCategory === interest.id ? '#fff' : textColor }
-                          ]}>
-                            {interest.title}
-                          </ThemedText>
-                        </TouchableOpacity>
-                      ))}
+                  {Object.entries(availableInterests).map(([category, interests]) => (
+                    <View key={category} style={styles.categorySection}>
+                      <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
+                      <View style={styles.categoryGrid}>
+                        {interests.map((interest) => (
+                          <TouchableOpacity
+                            key={interest.id}
+                            style={[
+                              styles.categoryOption,
+                              {
+                                backgroundColor: selectedInterest === interest.id ? tintColor : 'transparent',
+                                borderColor: tintColor,
+                              }
+                            ]}
+                            onPress={() => setSelectedInterest(selectedInterest === interest.id ? '' : interest.id)}
+                          >
+                            <ThemedText style={[
+                              styles.categoryOptionText,
+                              { color: selectedInterest === interest.id ? '#fff' : textColor }
+                            ]}>
+                              {interest.title}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </ScrollView>
+                  ))}
+                </ScrollView>
             </View>
 
             <View style={styles.modalActions}>
@@ -943,7 +949,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  categoryGrid: {
+  categoryGrid:{
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
