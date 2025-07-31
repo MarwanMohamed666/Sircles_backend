@@ -59,7 +59,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error fetching user profile:', error);
 
-        // If user doesn't exist, create a minimal profile from auth data
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          console.log('RLS policy prevented access to user profile');
+          // Create minimal profile from auth data for display
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user) {
+            setUserProfile({
+              id: userId,
+              email: authUser.user.email || '',
+              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+              phone: null,
+              dob: null,
+              gender: null,
+              address_apartment: null,
+              address_building: null,
+              address_block: null,
+              avatar_url: null,
+              bio: null,
+              creationdate: new Date().toISOString(),
+            } as any);
+          }
+          return;
+        }
+
+        // If user doesn't exist, create a profile
         if (error.code === 'PGRST116') {
           const { data: authUser } = await supabase.auth.getUser();
           if (authUser.user) {
@@ -201,17 +225,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserProfile = async (profile: Partial<User>) => {
     if (!user) return { error: new Error('No user logged in') };
 
-    const { error } = await supabase
-      .from('users')
-      .update(profile)
-      .eq('id', user.id);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(profile)
+        .eq('id', user.id);
 
-    if (!error) {
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          return { error: new Error('You do not have permission to update this profile') };
+        }
+        return { error };
+      }
+
       // Refresh user profile
       await fetchUserProfile(user.id);
+      return { error: null };
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      return { error: error as Error };
     }
-
-    return { error };
   };
 
   const signOut = async () => {

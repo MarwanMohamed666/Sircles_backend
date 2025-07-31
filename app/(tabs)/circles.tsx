@@ -35,6 +35,7 @@ export default function CirclesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
+  const [error, setError] = useState<string | null>(null); // Added error state
 
   const [newCircle, setNewCircle] = useState({
     name: '',
@@ -43,37 +44,44 @@ export default function CirclesScreen() {
   });
 
   const loadCircles = async () => {
-    if (!user) return;
-
-    setLoading(true);
     try {
-      const [allCirclesResult, userCirclesResult] = await Promise.all([
-        getCircles(),
-        user?.id ? getCirclesByUser(user.id) : Promise.resolve({ data: [], error: null })
-      ]);
+      setLoading(true);
+      setError(null);
 
-      if (allCirclesResult.error) {
-        Alert.alert('Error', 'Failed to load circles');
+      // Load all circles
+      const { data: allCircles, error: circlesError } = await getCircles();
+      if (circlesError) {
+        console.error('Error loading circles:', circlesError);
+        setError('Unable to load circles. Please try again.');
+        setCircles([]);
         return;
       }
 
-      if (userCirclesResult.error) {
-        Alert.alert('Error', 'Failed to load your circles');
-        return;
+      // Load user's joined circles if user is logged in
+      let joinedCircleIds = new Set<string>();
+      if (user?.id) {
+        const { data: userCirclesResult, error: joinedError } = await getCirclesByUser(user.id);
+        if (joinedError) {
+          console.error('Error loading joined circles:', joinedError);
+          // Don't show error for this, just continue without joined status
+        } else {
+          joinedCircleIds = new Set(userCirclesResult?.map(uc => uc.circleId) || []);
+        }
       }
 
-      const userCircleIds = new Set(userCirclesResult.data?.map(uc => uc.circleId) || []);
-
-      const circlesWithJoinStatus = allCirclesResult.data?.map(circle => ({
+      // Format circles
+      const circlesWithJoinStatus = allCircles?.map(circle => ({
         ...circle,
-        isJoined: userCircleIds.has(circle.id),
+        isJoined: joinedCircleIds.has(circle.id),
         memberCount: 0 // You can implement actual member count if needed
       })) || [];
 
       setCircles(circlesWithJoinStatus);
       setMyCircles(circlesWithJoinStatus.filter(circle => circle.isJoined));
     } catch (error) {
-      Alert.alert('Error', 'Failed to load circles');
+      console.error('Error loading circles:', error);
+      setError('Something went wrong. Please try again.');
+      setCircles([]);
     } finally {
       setLoading(false);
     }
@@ -129,7 +137,22 @@ export default function CirclesScreen() {
         : await joinCircle(user.id, circleId);
 
       if (error) {
-        Alert.alert('Error', `Failed to ${isJoined ? 'leave' : 'join'} circle`);
+         console.error('Error joining circle:', error);
+
+        // Show user-friendly error messages
+        if (error.message.includes('permission')) {
+          Alert.alert(texts.error || 'Error', 'This circle is invite-only. Please contact an admin for access.');
+        } else if (error.message.includes('already a member')) {
+          Alert.alert(texts.info || 'Info', 'You are already a member of this circle!');
+          // Update local state to reflect this
+          setCircles(circles.map(circle => 
+            circle.id === circleId 
+              ? { ...circle, isJoined: true }
+              : circle
+          ));
+        } else {
+          Alert.alert(texts.error || 'Error', 'Unable to join circle. Please try again.');
+        }
         return;
       }
 
@@ -251,7 +274,32 @@ export default function CirclesScreen() {
           <View style={styles.loadingContainer}>
             <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
           </View>
-        ) : (
+        ) : error ? (
+            <View style={styles.emptyContainer}>
+              <IconSymbol name="exclamationmark.triangle" size={64} color="#EF5350" />
+              <ThemedText style={styles.emptyText}>
+                {error}
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.retryButton, { backgroundColor: tintColor }]}
+                onPress={loadCircles}
+              >
+                <ThemedText style={[styles.retryButtonText, { color: '#fff' }]}>
+                  {texts.retry || 'Retry'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : (activeTab === 'all' ? circles : myCircles).length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <IconSymbol name="person.3" size={64} color={textColor + '40'} />
+                <ThemedText style={styles.emptyText}>
+                  {activeTab === 'all' 
+                    ? texts.noCircles || 'No circles available'
+                    : texts.noJoinedCircles || 'You haven\'t joined any circles yet'
+                  }
+                </ThemedText>
+              </View>
+            ) : (
           <View style={styles.circlesList}>
             {(activeTab === 'all' ? circles : myCircles).map(renderCircle)}
             {(activeTab === 'all' ? circles : myCircles).length === 0 && (
@@ -570,5 +618,15 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: 'right',
+  },
+    retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

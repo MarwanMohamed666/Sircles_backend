@@ -54,6 +54,8 @@ export default function MessagesScreen() {
       
       if (error) {
         console.error('Error loading conversations:', error);
+        // Don't show error to user, just show empty state
+        setConversations([]);
         return;
       }
 
@@ -69,6 +71,7 @@ export default function MessagesScreen() {
       setConversations(circleConversations);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -80,13 +83,14 @@ export default function MessagesScreen() {
       
       if (error) {
         console.error('Error loading messages:', error);
+        setMessages([]);
         return;
       }
 
       const formattedMessages: Message[] = data?.map(msg => ({
         id: msg.id,
         content: msg.content || '',
-        senderId: msg.senderId,
+        senderId: msg.senderid,
         senderName: msg.users?.name || 'Unknown User',
         timestamp: msg.timestamp,
         type: msg.type || 'text',
@@ -96,29 +100,44 @@ export default function MessagesScreen() {
       setMessages(formattedMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
+      setMessages([]);
     }
   };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedCircle || !user?.id) return;
 
+    const originalMessage = newMessage.trim();
+    setNewMessage(''); // Optimistically clear input
+
     try {
       const { error } = await sendMessage({
         circleId: selectedCircle,
         senderId: user.id,
-        content: newMessage.trim(),
+        content: originalMessage,
         type: 'text'
       });
 
       if (error) {
         console.error('Error sending message:', error);
+        // Restore message on error and show user feedback
+        setNewMessage(originalMessage);
+        
+        // Show user-friendly error message
+        if (error.message.includes('permission')) {
+          alert('You do not have permission to send messages in this circle. You may need to join the circle first.');
+        } else {
+          alert('Failed to send message. Please try again.');
+        }
         return;
       }
 
-      setNewMessage('');
+      // Reload messages to show the new message
       await loadMessages(selectedCircle);
     } catch (error) {
       console.error('Error sending message:', error);
+      setNewMessage(originalMessage);
+      alert('Failed to send message. Please try again.');
     }
   };
 

@@ -25,25 +25,39 @@ export const sendMessage = (message: any) => DatabaseService.sendMessage(message
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('user_circles')
-    .select(`
-      circleid,
-      circles!inner(
-        id,
-        name,
-        description
-      )
-    `)
-    .eq('userid', userId);
-  
-  return { 
-    data: data?.map(uc => ({
-      circleId: uc.circleid,
-      circles: uc.circles
-    })), 
-    error 
-  };
+  try {
+    const { data, error } = await supabase
+      .from('user_circles')
+      .select(`
+        circleid,
+        circles!inner(
+          id,
+          name,
+          description
+        )
+      `)
+      .eq('userid', userId);
+    
+    if (error) {
+      // Handle RLS policy errors
+      if (error.code === 'PGRST001' || error.code === '42501') {
+        console.log('RLS policy prevented access to user circles');
+        return { data: [], error: null }; // Return empty array instead of error
+      }
+      return { data: null, error };
+    }
+    
+    return { 
+      data: data?.map(uc => ({
+        circleId: uc.circleid,
+        circles: uc.circles
+      })) || [], 
+      error: null 
+    };
+  } catch (error) {
+    console.error('Error in getCirclesByUser:', error);
+    return { data: [], error: null };
+  }
 };
 
 export const DatabaseService = {
@@ -77,14 +91,29 @@ export const DatabaseService = {
   },
 
   async getUserCircles(userId: string) {
-    const { data, error } = await supabase
-      .from('user_circles')
-      .select(`
-        circleid,
-        circles (*)
-      `)
-      .eq('userid', userId);
-    return { data, error };
+    try {
+      const { data, error } = await supabase
+        .from('user_circles')
+        .select(`
+          circleid,
+          circles (*)
+        `)
+        .eq('userid', userId);
+      
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          console.log('RLS policy prevented access to user circles');
+          return { data: [], error: null };
+        }
+        return { data: null, error };
+      }
+      
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getUserCircles:', error);
+      return { data: [], error: null };
+    }
   },
 
   async createCircle(circle: Omit<Circle, 'id' | 'creationdate'>) {
@@ -227,10 +256,28 @@ export const DatabaseService = {
 
   // Additional helper functions
   async joinCircle(userId: string, circleId: string) {
-    const { data, error } = await supabase
-      .from('user_circles')
-      .insert({ userid: userId, circleid: circleId });
-    return { data, error };
+    try {
+      const { data, error } = await supabase
+        .from('user_circles')
+        .insert({ userid: userId, circleid: circleId });
+      
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          return { data: null, error: new Error('You do not have permission to join this circle') };
+        }
+        // Handle duplicate entry
+        if (error.code === '23505') {
+          return { data: null, error: new Error('You are already a member of this circle') };
+        }
+        return { data: null, error };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in joinCircle:', error);
+      return { data: null, error: error as Error };
+    }
   },
 
   async leaveCircle(userId: string, circleId: string) {
@@ -252,40 +299,69 @@ export const DatabaseService = {
 
   // Messages operations
   async getCircleMessages(circleId: string) {
-    const { data, error } = await supabase
-      .from('circle_messages')
-      .select(`
-        *,
-        users:senderid(name, avatar)
-      `)
-      .eq('circleid', circleId)
-      .order('timestamp', { ascending: true });
-    return { data, error };
+    try {
+      const { data, error } = await supabase
+        .from('circle_messages')
+        .select(`
+          *,
+          users:senderid(name, avatar)
+        `)
+        .eq('circleid', circleId)
+        .order('timestamp', { ascending: true });
+      
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          console.log('RLS policy prevented access to circle messages');
+          return { data: [], error: null }; // Return empty array for non-members
+        }
+        return { data: null, error };
+      }
+      
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getCircleMessages:', error);
+      return { data: [], error: null };
+    }
   },
 
   async sendMessage(message: {
     circleId: string;
     senderId: string;
-    content: string;
+    content: string;  
     type: string;
     attachment?: string;
   }) {
-    const newMessage = {
-      id: crypto.randomUUID(),
-      circleid: message.circleId,
-      senderid: message.senderId,
-      content: message.content,
-      type: message.type,
-      attachment: message.attachment,
-      timestamp: new Date().toISOString(),
-      creationdate: new Date().toISOString(),
-    };
-    
-    const { data, error } = await supabase
-      .from('circle_messages')
-      .insert(newMessage)
-      .select()
-      .single();
-    return { data, error };
+    try {
+      const newMessage = {
+        id: crypto.randomUUID(),
+        circleid: message.circleId,
+        senderid: message.senderId,
+        content: message.content,
+        type: message.type,
+        attachment: message.attachment,
+        timestamp: new Date().toISOString(),
+        creationdate: new Date().toISOString(),
+      };
+      
+      const { data, error } = await supabase
+        .from('circle_messages')
+        .insert(newMessage)
+        .select()
+        .single();
+      
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          return { data: null, error: new Error('You do not have permission to send messages in this circle') };
+        }
+        return { data: null, error };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      return { data: null, error: error as Error };
+    }
   },
 };
