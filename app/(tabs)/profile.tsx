@@ -209,7 +209,7 @@ export default function ProfileScreen() {
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -231,7 +231,7 @@ export default function ProfileScreen() {
     try {
       // Get file extension from URI
       const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
-      
+
       if (!fileExtension || !['png', 'jpg', 'jpeg'].includes(fileExtension)) {
         Alert.alert('Error', 'Please select a PNG or JPG image');
         return;
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
       if (data?.publicUrl) {
         // Update user profile with new avatar URL
         const { error: updateError } = await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
-        
+
         if (updateError) {
           console.error('Update avatar error:', updateError);
           Alert.alert('Error', 'Failed to update profile');
@@ -265,7 +265,7 @@ export default function ProfileScreen() {
 
         // Update local state
         setAvatarUrl(data.publicUrl);
-        
+
         // Refresh user profile
         if (updateUserProfile) {
           await updateUserProfile({ avatar: data.publicUrl });
@@ -335,7 +335,7 @@ export default function ProfileScreen() {
       if (exists && extension) {
         const url = StorageService.getAvatarUrl(user.id, extension);
         setAvatarUrl(url);
-        
+
         // Update user profile with found avatar
         await DatabaseService.updateUserAvatar(user.id, url);
       }
@@ -567,7 +567,7 @@ export default function ProfileScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          
+
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: tintColor }]}
             onPress={() => router.push('/settings')}
