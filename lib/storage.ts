@@ -8,10 +8,19 @@ export const StorageService = {
       let uploadData;
 
       if (typeof asset === 'object' && asset.uri) {
-        // React Native file upload - convert to base64 or use fetch
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        uploadData = blob;
+        // React Native file upload
+        try {
+          const response = await fetch(asset.uri);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch asset: ${response.status}`);
+          }
+          const blob = await response.blob();
+          uploadData = blob;
+          console.log('Blob created successfully, size:', blob.size, 'type:', blob.type);
+        } catch (fetchError) {
+          console.error('Error fetching asset:', fetchError);
+          throw fetchError;
+        }
       } else {
         // Web file upload (Blob/File)
         uploadData = asset;
