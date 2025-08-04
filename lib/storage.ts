@@ -94,17 +94,21 @@ export const StorageService = {
       console.log('Uploaded file path:', data?.path);
       console.log('Uploaded file name should be:', fileName);
 
-      // Get public URL
+      // Get public URL with cache-busting parameter
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
+      // Add cache-busting timestamp to force browser to fetch new image
+      const cacheBustingUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      
       console.log('Generated public URL:', urlData.publicUrl);
+      console.log('Cache-busting URL:', cacheBustingUrl);
 
       return { 
         data: { 
           ...data, 
-          publicUrl: urlData.publicUrl 
+          publicUrl: cacheBustingUrl 
         }, 
         error: null 
       };
@@ -145,7 +149,8 @@ export const StorageService = {
       .from('avatars')
       .getPublicUrl(fileName);
 
-    return data.publicUrl;
+    // Add cache-busting timestamp to ensure fresh image load
+    return `${data.publicUrl}?t=${Date.now()}`;
   },
 
   async checkAvatarExists(userId: string) {
