@@ -1,13 +1,12 @@
-
 import { supabase } from './supabase';
 
 export const StorageService = {
   async uploadAvatar(userId: string, asset: any, fileExtension: string) {
     try {
       const fileName = `${userId}.${fileExtension}`;
-      
+
       let uploadData;
-      
+
       if (typeof asset === 'object' && asset.uri) {
         // React Native file upload
         const formData = new FormData();
@@ -49,7 +48,7 @@ export const StorageService = {
   async deleteAvatar(userId: string, fileExtension: string) {
     try {
       const fileName = `${userId}.${fileExtension}`;
-      
+
       const { data, error } = await supabase.storage
         .from('avatars')
         .remove([fileName]);
@@ -66,7 +65,7 @@ export const StorageService = {
     const { data } = supabase.storage
       .from('avatars')
       .getPublicUrl(fileName);
-    
+
     return data.publicUrl;
   },
 
@@ -74,7 +73,7 @@ export const StorageService = {
     try {
       // Check for both .png and .jpg
       const extensions = ['png', 'jpg'];
-      
+
       for (const ext of extensions) {
         const fileName = `${userId}.${ext}`;
         const { data, error } = await supabase.storage

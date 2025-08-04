@@ -68,8 +68,14 @@ export default function LoginScreen() {
       const { error } = await signIn(email, password);
 
       if (error) {
-        // If sign in fails, check if it's because user doesn't exist in auth
-        if (error.message?.includes('Invalid login credentials')) {
+        // For any authentication error, show generic message for security
+        if (error.message?.includes('Invalid login credentials') || 
+            error.message?.includes('Email not confirmed') ||
+            error.message?.includes('Invalid') ||
+            error.message?.includes('Wrong')) {
+          Alert.alert('Login Error', 'Wrong email or password. Please try again.');
+        } else {
+          // For other errors, check if user exists
           const { exists } = await checkUserExists(email);
           if (!exists) {
             Alert.alert(
@@ -87,10 +93,8 @@ export default function LoginScreen() {
               ]
             );
           } else {
-            Alert.alert('Login Error', 'Invalid email or password');
+            Alert.alert('Login Error', 'Wrong email or password. Please try again.');
           }
-        } else {
-          Alert.alert('Login Error', error.message);
         }
       } else {
         // Check if admin user
