@@ -39,7 +39,7 @@ interface Post {
 interface Member {
   id: string;
   name: string;
-  avatar?: string;
+  avatar_url?: string;
   isAdmin: boolean;
 }
 
@@ -104,12 +104,16 @@ export default function CircleScreen() {
         }
       }
 
+      // Load members count regardless of membership for public circles
+      const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
+      const memberCount = membersData?.length || 0;
+      
       setCircle({
         ...currentCircle,
         isJoined,
         isAdmin,
         isMainAdmin,
-        memberCount: 0 // Will be updated when loading members
+        memberCount
       });
 
       // Load posts if user is member or circle is public
@@ -118,11 +122,9 @@ export default function CircleScreen() {
         setPosts(postsData || []);
       }
 
-      // Load members if user is member
+      // Load full member details if user is member
       if (isJoined) {
-        const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
         setMembers(membersData || []);
-        setCircle(prev => prev ? {...prev, memberCount: membersData?.length || 0} : null);
       }
 
       // Load join requests if user is admin

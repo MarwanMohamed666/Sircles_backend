@@ -626,7 +626,7 @@ export const DatabaseService = {
         .from('circle_messages')
         .select(`
           *,
-          users:senderid(name, avatar)
+          users:senderid(name, avatar_url)
         `)
         .eq('circleid', circleId)
         .order('timestamp', { ascending: true });
