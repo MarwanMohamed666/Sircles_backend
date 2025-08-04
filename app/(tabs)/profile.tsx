@@ -266,7 +266,10 @@ export default function ProfileScreen() {
       // Normalize extension
       const normalizedExtension = fileExtension === 'jpeg' ? 'jpg' : fileExtension;
 
-      console.log('About to upload avatar with user ID:', user.id, 'extension:', normalizedExtension);
+      console.log('=== PROFILE UPLOAD DEBUG ===');
+      console.log('User object:', { id: user.id, email: user.email });
+      console.log('Original file extension:', fileExtension);
+      console.log('Normalized extension:', normalizedExtension);
       console.log('Asset details:', {
         uri: asset.uri?.substring(0, 50) + '...', // Log first 50 chars only
         type: typeof asset,
@@ -274,6 +277,11 @@ export default function ProfileScreen() {
       });
 
       // Upload to Supabase Storage with the asset URI directly
+      console.log('Calling StorageService.uploadAvatar with:', {
+        userId: user.id,
+        extension: normalizedExtension
+      });
+      
       const { data, error } = await StorageService.uploadAvatar(
         user.id, 
         asset, 

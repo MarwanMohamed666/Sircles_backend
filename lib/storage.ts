@@ -4,7 +4,10 @@ export const StorageService = {
   async uploadAvatar(userId: string, asset: any, fileExtension: string) {
     try {
       const fileName = `${userId}.${fileExtension}`;
-      console.log('Starting upload for file:', fileName);
+      console.log('=== UPLOAD AVATAR DEBUG ===');
+      console.log('User ID:', userId);
+      console.log('File extension:', fileExtension);
+      console.log('Final filename:', fileName);
       console.log('Asset details:', { 
         hasUri: !!asset?.uri, 
         uriType: asset?.uri?.startsWith('data:') ? 'base64' : 'file',
@@ -55,10 +58,12 @@ export const StorageService = {
         ? 'image/jpeg' 
         : `image/${fileExtension}`;
 
-      console.log('Uploading to Supabase:', {
+      console.log('Uploading to Supabase with params:', {
+        bucket: 'avatars',
         fileName,
         contentType,
-        blobSize: uploadData.size
+        blobSize: uploadData.size,
+        upsert: true
       });
 
       // Upload to Supabase Storage
@@ -71,11 +76,17 @@ export const StorageService = {
         });
 
       if (error) {
-        console.error('Supabase upload error:', error);
+        console.error('Supabase upload error details:', {
+          message: error.message,
+          statusCode: error.statusCode,
+          error: error
+        });
         return { data: null, error };
       }
 
-      console.log('Upload successful:', data);
+      console.log('Upload successful - Supabase response:', data);
+      console.log('Uploaded file path:', data?.path);
+      console.log('Uploaded file name should be:', fileName);
 
       // Get public URL
       const { data: urlData } = supabase.storage
