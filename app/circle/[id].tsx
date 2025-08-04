@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -82,7 +81,7 @@ export default function CircleScreen() {
       // Load circle details
       const { data: circleData, error: circleError } = await DatabaseService.getCircles();
       const currentCircle = circleData?.find(c => c.id === id);
-      
+
       if (!currentCircle) {
         Alert.alert('Error', 'Circle not found');
         router.back();
@@ -153,7 +152,7 @@ export default function CircleScreen() {
         Alert.alert('Error', `Failed to ${action} request`);
         return;
       }
-      
+
       Alert.alert('Success', `Request ${action}ed successfully`);
       await loadCircleData();
     } catch (error) {
@@ -217,6 +216,40 @@ export default function CircleScreen() {
           }
         }
       ]
+    );
+  };
+
+  const handleLeaveCircle = async () => {
+    if (!user?.id || !id) return;
+
+    Alert.alert(
+      'Leave Circle',
+      'Are you sure you want to leave this circle?',
+      [
+        {
+          text: 'No',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.leaveCircle(user.id, id);
+              if (error) {
+                Alert.alert('Error', error.message || 'Failed to leave circle');
+                return;
+              }
+
+              Alert.alert('Success', 'You have left the circle');
+              router.back();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to leave circle');
+            }
+          },
+        },
+      ],
+      { cancelable: false }
     );
   };
 

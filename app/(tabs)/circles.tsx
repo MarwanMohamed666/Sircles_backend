@@ -11,6 +11,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCircles, createCircle, joinCircle, leaveCircle, getCirclesByUser, DatabaseService } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
+import { StorageService } from '@/lib/storage';
 
 interface Circle {
   id: string;
@@ -141,7 +142,7 @@ export default function CirclesScreen() {
       if (data) {
         // Make creator an admin
         await DatabaseService.addCircleAdmin(data.id, user.id, user.id);
-        
+
         // Auto-join the creator to their own circle
         await DatabaseService.joinCircle(user.id, data.id);
 

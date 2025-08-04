@@ -153,6 +153,78 @@ export const StorageService = {
     return `${data.publicUrl}?t=${Date.now()}`;
   },
 
+  async uploadCircleProfilePicture(circleId: string, base64Data: string) {
+    try {
+      // Extract file extension from base64 data URI
+      const matches = base64Data.match(/^data:image\/([a-zA-Z]*);base64,(.*)$/);
+      if (!matches) {
+        return { data: null, error: new Error('Invalid base64 data') };
+      }
+      
+      const extension = matches[1];
+      const base64 = matches[2];
+      
+      // Convert base64 to blob
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: `image/${extension}` });
+      
+      // Generate filename with circle ID
+      const fileName = `${circleId}.${extension}`;
+      
+      console.log('Uploading circle profile picture:', fileName);
+      
+      // Upload to circle-profile-pics bucket
+      const { data, error } = await supabase.storage
+        .from('circle-profile-pics')
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        return { data: null, error };
+      }
+      
+      console.log('Uploaded file path:', data?.path);
+      
+      // Get public URL with cache-busting parameter
+      const { data: urlData } = supabase.storage
+        .from('circle-profile-pics')
+        .getPublicUrl(fileName);
+      
+      const cacheBustingUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      
+      console.log('Generated public URL:', urlData.publicUrl);
+      console.log('Cache-busting URL:', cacheBustingUrl);
+      
+      return { 
+        data: { 
+          ...data, 
+          publicUrl: cacheBustingUrl 
+        }, 
+        error: null 
+      };
+    } catch (error) {
+      console.error('Circle profile picture upload error:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  getCircleProfilePictureUrl(circleId: string) {
+    const fileName = `${circleId}.jpg`; // Default to jpg, could be png too
+    const { data } = supabase.storage
+      .from('circle-profile-pics')
+      .getPublicUrl(fileName);
+    
+    return `${data.publicUrl}?t=${Date.now()}`;
+  },
+
   async checkAvatarExists(userId: string) {
     try {
       // Check for both .png and .jpg

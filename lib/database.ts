@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import type { User, Circle, Event, Post, Interest } from '@/types/database';
 
@@ -47,7 +46,7 @@ export const getCirclesByUser = async (userId: string) => {
         )
       `)
       .eq('userid', userId);
-    
+
     if (error) {
       // Handle RLS policy errors
       if (error.code === 'PGRST001' || error.code === '42501') {
@@ -56,7 +55,7 @@ export const getCirclesByUser = async (userId: string) => {
       }
       return { data: null, error };
     }
-    
+
     return { 
       data: data?.map(uc => ({
         circleId: uc.circleid,
@@ -119,7 +118,7 @@ export const DatabaseService = {
           circles (*)
         `)
         .eq('userid', userId);
-      
+
       if (error) {
         // Handle RLS policy errors
         if (error.code === 'PGRST001' || error.code === '42501') {
@@ -128,7 +127,7 @@ export const DatabaseService = {
         }
         return { data: null, error };
       }
-      
+
       return { data: data || [], error: null };
     } catch (error) {
       console.error('Error in getUserCircles:', error);
@@ -142,7 +141,7 @@ export const DatabaseService = {
       ...circle,
       creationdate: new Date().toISOString(),
     };
-    
+
     const { data, error } = await supabase
       .from('circles')
       .insert(newCircle)
@@ -170,7 +169,7 @@ export const DatabaseService = {
       ...event,
       creationdate: new Date().toISOString(),
     };
-    
+
     const { data, error } = await supabase
       .from('events')
       .insert(newEvent)
@@ -185,17 +184,17 @@ export const DatabaseService = {
       .from('posts')
       .select(`
         *,
-        author:users!posts_userid_fkey(name, avatar),
+        author:users!posts_userid_fkey(name, avatar_url),
         circle:circles!posts_circleid_fkey(name),
         likes:post_likes(userid),
         comments(count)
       `)
       .order('creationdate', { ascending: false });
-    
+
     if (circleId) {
       query = query.eq('circleid', circleId);
     }
-    
+
     const { data, error } = await query;
     return { data, error };
   },
@@ -206,7 +205,7 @@ export const DatabaseService = {
       ...post,
       creationdate: new Date().toISOString(),
     };
-    
+
     const { data, error } = await supabase
       .from('posts')
       .insert(newPost)
@@ -233,7 +232,7 @@ export const DatabaseService = {
           interests (id, title, category)
         `)
         .eq('userid', userId);
-      
+
       if (error) {
         // Handle RLS policy errors
         if (error.code === 'PGRST001' || error.code === '42501') {
@@ -242,7 +241,7 @@ export const DatabaseService = {
         }
         return { data: null, error };
       }
-      
+
       return { data: data || [], error: null };
     } catch (error) {
       console.error('Error in getUserInterests:', error);
@@ -255,9 +254,9 @@ export const DatabaseService = {
       .from('interests')
       .select('id, title, category')
       .order('category, title');
-    
+
     if (error) return { data: null, error };
-    
+
     // Group interests by category
     const groupedInterests: { [key: string]: any[] } = {};
     data?.forEach(interest => {
@@ -267,7 +266,7 @@ export const DatabaseService = {
       }
       groupedInterests[category].push(interest);
     });
-    
+
     return { data: groupedInterests, error: null };
   },
 
@@ -295,7 +294,7 @@ export const DatabaseService = {
       const { data, error } = await supabase
         .from('user_circles')
         .insert({ userid: userId, circleid: circleId });
-      
+
       if (error) {
         // Handle RLS policy errors
         if (error.code === 'PGRST001' || error.code === '42501') {
@@ -307,7 +306,7 @@ export const DatabaseService = {
         }
         return { data: null, error };
       }
-      
+
       return { data, error: null };
     } catch (error) {
       console.error('Error in joinCircle:', error);
@@ -340,12 +339,12 @@ export const DatabaseService = {
           linkeditemtype: 'circle',
           creationdate: new Date().toISOString()
         });
-      
+
       if (error) {
         console.error('Error creating join request notification:', error);
         return { data: null, error };
       }
-      
+
       return { data, error: null };
     } catch (error) {
       console.error('Error in requestToJoinCircle:', error);
@@ -364,7 +363,7 @@ export const DatabaseService = {
         .eq('type', 'join_request')
         .eq('read', false)
         .order('creationdate', { ascending: false });
-      
+
       return { data: data || [], error };
     } catch (error) {
       console.error('Error in getCircleJoinRequests:', error);
@@ -379,13 +378,13 @@ export const DatabaseService = {
         .from('notifications')
         .update({ read: true })
         .eq('id', requestId);
-      
+
       if (updateError) return { data: null, error: updateError };
-      
+
       // For now, we'll just mark it as read since we don't have the user-circle connection
       // In a full implementation, you'd extract user ID from the notification content
       // and add them to the circle if accepted
-      
+
       return { data: { success: true }, error: null };
     } catch (error) {
       console.error('Error in handleJoinRequest:', error);
@@ -401,12 +400,12 @@ export const DatabaseService = {
         .select('createdby')
         .eq('id', circleId)
         .single();
-      
+
       if (circleError) return { data: null, error: circleError };
       if (circle.createdby !== adminUserId) {
         return { data: null, error: new Error('Only the circle creator can delete the circle') };
       }
-      
+
       // Delete all related data
       await supabase.from('circle_messages').delete().eq('circleid', circleId);
       await supabase.from('posts').delete().eq('circleid', circleId);
@@ -414,16 +413,16 @@ export const DatabaseService = {
       await supabase.from('user_circles').delete().eq('circleid', circleId);
       await supabase.from('circle_join_requests').delete().eq('circleid', circleId);
       await supabase.from('circle_admins').delete().eq('circleid', circleId);
-      
+
       // Delete circle avatar from storage if exists
       await supabase.storage.from('avatars').remove([`circle_${circleId}.jpg`, `circle_${circleId}.png`]);
-      
+
       // Finally delete the circle
       const { error: deleteError } = await supabase
         .from('circles')
         .delete()
         .eq('id', circleId);
-      
+
       return { data: { success: true }, error: deleteError };
     } catch (error) {
       console.error('Error in deleteCircle:', error);
@@ -437,13 +436,13 @@ export const DatabaseService = {
         .from('user_circles')
         .select(`
           userid,
-          users:userid(id, name, avatar),
+          users:userid(id, name, avatar_url),
           circle_admins!left(userid)
         `)
         .eq('circleid', circleId);
-      
+
       if (error) return { data: [], error };
-      
+
       return { 
         data: data?.map(member => ({
           ...member.users,
@@ -466,18 +465,18 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', requestingAdminId)
         .single();
-      
+
       if (!adminCheck) {
         return { data: null, error: new Error('You do not have admin permissions') };
       }
-      
+
       const { data, error } = await supabase
         .from('circle_admins')
         .insert({
           circleid: circleId,
           userid: userId
         });
-      
+
       return { data, error };
     } catch (error) {
       console.error('Error in addCircleAdmin:', error);
@@ -493,18 +492,18 @@ export const DatabaseService = {
         .select('createdby')
         .eq('id', circleId)
         .single();
-      
+
       // Cannot remove the main admin (creator)
       if (circle?.createdby === userId) {
         return { data: null, error: new Error('Cannot remove the main admin') };
       }
-      
+
       const { data, error } = await supabase
         .from('circle_admins')
         .delete()
         .eq('circleid', circleId)
         .eq('userid', userId);
-      
+
       return { data, error };
     } catch (error) {
       console.error('Error in removeCircleAdmin:', error);
@@ -521,25 +520,25 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', adminId)
         .single();
-      
+
       if (!adminCheck) {
         return { data: null, error: new Error('You do not have admin permissions') };
       }
-      
+
       // Remove from circle
       const { data, error } = await supabase
         .from('user_circles')
         .delete()
         .eq('circleid', circleId)
         .eq('userid', userId);
-      
+
       // Also remove admin status if they had it
       await supabase
         .from('circle_admins')
         .delete()
         .eq('circleid', circleId)
         .eq('userid', userId);
-      
+
       return { data, error };
     } catch (error) {
       console.error('Error in removeMemberFromCircle:', error);
@@ -555,9 +554,9 @@ export const DatabaseService = {
         .select('createdby')
         .eq('id', circleId)
         .single();
-      
+
       if (circle?.createdby === userId) return { data: { isAdmin: true, isMainAdmin: true }, error: null };
-      
+
       // Check if user is in circle_admins
       const { data: admin } = await supabase
         .from('circle_admins')
@@ -565,7 +564,7 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', userId)
         .single();
-      
+
       return { data: { isAdmin: !!admin, isMainAdmin: false }, error: null };
     } catch (error) {
       console.error('Error in isCircleAdmin:', error);
@@ -597,7 +596,7 @@ export const DatabaseService = {
         .from('posts')
         .select(`
           *,
-          author:users!posts_userid_fkey(name, avatar),
+          author:users!posts_userid_fkey(name, avatar_url),
           circle:circles!posts_circleid_fkey(name),
           likes:post_likes(userid),
           comments(count)
@@ -631,7 +630,7 @@ export const DatabaseService = {
         `)
         .eq('circleid', circleId)
         .order('timestamp', { ascending: true });
-      
+
       if (error) {
         // Handle RLS policy errors
         if (error.code === 'PGRST001' || error.code === '42501') {
@@ -640,7 +639,7 @@ export const DatabaseService = {
         }
         return { data: null, error };
       }
-      
+
       return { data: data || [], error: null };
     } catch (error) {
       console.error('Error in getCircleMessages:', error);
@@ -666,13 +665,13 @@ export const DatabaseService = {
         timestamp: new Date().toISOString(),
         creationdate: new Date().toISOString(),
       };
-      
+
       const { data, error } = await supabase
         .from('circle_messages')
         .insert(newMessage)
         .select()
         .single();
-      
+
       if (error) {
         // Handle RLS policy errors
         if (error.code === 'PGRST001' || error.code === '42501') {
@@ -680,7 +679,7 @@ export const DatabaseService = {
         }
         return { data: null, error };
       }
-      
+
       return { data, error: null };
     } catch (error) {
       console.error('Error in sendMessage:', error);
