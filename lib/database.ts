@@ -81,6 +81,16 @@ export const DatabaseService = {
     return { data, error };
   },
 
+  async updateUserAvatar(id: string, avatarUrl: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ avatar: avatarUrl })
+      .eq('id', id)
+      .select()
+      .single();
+    return { data, error };
+  },
+
   // Circle operations
   async getCircles() {
     const { data, error } = await supabase

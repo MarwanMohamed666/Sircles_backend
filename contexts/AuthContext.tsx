@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
   setupFirstTimePassword: async () => ({ error: null }),
-  setupInitialPassword: async () => ({ error: null }),
+  setupInitialPassword: async () => ({ exists: false, error: null }),
   checkUserExists: async () => ({ exists: false, error: null }),
 });
 
@@ -226,24 +226,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: new Error('No user logged in') };
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .update(profile)
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
 
       if (error) {
-        // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          return { error: new Error('You do not have permission to update this profile') };
-        }
         return { error };
       }
 
-      // Refresh user profile
-      await fetchUserProfile(user.id);
+      // Update local state immediately
+      if (data) {
+        setUserProfile(data);
+      }
+
       return { error: null };
     } catch (error) {
-      console.error('Error updating user profile:', error);
       return { error: error as Error };
     }
   };
@@ -270,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Check if user exists in database
       const { exists, error: checkError } = await checkUserExists(email);
-      
+
       if (checkError) {
         console.error('Error checking user existence:', checkError);
         return { error: checkError };

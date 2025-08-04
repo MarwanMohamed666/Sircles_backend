@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -11,6 +12,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
+import { StorageService } from '@/lib/storage';
 
 interface UserProfile {
   name: string;
@@ -44,6 +46,8 @@ export default function ProfileScreen() {
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newInterest, setNewInterest] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [passwordData, setPasswordData] = useState({
     current: '',
     new: '',
@@ -188,6 +192,110 @@ export default function ProfileScreen() {
     }
   };
 
+  const requestPermissions = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to upload avatar!');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadAvatar(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const uploadAvatar = async (asset: any) => {
+    if (!user?.id) return;
+
+    setUploading(true);
+    try {
+      // Get file extension from URI
+      const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+      
+      if (!fileExtension || !['png', 'jpg', 'jpeg'].includes(fileExtension)) {
+        Alert.alert('Error', 'Please select a PNG or JPG image');
+        return;
+      }
+
+      // Convert to blob for upload
+      let blob: Blob;
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        blob = await response.blob();
+      } else {
+        // For React Native, we need to create a FormData compatible object
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          type: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
+          name: `${user.id}.${fileExtension}`,
+        } as any);
+        
+        // Extract the file from FormData for direct upload
+        blob = formData.get('file') as Blob;
+      }
+
+      // Upload to Supabase Storage
+      const { data, error } = await StorageService.uploadAvatar(
+        user.id, 
+        blob, 
+        fileExtension === 'jpg' ? 'jpg' : 'png'
+      );
+
+      if (error) {
+        console.error('Upload error:', error);
+        Alert.alert('Error', 'Failed to upload avatar');
+        return;
+      }
+
+      if (data?.publicUrl) {
+        // Update user profile with new avatar URL
+        const { error: updateError } = await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
+        
+        if (updateError) {
+          console.error('Update avatar error:', updateError);
+          Alert.alert('Error', 'Failed to update profile');
+          return;
+        }
+
+        // Update local state
+        setAvatarUrl(data.publicUrl);
+        
+        // Refresh user profile
+        if (updateUserProfile) {
+          await updateUserProfile({ avatar: data.publicUrl });
+        }
+
+        Alert.alert('Success', 'Avatar updated successfully!');
+      }
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      Alert.alert('Error', 'Failed to upload avatar');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const { signOut: authSignOut } = useAuth();
 
   const handleLogout = () => {
@@ -222,9 +330,34 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (user?.id) {
       fetchUserInterests();
+      checkExistingAvatar();
     }
     fetchAvailableInterests();
   }, [user]);
+
+  const checkExistingAvatar = async () => {
+    if (!user?.id) return;
+
+    try {
+      // First check if avatar URL is in user profile
+      if (userProfile?.avatar) {
+        setAvatarUrl(userProfile.avatar);
+        return;
+      }
+
+      // If not, check storage for existing avatar
+      const { exists, extension } = await StorageService.checkAvatarExists(user.id);
+      if (exists && extension) {
+        const url = StorageService.getAvatarUrl(user.id, extension);
+        setAvatarUrl(url);
+        
+        // Update user profile with found avatar
+        await DatabaseService.updateUserAvatar(user.id, url);
+      }
+    } catch (error) {
+      console.error('Error checking existing avatar:', error);
+    }
+  };
 
   const fetchUserInterests = async () => {
     if (!user?.id) return;
@@ -300,16 +433,24 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Avatar and Name Section */}
         <View style={[styles.avatarSection, { backgroundColor: surfaceColor }]}>
-          <TouchableOpacity style={styles.avatarContainer}>
-            {profile.avatar ? (
-              <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+          <TouchableOpacity 
+            style={styles.avatarContainer}
+            onPress={pickImage}
+            disabled={uploading}
+          >
+            {avatarUrl || userProfile?.avatar ? (
+              <Image 
+                source={{ uri: avatarUrl || userProfile?.avatar }} 
+                style={styles.avatar} 
+                onError={() => setAvatarUrl(null)}
+              />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: tintColor }]}>
                 <IconSymbol name="person.fill" size={40} color="#fff" />
               </View>
             )}
-            <View style={[styles.editAvatarButton, { backgroundColor: accentColor }]}>
-              <IconSymbol name="pencil" size={16} color="#fff" />
+            <View style={[styles.editAvatarButton, { backgroundColor: uploading ? '#ccc' : accentColor }]}>
+              <IconSymbol name={uploading ? "arrow.up.circle" : "pencil"} size={16} color="#fff" />
             </View>
           </TouchableOpacity>
 
