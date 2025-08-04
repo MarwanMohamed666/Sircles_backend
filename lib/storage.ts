@@ -8,18 +8,32 @@ export const StorageService = {
       let uploadData;
 
       if (typeof asset === 'object' && asset.uri) {
-        // React Native file upload
-        try {
-          const response = await fetch(asset.uri);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch asset: ${response.status}`);
+        // Check if it's a base64 data URI
+        if (asset.uri.startsWith('data:')) {
+          try {
+            // Convert base64 data URI to blob
+            const response = await fetch(asset.uri);
+            const blob = await response.blob();
+            uploadData = blob;
+            console.log('Base64 blob created successfully, size:', blob.size, 'type:', blob.type);
+          } catch (base64Error) {
+            console.error('Error converting base64 to blob:', base64Error);
+            throw base64Error;
           }
-          const blob = await response.blob();
-          uploadData = blob;
-          console.log('Blob created successfully, size:', blob.size, 'type:', blob.type);
-        } catch (fetchError) {
-          console.error('Error fetching asset:', fetchError);
-          throw fetchError;
+        } else {
+          // Regular file URI
+          try {
+            const response = await fetch(asset.uri);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch asset: ${response.status}`);
+            }
+            const blob = await response.blob();
+            uploadData = blob;
+            console.log('File blob created successfully, size:', blob.size, 'type:', blob.type);
+          } catch (fetchError) {
+            console.error('Error fetching asset:', fetchError);
+            throw fetchError;
+          }
         }
       } else {
         // Web file upload (Blob/File)

@@ -217,7 +217,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -266,6 +266,13 @@ export default function ProfileScreen() {
       // Normalize extension
       const normalizedExtension = fileExtension === 'jpeg' ? 'jpg' : fileExtension;
 
+      console.log('About to upload avatar with user ID:', user.id, 'extension:', normalizedExtension);
+      console.log('Asset details:', {
+        uri: asset.uri?.substring(0, 50) + '...', // Log first 50 chars only
+        type: typeof asset,
+        hasUri: !!asset.uri
+      });
+
       // Upload to Supabase Storage with the asset URI directly
       const { data, error } = await StorageService.uploadAvatar(
         user.id, 
@@ -274,8 +281,9 @@ export default function ProfileScreen() {
       );
 
       if (error) {
-        console.error('Upload error:', error);
-        Alert.alert('Error', 'Failed to upload avatar');
+        console.error('Upload error details:', error);
+        console.error('Error message:', error.message);
+        Alert.alert('Error', `Failed to upload avatar: ${error.message}`);
         return;
       }
 
