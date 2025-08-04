@@ -14,7 +14,6 @@ WITH CHECK (
   AND (
     right(lower(name), 4) = '.png'
     OR right(lower(name), 4) = '.jpg'
-    OR right(lower(name), 5) = '.jpeg'
   )
   AND (
     name ~ ('^' || auth.uid()::text || '\.')
@@ -30,7 +29,6 @@ USING (
   AND (
     right(lower(name), 4) = '.png'
     OR right(lower(name), 4) = '.jpg'
-    OR right(lower(name), 5) = '.jpeg'
   )
 );
 
