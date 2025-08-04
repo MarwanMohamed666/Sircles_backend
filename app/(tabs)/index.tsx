@@ -18,7 +18,7 @@ interface Post {
   creationdate: string;
   author: {
     name: string;
-    avatar?: string;
+    avatar_url?: string;
   };
   circle: {
     name: string;
@@ -99,7 +99,7 @@ export default function HomeScreen() {
       <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
         <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
           <Image
-            source={{ uri: post.author.avatar || 'https://via.placeholder.com/40' }}
+            source={{ uri: post.author.avatar_url || 'https://via.placeholder.com/40' }}
             style={styles.authorAvatar}
           />
           <View style={styles.authorDetails}>
