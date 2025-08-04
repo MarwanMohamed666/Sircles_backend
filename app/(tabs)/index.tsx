@@ -19,10 +19,10 @@ interface Post {
   author: {
     name: string;
     avatar_url?: string;
-  };
+  } | null;
   circle: {
     name: string;
-  };
+  } | null;
   likes: any[];
   comments: any[];
 }
@@ -99,16 +99,16 @@ export default function HomeScreen() {
       <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
         <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
           <Image
-            source={{ uri: post.author.avatar_url || 'https://via.placeholder.com/40' }}
+            source={{ uri: post.author?.avatar_url || 'https://via.placeholder.com/40' }}
             style={styles.authorAvatar}
           />
           <View style={styles.authorDetails}>
             <ThemedText type="defaultSemiBold" style={styles.authorName}>
-              {post.author.name}
+              {post.author?.name || 'Unknown User'}
             </ThemedText>
             <View style={[styles.postMeta, isRTL && styles.postMetaRTL]}>
               <ThemedText style={styles.circleName}>
-                in {post.circle.name}
+                in {post.circle?.name || 'Unknown Circle'}
               </ThemedText>
               <ThemedText style={styles.postTime}>
                 • {formatTimeAgo(post.creationdate)}
