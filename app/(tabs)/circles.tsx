@@ -41,7 +41,11 @@ export default function CirclesScreen() {
     name: '',
     description: '',
     privacy: 'public' as 'public' | 'private',
+    interests: [] as string[],
+    image: null as string | null,
   });
+  const [interests, setInterests] = useState<{[key: string]: any[]}>({});
+  const [loadingInterests, setLoadingInterests] = useState(false);
 
   const loadCircles = async () => {
     try {
@@ -93,6 +97,20 @@ export default function CirclesScreen() {
     setRefreshing(false);
   };
 
+  const loadInterests = async () => {
+    setLoadingInterests(true);
+    try {
+      const { data, error } = await DatabaseService.getInterestsByCategory();
+      if (!error && data) {
+        setInterests(data);
+      }
+    } catch (error) {
+      console.error('Error loading interests:', error);
+    } finally {
+      setLoadingInterests(false);
+    }
+  };
+
   const handleCreateCircle = async () => {
     if (!newCircle.name.trim()) {
       Alert.alert('Error', 'Circle name is required');
@@ -105,10 +123,11 @@ export default function CirclesScreen() {
     }
 
     try {
-      const { error } = await createCircle({
+      const { data, error } = await createCircle({
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
         privacy: newCircle.privacy,
+        createdby: user.id,
       });
 
       if (error) {
@@ -116,8 +135,16 @@ export default function CirclesScreen() {
         return;
       }
 
+      // If circle was created successfully, make the creator an admin
+      if (data) {
+        await DatabaseService.addCircleAdmin(data.id, user.id, user.id);
+        
+        // Auto-join the creator to their own circle
+        await DatabaseService.joinCircle(user.id, data.id);
+      }
+
       setShowCreateModal(false);
-      setNewCircle({ name: '', description: '', privacy: 'public' });
+      setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
       await loadCircles();
       Alert.alert('Success', 'Circle created successfully!');
     } catch (error) {
@@ -125,40 +152,109 @@ export default function CirclesScreen() {
     }
   };
 
-  const handleJoinLeave = async (circleId: string, isJoined: boolean) => {
+  const toggleInterest = (interestId: string) => {
+    setNewCircle(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interestId)
+        ? prev.interests.filter(id => id !== interestId)
+        : [...prev.interests, interestId]
+    }));
+  };
+
+  const handleJoinLeave = async (circleId: string, isJoined: boolean, circleName: string, circlePrivacy: string) => {
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in');
       return;
     }
 
-    try {
-      const { error } = isJoined 
-        ? await leaveCircle(user.id, circleId)
-        : await joinCircle(user.id, circleId);
+    if (isJoined) {
+      // Show confirmation dialog for leaving
+      Alert.alert(
+        'Leave Circle',
+        `Are you sure you want to leave "${circleName}"?`,
+        [
+          {
+            text: 'No',
+            style: 'cancel',
+          },
+          {
+            text: 'Yes',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const { error } = await leaveCircle(user.id, circleId);
+                if (error) {
+                  Alert.alert('Error', 'Failed to leave circle');
+                  return;
+                }
+                await loadCircles();
+              } catch (error) {
+                Alert.alert('Error', 'Failed to leave circle');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
 
-      if (error) {
-         console.error('Error joining circle:', error);
+    // Handle joining based on privacy
+    if (circlePrivacy === 'private') {
+      // Show request to join modal
+      Alert.prompt(
+        'Request to Join',
+        `Send a request to join "${circleName}". You can include an optional message:`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Send Request',
+            onPress: async (message) => {
+              try {
+                const { error } = await DatabaseService.requestToJoinCircle(user.id, circleId, message);
+                if (error) {
+                  if (error.message.includes('already requested')) {
+                    Alert.alert('Info', 'You have already requested to join this circle.');
+                  } else {
+                    Alert.alert('Error', 'Failed to send join request');
+                  }
+                  return;
+                }
+                Alert.alert('Success', 'Join request sent! The admin will review your request.');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to send join request');
+              }
+            },
+          },
+        ],
+        'plain-text'
+      );
+    } else {
+      // Public circle - join directly
+      try {
+        const { error } = await joinCircle(user.id, circleId);
 
-        // Show user-friendly error messages
-        if (error.message.includes('permission')) {
-          Alert.alert(texts.error || 'Error', 'This circle is invite-only. Please contact an admin for access.');
-        } else if (error.message.includes('already a member')) {
-          Alert.alert(texts.info || 'Info', 'You are already a member of this circle!');
-          // Update local state to reflect this
-          setCircles(circles.map(circle => 
-            circle.id === circleId 
-              ? { ...circle, isJoined: true }
-              : circle
-          ));
-        } else {
-          Alert.alert(texts.error || 'Error', 'Unable to join circle. Please try again.');
+        if (error) {
+          console.error('Error joining circle:', error);
+          if (error.message.includes('already a member')) {
+            Alert.alert(texts.info || 'Info', 'You are already a member of this circle!');
+            setCircles(circles.map(circle => 
+              circle.id === circleId 
+                ? { ...circle, isJoined: true }
+                : circle
+            ));
+          } else {
+            Alert.alert(texts.error || 'Error', 'Unable to join circle. Please try again.');
+          }
+          return;
         }
-        return;
-      }
 
-      await loadCircles();
-    } catch (error) {
-      Alert.alert('Error', `Failed to ${isJoined ? 'leave' : 'join'} circle`);
+        await loadCircles();
+      } catch (error) {
+        Alert.alert('Error', 'Failed to join circle');
+      }
     }
   };
 
@@ -205,10 +301,15 @@ export default function CirclesScreen() {
             styles.joinButton,
             { backgroundColor: circle.isJoined ? '#EF5350' : tintColor }
           ]}
-          onPress={() => handleJoinLeave(circle.id, circle.isJoined || false)}
+          onPress={() => handleJoinLeave(circle.id, circle.isJoined || false, circle.name, circle.privacy)}
         >
           <ThemedText style={styles.joinButtonText}>
-            {circle.isJoined ? texts.leave || 'Leave' : texts.join || 'Join'}
+            {circle.isJoined 
+              ? texts.leave || 'Leave' 
+              : circle.privacy === 'private' 
+                ? 'Request to Join'
+                : texts.join || 'Join'
+            }
           </ThemedText>
         </TouchableOpacity>
       </View>
@@ -224,7 +325,10 @@ export default function CirclesScreen() {
         </ThemedText>
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: tintColor }]}
-          onPress={() => setShowCreateModal(true)}
+          onPress={() => {
+            setShowCreateModal(true);
+            loadInterests();
+          }}
         >
           <IconSymbol name="plus" size={20} color="#fff" />
         </TouchableOpacity>
@@ -409,10 +513,61 @@ export default function CirclesScreen() {
               </View>
             </View>
 
+            <View style={styles.formField}>
+              <ThemedText style={styles.fieldLabel}>
+                {texts.interests || 'Interests'} (Optional)
+              </ThemedText>
+              <ScrollView 
+                style={styles.interestsContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                {loadingInterests ? (
+                  <ThemedText style={styles.loadingText}>Loading interests...</ThemedText>
+                ) : (
+                  Object.entries(interests).map(([category, categoryInterests]) => (
+                    <View key={category} style={styles.interestCategory}>
+                      <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                      <View style={styles.interestsList}>
+                        {categoryInterests.map((interest) => (
+                          <TouchableOpacity
+                            key={interest.id}
+                            style={[
+                              styles.interestChip,
+                              {
+                                backgroundColor: newCircle.interests.includes(interest.id) 
+                                  ? tintColor 
+                                  : backgroundColor,
+                                borderColor: tintColor,
+                              }
+                            ]}
+                            onPress={() => toggleInterest(interest.id)}
+                          >
+                            <ThemedText style={[
+                              styles.interestChipText,
+                              { 
+                                color: newCircle.interests.includes(interest.id) 
+                                  ? '#fff' 
+                                  : textColor 
+                              }
+                            ]}>
+                              {interest.title}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
-                onPress={() => setShowCreateModal(false)}
+                onPress={() => {
+                  setShowCreateModal(false);
+                  setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
+                }}
               >
                 <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
               </TouchableOpacity>
@@ -619,7 +774,7 @@ const styles = StyleSheet.create({
   rtlText: {
     textAlign: 'right',
   },
-    retryButton: {
+  retryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
@@ -628,5 +783,39 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  interestsContainer: {
+    maxHeight: 200,
+    borderRadius: 8,
+    padding: 8,
+  },
+  interestCategory: {
+    marginBottom: 16,
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    opacity: 0.8,
+  },
+  interestsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  interestChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  interestChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  loadingText: {
+    textAlign: 'center',
+    opacity: 0.6,
+    paddingVertical: 20,
   },
 });

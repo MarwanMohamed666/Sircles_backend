@@ -22,6 +22,16 @@ export const leaveCircle = (userId: string, circleId: string) => DatabaseService
 export const getUserJoinedCircles = (userId: string) => DatabaseService.getUserJoinedCircles(userId);
 export const getCircleMessages = (circleId: string) => DatabaseService.getCircleMessages(circleId);
 export const sendMessage = (message: any) => DatabaseService.sendMessage(message);
+export const requestToJoinCircle = (userId: string, circleId: string, message?: string) => DatabaseService.requestToJoinCircle(userId, circleId, message);
+export const getCircleJoinRequests = (circleId: string) => DatabaseService.getCircleJoinRequests(circleId);
+export const handleJoinRequest = (requestId: string, action: 'accept' | 'reject') => DatabaseService.handleJoinRequest(requestId, action);
+export const deleteCircle = (circleId: string, adminUserId: string) => DatabaseService.deleteCircle(circleId, adminUserId);
+export const getCircleMembers = (circleId: string) => DatabaseService.getCircleMembers(circleId);
+export const addCircleAdmin = (circleId: string, userId: string, requestingAdminId: string) => DatabaseService.addCircleAdmin(circleId, userId, requestingAdminId);
+export const removeCircleAdmin = (circleId: string, userId: string, requestingAdminId: string) => DatabaseService.removeCircleAdmin(circleId, userId, requestingAdminId);
+export const removeMemberFromCircle = (circleId: string, userId: string, adminId: string) => DatabaseService.removeMemberFromCircle(circleId, userId, adminId);
+export const isCircleAdmin = (circleId: string, userId: string) => DatabaseService.isCircleAdmin(circleId, userId);
+export const getHomePagePosts = (userId: string) => DatabaseService.getHomePagePosts(userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -279,7 +289,7 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  // Additional helper functions
+  // Circle Management Functions
   async joinCircle(userId: string, circleId: string) {
     try {
       const { data, error } = await supabase
@@ -312,6 +322,293 @@ export const DatabaseService = {
       .eq('userid', userId)
       .eq('circleid', circleId);
     return { data, error };
+  },
+
+  async requestToJoinCircle(userId: string, circleId: string, message?: string) {
+    try {
+      const { data, error } = await supabase
+        .from('circle_join_requests')
+        .insert({
+          id: crypto.randomUUID(),
+          userid: userId,
+          circleid: circleId,
+          message: message || '',
+          status: 'pending',
+          creationdate: new Date().toISOString()
+        });
+      
+      if (error) {
+        if (error.code === '23505') {
+          return { data: null, error: new Error('You have already requested to join this circle') };
+        }
+        return { data: null, error };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in requestToJoinCircle:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getCircleJoinRequests(circleId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('circle_join_requests')
+        .select(`
+          *,
+          users:userid(name, avatar)
+        `)
+        .eq('circleid', circleId)
+        .eq('status', 'pending')
+        .order('creationdate', { ascending: false });
+      
+      return { data: data || [], error };
+    } catch (error) {
+      console.error('Error in getCircleJoinRequests:', error);
+      return { data: [], error: error as Error };
+    }
+  },
+
+  async handleJoinRequest(requestId: string, action: 'accept' | 'reject') {
+    try {
+      // First get the request details
+      const { data: request, error: fetchError } = await supabase
+        .from('circle_join_requests')
+        .select('userid, circleid')
+        .eq('id', requestId)
+        .single();
+      
+      if (fetchError) return { data: null, error: fetchError };
+      
+      // Update the request status
+      const { error: updateError } = await supabase
+        .from('circle_join_requests')
+        .update({ status: action })
+        .eq('id', requestId);
+      
+      if (updateError) return { data: null, error: updateError };
+      
+      // If accepted, add user to circle
+      if (action === 'accept') {
+        const { error: joinError } = await supabase
+          .from('user_circles')
+          .insert({ userid: request.userid, circleid: request.circleid });
+        
+        if (joinError) return { data: null, error: joinError };
+      }
+      
+      return { data: { success: true }, error: null };
+    } catch (error) {
+      console.error('Error in handleJoinRequest:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async deleteCircle(circleId: string, adminUserId: string) {
+    try {
+      // Verify admin permissions
+      const { data: circle, error: circleError } = await supabase
+        .from('circles')
+        .select('createdby')
+        .eq('id', circleId)
+        .single();
+      
+      if (circleError) return { data: null, error: circleError };
+      if (circle.createdby !== adminUserId) {
+        return { data: null, error: new Error('Only the circle creator can delete the circle') };
+      }
+      
+      // Delete all related data
+      await supabase.from('circle_messages').delete().eq('circleid', circleId);
+      await supabase.from('posts').delete().eq('circleid', circleId);
+      await supabase.from('events').delete().eq('circleid', circleId);
+      await supabase.from('user_circles').delete().eq('circleid', circleId);
+      await supabase.from('circle_join_requests').delete().eq('circleid', circleId);
+      await supabase.from('circle_admins').delete().eq('circleid', circleId);
+      
+      // Delete circle avatar from storage if exists
+      await supabase.storage.from('avatars').remove([`circle_${circleId}.jpg`, `circle_${circleId}.png`]);
+      
+      // Finally delete the circle
+      const { error: deleteError } = await supabase
+        .from('circles')
+        .delete()
+        .eq('id', circleId);
+      
+      return { data: { success: true }, error: deleteError };
+    } catch (error) {
+      console.error('Error in deleteCircle:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getCircleMembers(circleId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_circles')
+        .select(`
+          userid,
+          users:userid(id, name, avatar),
+          circle_admins!left(userid)
+        `)
+        .eq('circleid', circleId);
+      
+      if (error) return { data: [], error };
+      
+      return { 
+        data: data?.map(member => ({
+          ...member.users,
+          isAdmin: member.circle_admins?.length > 0
+        })) || [], 
+        error: null 
+      };
+    } catch (error) {
+      console.error('Error in getCircleMembers:', error);
+      return { data: [], error: error as Error };
+    }
+  },
+
+  async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
+    try {
+      // Verify requesting user is admin
+      const { data: adminCheck } = await supabase
+        .from('circle_admins')
+        .select('userid')
+        .eq('circleid', circleId)
+        .eq('userid', requestingAdminId)
+        .single();
+      
+      if (!adminCheck) {
+        return { data: null, error: new Error('You do not have admin permissions') };
+      }
+      
+      const { data, error } = await supabase
+        .from('circle_admins')
+        .insert({
+          circleid: circleId,
+          userid: userId
+        });
+      
+      return { data, error };
+    } catch (error) {
+      console.error('Error in addCircleAdmin:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async removeCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
+    try {
+      // Get circle creator
+      const { data: circle } = await supabase
+        .from('circles')
+        .select('createdby')
+        .eq('id', circleId)
+        .single();
+      
+      // Cannot remove the main admin (creator)
+      if (circle?.createdby === userId) {
+        return { data: null, error: new Error('Cannot remove the main admin') };
+      }
+      
+      const { data, error } = await supabase
+        .from('circle_admins')
+        .delete()
+        .eq('circleid', circleId)
+        .eq('userid', userId);
+      
+      return { data, error };
+    } catch (error) {
+      console.error('Error in removeCircleAdmin:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async removeMemberFromCircle(circleId: string, userId: string, adminId: string) {
+    try {
+      // Verify admin permissions
+      const { data: adminCheck } = await supabase
+        .from('circle_admins')
+        .select('userid')
+        .eq('circleid', circleId)
+        .eq('userid', adminId)
+        .single();
+      
+      if (!adminCheck) {
+        return { data: null, error: new Error('You do not have admin permissions') };
+      }
+      
+      // Remove from circle
+      const { data, error } = await supabase
+        .from('user_circles')
+        .delete()
+        .eq('circleid', circleId)
+        .eq('userid', userId);
+      
+      // Also remove admin status if they had it
+      await supabase
+        .from('circle_admins')
+        .delete()
+        .eq('circleid', circleId)
+        .eq('userid', userId);
+      
+      return { data, error };
+    } catch (error) {
+      console.error('Error in removeMemberFromCircle:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async isCircleAdmin(circleId: string, userId: string) {
+    try {
+      // Check if user is the creator
+      const { data: circle } = await supabase
+        .from('circles')
+        .select('createdby')
+        .eq('id', circleId)
+        .single();
+      
+      if (circle?.createdby === userId) return { data: { isAdmin: true, isMainAdmin: true }, error: null };
+      
+      // Check if user is in circle_admins
+      const { data: admin } = await supabase
+        .from('circle_admins')
+        .select('userid')
+        .eq('circleid', circleId)
+        .eq('userid', userId)
+        .single();
+      
+      return { data: { isAdmin: !!admin, isMainAdmin: false }, error: null };
+    } catch (error) {
+      console.error('Error in isCircleAdmin:', error);
+      return { data: { isAdmin: false, isMainAdmin: false }, error: error as Error };
+    }
+  },
+
+  async getHomePagePosts(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          author:users!posts_userid_fkey(name, avatar),
+          circle:circles!posts_circleid_fkey(name),
+          likes:post_likes(userid),
+          comments(count)
+        `)
+        .in('circleid', 
+          supabase
+            .from('user_circles')
+            .select('circleid')
+            .eq('userid', userId)
+        )
+        .order('creationdate', { ascending: false });
+
+      return { data: data || [], error };
+    } catch (error) {
+      console.error('Error in getHomePagePosts:', error);
+      return { data: [], error: error as Error };
+    }
   },
 
   async getUserJoinedCircles(userId: string) {

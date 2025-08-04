@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -8,226 +9,325 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { DatabaseService } from '@/lib/database';
 
 interface Circle {
   id: string;
   name: string;
   description: string;
-  privacy: 'public' | 'invite-only';
-  agePreference: { min: number; max: number };
-  genderPreference: 'Male' | 'Female' | 'Any';
+  privacy: 'public' | 'private';
+  createdby: string;
   memberCount: number;
   isJoined: boolean;
-  tags: string[];
+  isAdmin: boolean;
+  isMainAdmin: boolean;
 }
 
 interface Post {
   id: string;
-  userName: string;
   content: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
-  timestamp: string;
+  image?: string;
+  creationdate: string;
+  author: {
+    name: string;
+    avatar?: string;
+  };
+  likes: any[];
+  comments: any[];
 }
 
-interface Event {
+interface Member {
   id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  tag: string;
-  description: string;
-  rsvp?: 'yes' | 'maybe' | 'no';
-  attendees: { yes: number; maybe: number; no: number };
+  name: string;
+  avatar?: string;
+  isAdmin: boolean;
+}
+
+interface JoinRequest {
+  id: string;
+  message: string;
+  creationdate: string;
+  users: {
+    name: string;
+    avatar?: string;
+  };
 }
 
 export default function CircleScreen() {
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
-  const accentColor = useThemeColor({}, 'accent');
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'events' | 'chat'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'admin'>('feed');
+  const [circle, setCircle] = useState<Circle | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
 
-  // Mock circle data
-  const [circle] = useState<Circle>({
-    id: id as string,
-    name: 'Tech Enthusiasts',
-    description: 'A community for technology lovers to share ideas, discuss latest trends, and collaborate on projects.',
-    privacy: 'public',
-    agePreference: { min: 18, max: 65 },
-    genderPreference: 'Any',
-    memberCount: 24,
-    isJoined: false,
-    tags: ['Technology', 'Programming', 'Innovation'],
-  });
+  const loadCircleData = async () => {
+    if (!id) return;
 
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: '1',
-      userName: 'Ahmed Ali',
-      content: 'Just discovered this amazing new JavaScript framework! Has anyone tried it yet?',
-      likes: 8,
-      comments: 3,
-      liked: false,
-      timestamp: '2 hours ago',
-    },
-    {
-      id: '2',
-      userName: 'Sara Mohamed',
-      content: 'Great meetup yesterday! Thanks everyone for the insightful discussions about AI.',
-      likes: 15,
-      comments: 7,
-      liked: true,
-      timestamp: '1 day ago',
-    },
-  ]);
+    try {
+      // Load circle details
+      const { data: circleData, error: circleError } = await DatabaseService.getCircles();
+      const currentCircle = circleData?.find(c => c.id === id);
+      
+      if (!currentCircle) {
+        Alert.alert('Error', 'Circle not found');
+        router.back();
+        return;
+      }
 
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      title: 'Tech Talk: Future of AI',
-      date: '2024-01-20',
-      time: '7:00 PM',
-      location: 'Community Center',
-      tag: 'Workshop',
-      description: 'Join us for an engaging discussion about the future of artificial intelligence.',
-      attendees: { yes: 12, maybe: 5, no: 1 },
-    },
-  ]);
+      // Check membership and admin status
+      let isJoined = false;
+      let isAdmin = false;
+      let isMainAdmin = false;
 
-  const handleJoinCircle = () => {
+      if (user?.id) {
+        const { data: joinedCircles } = await DatabaseService.getUserJoinedCircles(user.id);
+        isJoined = joinedCircles?.some(jc => jc.circleid === id) || false;
+
+        if (isJoined) {
+          const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
+          isAdmin = adminData?.isAdmin || false;
+          isMainAdmin = adminData?.isMainAdmin || false;
+        }
+      }
+
+      setCircle({
+        ...currentCircle,
+        isJoined,
+        isAdmin,
+        isMainAdmin,
+        memberCount: 0 // Will be updated when loading members
+      });
+
+      // Load posts if user is member or circle is public
+      if (isJoined || currentCircle.privacy === 'public') {
+        const { data: postsData } = await DatabaseService.getPosts(id as string);
+        setPosts(postsData || []);
+      }
+
+      // Load members if user is member
+      if (isJoined) {
+        const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
+        setMembers(membersData || []);
+        setCircle(prev => prev ? {...prev, memberCount: membersData?.length || 0} : null);
+      }
+
+      // Load join requests if user is admin
+      if (isAdmin) {
+        const { data: requestsData } = await DatabaseService.getCircleJoinRequests(id as string);
+        setJoinRequests(requestsData || []);
+      }
+
+    } catch (error) {
+      console.error('Error loading circle data:', error);
+      Alert.alert('Error', 'Failed to load circle data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadCircleData();
+    setRefreshing(false);
+  };
+
+  const handleJoinRequest = async (requestId: string, action: 'accept' | 'reject') => {
+    try {
+      const { error } = await DatabaseService.handleJoinRequest(requestId, action);
+      if (error) {
+        Alert.alert('Error', `Failed to ${action} request`);
+        return;
+      }
+      
+      Alert.alert('Success', `Request ${action}ed successfully`);
+      await loadCircleData();
+    } catch (error) {
+      Alert.alert('Error', `Failed to ${action} request`);
+    }
+  };
+
+  const handleDeleteCircle = async () => {
+    if (!circle?.isMainAdmin || !user?.id) {
+      Alert.alert('Error', 'Only the circle creator can delete the circle');
+      return;
+    }
+
+    // Verify password (in a real app, you'd verify against the user's actual password)
+    if (!deletePassword.trim()) {
+      Alert.alert('Error', 'Please enter your password');
+      return;
+    }
+
+    try {
+      const { error } = await DatabaseService.deleteCircle(id as string, user.id);
+      if (error) {
+        Alert.alert('Error', 'Failed to delete circle');
+        return;
+      }
+
+      Alert.alert('Success', 'Circle deleted successfully', [
+        { text: 'OK', onPress: () => router.replace('/circles') }
+      ]);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete circle');
+    }
+  };
+
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    if (!circle?.isAdmin) return;
+
     Alert.alert(
-      texts.success || 'Success',
-      `Successfully joined ${circle.name}!`
+      'Remove Member',
+      `Are you sure you want to remove ${memberName} from this circle?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.removeMemberFromCircle(
+                id as string,
+                memberId,
+                user!.id
+              );
+              if (error) {
+                Alert.alert('Error', 'Failed to remove member');
+                return;
+              }
+              await loadCircleData();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove member');
+            }
+          }
+        }
+      ]
     );
   };
 
-  const handleLike = (postId: string) => {
-    setPosts(posts.map(post =>
-      post.id === postId
-        ? {
-            ...post,
-            liked: !post.liked,
-            likes: post.liked ? post.likes - 1 : post.likes + 1,
-          }
-        : post
-    ));
-  };
+  useEffect(() => {
+    loadCircleData();
+  }, [id, user]);
 
-  const handleRSVP = (eventId: string, response: 'yes' | 'maybe' | 'no') => {
-    setEvents(events.map(event =>
-      event.id === eventId ? { ...event, rsvp: response } : event
-    ));
-  };
-
-  const renderFeed = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      <View style={[styles.feedHeader, isRTL && styles.feedHeaderRTL]}>
-        <ThemedText type="defaultSemiBold" style={styles.feedTitle}>
-          {texts.circlePosts || 'Circle Posts'}
-        </ThemedText>
-        <TouchableOpacity
-          style={[styles.addPostButton, { backgroundColor: tintColor }]}
-          onPress={() => setShowPostModal(true)}
-        >
-          <IconSymbol name="plus" size={16} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {posts.map((post) => (
-        <View key={post.id} style={[styles.postCard, { backgroundColor: surfaceColor }]}>
-          <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
-            <ThemedText type="defaultSemiBold">{post.userName}</ThemedText>
-            <ThemedText style={styles.timestamp}>{post.timestamp}</ThemedText>
-          </View>
-          <ThemedText style={[styles.postContent, isRTL && styles.rtlText]}>
-            {post.content}
-          </ThemedText>
-          <View style={[styles.postActions, isRTL && styles.postActionsRTL]}>
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => handleLike(post.id)}
-            >
-              <IconSymbol
-                name={post.liked ? "heart.fill" : "heart"}
-                size={20}
-                color={post.liked ? '#EF5350' : textColor}
-              />
-              <ThemedText style={styles.actionText}>{post.likes}</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionItem}>
-              <IconSymbol name="message" size={20} color={textColor} />
-              <ThemedText style={styles.actionText}>{post.comments}</ThemedText>
-            </TouchableOpacity>
-          </View>
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.centeredContainer}>
+          <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
         </View>
-      ))}
-    </ScrollView>
-  );
+      </SafeAreaView>
+    );
+  }
 
-  const renderEvents = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {events.map((event) => (
-        <View key={event.id} style={[styles.eventCard, { backgroundColor: surfaceColor }]}>
-          <View style={[styles.eventTag, { backgroundColor: tintColor }]}>
-            <ThemedText style={[styles.eventTagText, { color: '#fff' }]}>
-              {event.tag}
+  if (!circle) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.centeredContainer}>
+          <ThemedText>Circle not found</ThemedText>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const renderPost = (post: Post) => (
+    <View key={post.id} style={[styles.postCard, { backgroundColor: surfaceColor }]}>
+      <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
+        <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
+          <Image
+            source={{ uri: post.author.avatar || 'https://via.placeholder.com/40' }}
+            style={styles.authorAvatar}
+          />
+          <View style={styles.authorDetails}>
+            <ThemedText type="defaultSemiBold">{post.author.name}</ThemedText>
+            <ThemedText style={styles.postTime}>
+              {new Date(post.creationdate).toLocaleDateString()}
             </ThemedText>
           </View>
-          <ThemedText type="defaultSemiBold" style={styles.eventTitle}>
-            {event.title}
-          </ThemedText>
-          <ThemedText style={styles.eventDetails}>
-            {event.date} • {event.time}
-          </ThemedText>
-          <ThemedText style={styles.eventLocation}>
-            📍 {event.location}
-          </ThemedText>
-          <ThemedText style={[styles.eventDescription, isRTL && styles.rtlText]}>
-            {event.description}
-          </ThemedText>
-          <View style={styles.rsvpButtons}>
-            {(['yes', 'maybe', 'no'] as const).map((response) => (
-              <TouchableOpacity
-                key={response}
-                style={[
-                  styles.rsvpButton,
-                  {
-                    backgroundColor: event.rsvp === response ? tintColor : backgroundColor,
-                    borderColor: tintColor,
-                  }
-                ]}
-                onPress={() => handleRSVP(event.id, response)}
-              >
-                <ThemedText style={[
-                  styles.rsvpButtonText,
-                  { color: event.rsvp === response ? '#fff' : textColor }
-                ]}>
-                  {response === 'yes' ? texts.yes || 'Yes' : 
-                   response === 'maybe' ? texts.maybe || 'Maybe' : 
-                   texts.no || 'No'}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
-      ))}
-    </ScrollView>
+        {circle.isAdmin && (
+          <TouchableOpacity>
+            <IconSymbol name="ellipsis" size={20} color={textColor} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <ThemedText style={styles.postContent}>{post.content}</ThemedText>
+      {post.image && (
+        <Image source={{ uri: post.image }} style={styles.postImage} />
+      )}
+    </View>
   );
 
-  const renderChat = () => (
-    <View style={styles.tabContent}>
-      <ThemedText style={styles.comingSoon}>
-        {texts.chatComingSoon || 'Group chat coming soon...'}
-      </ThemedText>
+  const renderMember = (member: Member) => (
+    <View key={member.id} style={[styles.memberCard, { backgroundColor: surfaceColor }]}>
+      <View style={[styles.memberInfo, isRTL && styles.memberInfoRTL]}>
+        <Image
+          source={{ uri: member.avatar || 'https://via.placeholder.com/40' }}
+          style={styles.memberAvatar}
+        />
+        <View style={styles.memberDetails}>
+          <ThemedText type="defaultSemiBold">{member.name}</ThemedText>
+          {member.isAdmin && (
+            <ThemedText style={styles.adminBadge}>Admin</ThemedText>
+          )}
+        </View>
+      </View>
+      {circle.isAdmin && member.id !== circle.createdby && member.id !== user?.id && (
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => handleRemoveMember(member.id, member.name)}
+        >
+          <IconSymbol name="minus.circle" size={20} color="#EF5350" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderJoinRequest = (request: JoinRequest) => (
+    <View key={request.id} style={[styles.requestCard, { backgroundColor: surfaceColor }]}>
+      <View style={[styles.requestInfo, isRTL && styles.requestInfoRTL]}>
+        <Image
+          source={{ uri: request.users.avatar || 'https://via.placeholder.com/40' }}
+          style={styles.requestAvatar}
+        />
+        <View style={styles.requestDetails}>
+          <ThemedText type="defaultSemiBold">{request.users.name}</ThemedText>
+          {request.message && (
+            <ThemedText style={styles.requestMessage}>{request.message}</ThemedText>
+          )}
+          <ThemedText style={styles.requestTime}>
+            {new Date(request.creationdate).toLocaleDateString()}
+          </ThemedText>
+        </View>
+      </View>
+      <View style={styles.requestActions}>
+        <TouchableOpacity
+          style={[styles.requestButton, { backgroundColor: tintColor }]}
+          onPress={() => handleJoinRequest(request.id, 'accept')}
+        >
+          <ThemedText style={styles.requestButtonText}>Accept</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.requestButton, { backgroundColor: '#EF5350' }]}
+          onPress={() => handleJoinRequest(request.id, 'reject')}
+        >
+          <ThemedText style={styles.requestButtonText}>Reject</ThemedText>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -235,137 +335,153 @@ export default function CircleScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol 
-            name={isRTL ? "chevron.right" : "chevron.left"} 
-            size={24} 
-            color={textColor} 
-          />
+        <TouchableOpacity onPress={() => router.back()}>
+          <IconSymbol name="chevron.left" size={24} color={textColor} />
         </TouchableOpacity>
-        <ThemedText type="title" style={styles.headerTitle}>
+        <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
           {circle.name}
         </ThemedText>
-        <View style={styles.headerActions} />
+        {circle.isMainAdmin && (
+          <TouchableOpacity onPress={() => setShowDeleteModal(true)}>
+            <IconSymbol name="trash" size={20} color="#EF5350" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Circle Info */}
       <View style={[styles.circleInfo, { backgroundColor: surfaceColor }]}>
-        <ThemedText style={[styles.circleDescription, isRTL && styles.rtlText]}>
-          {circle.description}
-        </ThemedText>
+        <ThemedText style={styles.circleDescription}>{circle.description}</ThemedText>
         <View style={styles.circleStats}>
-          <ThemedText style={styles.memberCount}>
-            {circle.memberCount} {texts.members || 'members'}
-          </ThemedText>
-          <View style={styles.circleTags}>
-            {circle.tags.map((tag, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: tintColor + '20' }]}>
-                <ThemedText style={[styles.tagText, { color: tintColor }]}>
-                  {tag}
-                </ThemedText>
-              </View>
-            ))}
+          <View style={styles.statItem}>
+            <IconSymbol name="person.3" size={16} color={textColor} />
+            <ThemedText style={styles.statText}>{circle.memberCount} members</ThemedText>
+          </View>
+          <View style={styles.statItem}>
+            <IconSymbol 
+              name={circle.privacy === 'private' ? "lock.fill" : "globe"} 
+              size={16} 
+              color={textColor} 
+            />
+            <ThemedText style={styles.statText}>
+              {circle.privacy === 'private' ? 'Private' : 'Public'}
+            </ThemedText>
           </View>
         </View>
-        {!circle.isJoined && (
-          <View style={styles.circleActions}>
-                <TouchableOpacity
-                  style={[styles.chatNavButton, { backgroundColor: surfaceColor, borderColor: tintColor }]}
-                  onPress={() => router.push('/(tabs)/messages')}
-                >
-                  <IconSymbol name="message" size={16} color={tintColor} />
-                  <ThemedText style={[styles.chatNavButtonText, { color: tintColor }]}>
-                    {texts.chat || 'Chat'}
-                  </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.joinButton, { backgroundColor: tintColor }]}
-                  onPress={handleJoinCircle}
-                >
-                  <ThemedText style={[styles.joinButtonText, { color: '#fff' }]}>
-                    {texts.joinCircle || 'Join Circle'}
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-        )}
       </View>
 
       {/* Tabs */}
-      <View style={[styles.tabBar, { backgroundColor: surfaceColor }]}>
-        {(['feed', 'events', 'chat'] as const).map((tab) => (
+      <View style={[styles.tabContainer, { backgroundColor: surfaceColor }]}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'feed' && { backgroundColor: tintColor }]}
+          onPress={() => setActiveTab('feed')}
+        >
+          <ThemedText style={[styles.tabText, activeTab === 'feed' && { color: '#fff' }]}>
+            Feed
+          </ThemedText>
+        </TouchableOpacity>
+        {circle.isJoined && (
           <TouchableOpacity
-            key={tab}
-            style={[
-              styles.tabButton,
-              activeTab === tab && { backgroundColor: tintColor + '20' }
-            ]}
-            onPress={() => setActiveTab(tab)}
+            style={[styles.tab, activeTab === 'members' && { backgroundColor: tintColor }]}
+            onPress={() => setActiveTab('members')}
           >
-            <ThemedText
-              style={[
-                styles.tabButtonText,
-                { color: activeTab === tab ? tintColor : textColor }
-              ]}
-            >
-              {tab === 'feed' ? texts.feed || 'Feed' :
-               tab === 'events' ? texts.events || 'Events' :
-               texts.chat || 'Chat'}
+            <ThemedText style={[styles.tabText, activeTab === 'members' && { color: '#fff' }]}>
+              Members
             </ThemedText>
           </TouchableOpacity>
-        ))}
+        )}
+        {circle.isAdmin && (
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'admin' && { backgroundColor: tintColor }]}
+            onPress={() => setActiveTab('admin')}
+          >
+            <ThemedText style={[styles.tabText, activeTab === 'admin' && { color: '#fff' }]}>
+              Admin
+            </ThemedText>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Tab Content */}
-      {activeTab === 'feed' && renderFeed()}
-      {activeTab === 'events' && renderEvents()}
-      {activeTab === 'chat' && renderChat()}
+      {/* Content */}
+      <ScrollView
+        style={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
+        {activeTab === 'feed' && (
+          <View style={styles.feedContainer}>
+            {(circle.isJoined || circle.privacy === 'public') ? (
+              posts.length > 0 ? (
+                posts.map(renderPost)
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <ThemedText>No posts yet</ThemedText>
+                </View>
+              )
+            ) : (
+              <View style={styles.emptyContainer}>
+                <IconSymbol name="lock.fill" size={48} color={textColor + '40'} />
+                <ThemedText>This is a private circle. Join to view posts.</ThemedText>
+              </View>
+            )}
+          </View>
+        )}
 
-      {/* Add Post Modal */}
+        {activeTab === 'members' && circle.isJoined && (
+          <View style={styles.membersContainer}>
+            {members.map(renderMember)}
+          </View>
+        )}
+
+        {activeTab === 'admin' && circle.isAdmin && (
+          <View style={styles.adminContainer}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Join Requests ({joinRequests.length})
+            </ThemedText>
+            {joinRequests.length > 0 ? (
+              joinRequests.map(renderJoinRequest)
+            ) : (
+              <ThemedText style={styles.emptyText}>No pending join requests</ThemedText>
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Delete Circle Modal */}
       <Modal
-        visible={showPostModal}
+        visible={showDeleteModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowPostModal(false)}
+        onRequestClose={() => setShowDeleteModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.addPost || 'Add Post'}
+              Delete Circle
             </ThemedText>
-
+            <ThemedText style={styles.modalText}>
+              This action cannot be undone. All posts, events, and member data will be permanently deleted.
+            </ThemedText>
             <TextInput
-              style={[
-                styles.postInput,
-                { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-              ]}
-              placeholder={texts.whatsOnYourMind || "What's on your mind?"}
-              placeholderTextColor={textColor + '80'}
-              value={newPostContent}
-              onChangeText={setNewPostContent}
-              multiline
+              style={[styles.passwordInput, { backgroundColor, color: textColor }]}
+              placeholder="Enter your password to confirm"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
             />
-
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
-                onPress={() => setShowPostModal(false)}
-              >
-                <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                style={[styles.modalButton, { backgroundColor }]}
                 onPress={() => {
-                  // Add post logic here
-                  setShowPostModal(false);
-                  setNewPostContent('');
+                  setShowDeleteModal(false);
+                  setDeletePassword('');
                 }}
               >
-                <ThemedText style={{ color: '#fff' }}>
-                  {texts.post || 'Post'}
-                </ThemedText>
+                <ThemedText>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#EF5350' }]}
+                onPress={handleDeleteCircle}
+              >
+                <ThemedText style={{ color: '#fff' }}>Delete</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -382,206 +498,212 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     elevation: 2,
   },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
-  },
   headerTitle: {
-    flex: 1,
     fontSize: 18,
-  },
-  headerActions: {
-    width: 40,
+    flex: 1,
+    textAlign: 'center',
   },
   circleInfo: {
     padding: 16,
     elevation: 1,
   },
   circleDescription: {
+    fontSize: 14,
     marginBottom: 12,
-    lineHeight: 20,
+    opacity: 0.8,
   },
   circleStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    gap: 16,
   },
-  memberCount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  circleTags: {
+  statItem: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 4,
   },
-  tag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tagText: {
+  statText: {
     fontSize: 12,
-    fontWeight: '600',
+    opacity: 0.7,
   },
-  circleActions: {
+  tabContainer: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  chatNavButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 8,
     gap: 8,
   },
-  chatNavButtonText: {
-    fontWeight: '600',
-  },
-  joinButton: {
-    backgroundColor: '#00B2A9',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-  },
-  joinButtonText: {
-    fontWeight: '600',
-    color: '#fff',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  tabButton: {
+  tab: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
-  tabButtonText: {
+  tabText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  tabContent: {
+  content: {
     flex: 1,
     padding: 16,
   },
-  feedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  feedHeaderRTL: {
-    flexDirection: 'row-reverse',
-  },
-  feedTitle: {
-    fontSize: 16,
-  },
-  addPostButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  feedContainer: {
+    gap: 16,
   },
   postCard: {
     padding: 16,
     borderRadius: 12,
-    marginBottom: 16,
+    elevation: 2,
   },
   postHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   postHeaderRTL: {
     flexDirection: 'row-reverse',
   },
-  timestamp: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  postContent: {
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  postActions: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  postActionsRTL: {
-    flexDirection: 'row-reverse',
-  },
-  actionItem: {
+  authorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    flex: 1,
   },
-  actionText: {
-    fontSize: 14,
+  authorInfoRTL: {
+    flexDirection: 'row-reverse',
   },
-  eventCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  authorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
-  eventTag: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
+  authorDetails: {
+    flex: 1,
   },
-  eventTagText: {
+  postTime: {
     fontSize: 12,
+    opacity: 0.5,
+  },
+  postContent: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  membersContainer: {
+    gap: 12,
+  },
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
+    elevation: 1,
+  },
+  memberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  memberInfoRTL: {
+    flexDirection: 'row-reverse',
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  adminBadge: {
+    fontSize: 12,
+    color: '#4CAF50',
     fontWeight: '600',
   },
-  eventTitle: {
+  removeButton: {
+    padding: 8,
+  },
+  adminContainer: {
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
     marginBottom: 8,
   },
-  eventDetails: {
+  requestCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    elevation: 1,
+  },
+  requestInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  requestInfoRTL: {
+    flexDirection: 'row-reverse',
+  },
+  requestAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  requestDetails: {
+    flex: 1,
+  },
+  requestMessage: {
     fontSize: 14,
-    marginBottom: 4,
+    opacity: 0.7,
+    marginTop: 2,
   },
-  eventLocation: {
-    fontSize: 14,
-    marginBottom: 8,
+  requestTime: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 2,
   },
-  eventDescription: {
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  rsvpButtons: {
+  requestActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  rsvpButton: {
-    flex: 1,
-    paddingVertical: 8,
+  requestButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
-    borderWidth: 1,
-    alignItems: 'center',
   },
-  rsvpButtonText: {
+  requestButtonText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
   },
-  comingSoon: {
-    textAlign: 'center',
-    marginTop: 40,
+  centeredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 16,
+  },
+  emptyText: {
     opacity: 0.6,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -595,14 +717,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   modalTitle: {
-    marginBottom: 16,
     textAlign: 'center',
+    marginBottom: 16,
   },
-  postInput: {
+  modalText: {
+    textAlign: 'center',
+    marginBottom: 16,
+    opacity: 0.8,
+  },
+  passwordInput: {
     borderRadius: 8,
-    padding: 12,
-    minHeight: 100,
-    textAlignVertical: 'top',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
     marginBottom: 16,
   },
   modalActions: {
@@ -614,12 +741,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
-  },
-  cancelButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  rtlText: {
-    textAlign: 'right',
   },
 });
