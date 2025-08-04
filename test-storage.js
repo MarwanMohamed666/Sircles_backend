@@ -42,6 +42,15 @@ async function testStorage() {
     }
     
     console.log('✅ Avatars bucket found:', avatarsBucket);
+    console.log('🔍 Bucket public status:', avatarsBucket.public ? 'Public ✅' : 'Private ❌');
+    
+    if (!avatarsBucket.public) {
+      console.log('⚠️  WARNING: Bucket is not public! This may cause upload issues.');
+      console.log('📝 To fix this:');
+      console.log('1. Go to Storage > Buckets in your Supabase dashboard');
+      console.log('2. Click on the avatars bucket');
+      console.log('3. Go to Settings and toggle "Public bucket" to ON');
+    }
     
     // Test listing files in avatars bucket
     const { data: files, error: filesError } = await supabase.storage
@@ -57,6 +66,31 @@ async function testStorage() {
     }
     
     console.log('✅ Files in avatars bucket:', files);
+    
+    // Test upload functionality with a simple text file
+    console.log('🧪 Testing upload functionality...');
+    const testContent = `Test upload at ${new Date().toISOString()}`;
+    const testFileName = 'test-upload.txt';
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(testFileName, new Blob([testContent], { type: 'text/plain' }), {
+        upsert: true
+      });
+    
+    if (uploadError) {
+      console.error('❌ Upload test failed:', uploadError);
+      if (uploadError.message.includes('not allowed')) {
+        console.log('💡 This is likely due to RLS policies or bucket permissions');
+      }
+    } else {
+      console.log('✅ Upload test successful:', uploadData);
+      
+      // Clean up test file
+      await supabase.storage.from('avatars').remove([testFileName]);
+      console.log('🧹 Test file cleaned up');
+    }
+    
     console.log('🎉 Storage test completed successfully!');
     
   } catch (error) {
