@@ -8,18 +8,18 @@ export const StorageService = {
       let uploadData;
 
       if (typeof asset === 'object' && asset.uri) {
-        // React Native file upload
-        const formData = new FormData();
-        formData.append('file', {
-          uri: asset.uri,
-          type: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
-          name: fileName,
-        } as any);
-        uploadData = formData;
+        // React Native file upload - convert to base64 or use fetch
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        uploadData = blob;
       } else {
         // Web file upload (Blob/File)
         uploadData = asset;
       }
+
+      console.log('Uploading file:', fileName, 'for user:', userId);
+      console.log('File extension:', fileExtension);
+      console.log('Asset type:', typeof asset, asset.uri ? 'has URI' : 'no URI');
 
       const { data, error } = await supabase.storage
         .from('avatars')
@@ -29,7 +29,12 @@ export const StorageService = {
         });
 
       if (error) {
-        console.error('Upload error:', error);
+        console.error('Upload error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+        console.error('Full error:', error);
         return { data: null, error };
       }
 
