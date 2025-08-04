@@ -42,25 +42,27 @@ export default function HomeScreen() {
 
   const loadPosts = async () => {
     if (!user?.id) {
+      setPosts([]);
       setLoading(false);
       return;
     }
 
     try {
+      setLoading(true);
       setError(null);
-      const { data, error: postsError } = await DatabaseService.getHomePagePosts(user.id);
+      const { data, error } = await DatabaseService.getHomePagePosts(user.id);
 
-      if (postsError) {
-        console.error('Error loading posts:', postsError);
+      if (error) {
+        console.error('Error loading posts:', error);
         setError('Unable to load posts. Please try again.');
         setPosts([]);
-        return;
+      } else {
+        setPosts(data || []);
+        setError(null);
       }
-
-      setPosts(data || []);
     } catch (error) {
       console.error('Error loading posts:', error);
-      setError('Something went wrong. Please try again.');
+      setError('Unable to load posts. Please try again.');
       setPosts([]);
     } finally {
       setLoading(false);

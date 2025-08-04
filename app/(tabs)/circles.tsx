@@ -9,7 +9,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCircles, createCircle, joinCircle, leaveCircle, getCirclesByUser } from '@/lib/database';
+import { getCircles, createCircle, joinCircle, leaveCircle, getCirclesByUser, DatabaseService } from '@/lib/database';
+import { supabase } from '@/lib/supabase';
 
 interface Circle {
   id: string;
@@ -127,20 +128,34 @@ export default function CirclesScreen() {
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
         privacy: newCircle.privacy,
-        createdby: user.id,
+        creator: user.id,
       });
 
       if (error) {
+        console.error('Error creating circle:', error);
         Alert.alert('Error', 'Failed to create circle');
         return;
       }
 
       // If circle was created successfully, make the creator an admin
       if (data) {
+        // Make creator an admin
         await DatabaseService.addCircleAdmin(data.id, user.id, user.id);
         
         // Auto-join the creator to their own circle
         await DatabaseService.joinCircle(user.id, data.id);
+
+        // Add selected interests to the circle
+        if (newCircle.interests.length > 0) {
+          for (const interestId of newCircle.interests) {
+            await supabase
+              .from('circle_interests')
+              .insert({
+                circleid: data.id,
+                interestid: interestId
+              });
+          }
+        }
       }
 
       setShowCreateModal(false);
@@ -148,6 +163,7 @@ export default function CirclesScreen() {
       await loadCircles();
       Alert.alert('Success', 'Circle created successfully!');
     } catch (error) {
+      console.error('Error creating circle:', error);
       Alert.alert('Error', 'Failed to create circle');
     }
   };
