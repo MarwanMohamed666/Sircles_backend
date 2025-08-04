@@ -309,11 +309,15 @@ export default function ProfileScreen() {
         console.error('Error message:', error.message);
         Alert.alert('Error', `Failed to upload avatar: ${error.message}`);
         return;
-      } else {
+      }
+
+      if (!data) {
         console.error('Upload completed but no data returned');
         Alert.alert('Error', 'Upload completed but no data returned');
         return;
       }
+
+      console.log('Upload successful! Data received:', data);
 
       if (data?.publicUrl) {
         console.log('Upload successful, updating user profile...');
