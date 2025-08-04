@@ -240,20 +240,36 @@ export default function ProfileScreen() {
   };
 
   const uploadAvatar = async (asset: any) => {
+    console.log('=== UPLOAD AVATAR START ===');
+    console.log('User exists:', !!user);
+    console.log('User ID:', user?.id);
+    
     if (!user?.id) {
+      console.error('No user ID found');
       Alert.alert('Error', 'You must be logged in to upload an avatar');
       return;
     }
 
     // Check if user is actually authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Checking session...');
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('Session check result:', { hasSession: !!session, sessionError });
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      Alert.alert('Error', `Session error: ${sessionError.message}`);
+      return;
+    }
+    
     if (!session) {
+      console.error('No active session found');
       Alert.alert('Error', 'Your session has expired. Please log in again.');
       router.replace('/login');
       return;
     }
 
     setUploading(true);
+    console.log('Starting upload process...');
     try {
       // Get file extension from URI
       const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
@@ -293,9 +309,14 @@ export default function ProfileScreen() {
         console.error('Error message:', error.message);
         Alert.alert('Error', `Failed to upload avatar: ${error.message}`);
         return;
+      } else {
+        console.error('Upload completed but no data returned');
+        Alert.alert('Error', 'Upload completed but no data returned');
+        return;
       }
 
       if (data?.publicUrl) {
+        console.log('Upload successful, updating user profile...');
         // Update user profile with new avatar URL
         const { error: updateError } = await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
 
@@ -314,11 +335,20 @@ export default function ProfileScreen() {
         }
 
         Alert.alert('Success', 'Avatar updated successfully!');
+      } else {
+        console.error('No public URL in response:', data);
+        Alert.alert('Error', 'Upload succeeded but no URL returned');
       }
     } catch (error) {
-      console.error('Avatar upload error:', error);
-      Alert.alert('Error', 'Failed to upload avatar');
+      console.error('Avatar upload error - FULL DETAILS:', {
+        error: error,
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      Alert.alert('Error', `Failed to upload avatar: ${error?.message || 'Unknown error'}`);
     } finally {
+      console.log('Upload process finished, setting uploading to false');
       setUploading(false);
     }
   };
