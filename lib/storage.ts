@@ -4,72 +4,100 @@ export const StorageService = {
   async uploadAvatar(userId: string, asset: any, fileExtension: string) {
     try {
       const fileName = `${userId}.${fileExtension}`;
+      console.log('Starting upload for file:', fileName);
+      console.log('Asset details:', { 
+        hasUri: !!asset?.uri, 
+        uriType: asset?.uri?.startsWith('data:') ? 'base64' : 'file',
+        assetType: typeof asset 
+      });
 
-      let uploadData;
+      let uploadData: Blob;
 
-      if (typeof asset === 'object' && asset.uri) {
-        // Check if it's a base64 data URI
-        if (asset.uri.startsWith('data:')) {
-          try {
-            // Convert base64 data URI to blob
-            const response = await fetch(asset.uri);
-            const blob = await response.blob();
-            uploadData = blob;
-            console.log('Base64 blob created successfully, size:', blob.size, 'type:', blob.type);
-          } catch (base64Error) {
-            console.error('Error converting base64 to blob:', base64Error);
-            throw base64Error;
+      // Handle different asset types from Expo Image Picker
+      if (asset && asset.uri) {
+        console.log('Processing asset URI...');
+        
+        try {
+          // Fetch the asset URI (works for both base64 data URIs and file URIs)
+          const response = await fetch(asset.uri);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch asset: ${response.status} ${response.statusText}`);
           }
-        } else {
-          // Regular file URI
-          try {
-            const response = await fetch(asset.uri);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch asset: ${response.status}`);
-            }
-            const blob = await response.blob();
-            uploadData = blob;
-            console.log('File blob created successfully, size:', blob.size, 'type:', blob.type);
-          } catch (fetchError) {
-            console.error('Error fetching asset:', fetchError);
-            throw fetchError;
+
+          // Convert response to blob
+          uploadData = await response.blob();
+          console.log('Blob created successfully:', {
+            size: uploadData.size,
+            type: uploadData.type,
+            sizeKB: Math.round(uploadData.size / 1024) + 'KB'
+          });
+
+          // Validate blob
+          if (uploadData.size === 0) {
+            throw new Error('Blob is empty - asset may not have been processed correctly');
           }
+
+        } catch (fetchError) {
+          console.error('Error processing asset:', fetchError);
+          throw new Error(`Failed to process image: ${fetchError.message}`);
         }
-      } else {
-        // Web file upload (Blob/File)
+      } else if (asset instanceof Blob || asset instanceof File) {
+        // Direct blob/file upload (web)
         uploadData = asset;
+        console.log('Using direct blob/file upload');
+      } else {
+        throw new Error('Invalid asset format - expected asset with URI or Blob/File');
       }
 
-      console.log('Uploading file:', fileName, 'for user:', userId);
-      console.log('File extension:', fileExtension);
-      console.log('Asset type:', typeof asset, asset.uri ? 'has URI' : 'no URI');
+      // Determine correct content type
+      const contentType = fileExtension === 'jpg' || fileExtension === 'jpeg' 
+        ? 'image/jpeg' 
+        : `image/${fileExtension}`;
 
+      console.log('Uploading to Supabase:', {
+        fileName,
+        contentType,
+        blobSize: uploadData.size
+      });
+
+      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('avatars')
         .upload(fileName, uploadData, {
           upsert: true,
-          contentType: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
+          contentType: contentType,
+          cacheControl: '3600'  // Cache for 1 hour
         });
 
       if (error) {
-        console.error('Upload error details:', {
-          message: error.message,
-          name: error.name,
-          stack: error.stack
-        });
-        console.error('Full error:', error);
+        console.error('Supabase upload error:', error);
         return { data: null, error };
       }
+
+      console.log('Upload successful:', data);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
-      return { data: { ...data, publicUrl: urlData.publicUrl }, error: null };
+      console.log('Generated public URL:', urlData.publicUrl);
+
+      return { 
+        data: { 
+          ...data, 
+          publicUrl: urlData.publicUrl 
+        }, 
+        error: null 
+      };
+
     } catch (error) {
       console.error('Storage service error:', error);
-      return { data: null, error: error as Error };
+      return { 
+        data: null, 
+        error: error instanceof Error ? error : new Error(String(error))
+      };
     }
   },
 
