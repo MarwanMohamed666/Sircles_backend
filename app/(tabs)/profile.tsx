@@ -293,16 +293,25 @@ export default function ProfileScreen() {
       });
 
       // Upload to Supabase Storage with the asset URI directly
-      console.log('Calling StorageService.uploadAvatar with:', {
+      console.log('About to call StorageService.uploadAvatar with:', {
         userId: user.id,
-        extension: normalizedExtension
+        extension: normalizedExtension,
+        hasStorageService: !!StorageService,
+        hasUploadMethod: !!StorageService.uploadAvatar
       });
       
+      console.log('Calling StorageService.uploadAvatar NOW...');
       const { data, error } = await StorageService.uploadAvatar(
         user.id, 
         asset, 
         normalizedExtension
       );
+      
+      console.log('StorageService.uploadAvatar returned:', { 
+        hasData: !!data, 
+        hasError: !!error,
+        errorMessage: error?.message 
+      });
 
       if (error) {
         console.error('Upload error details:', error);

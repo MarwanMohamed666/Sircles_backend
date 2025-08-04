@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 
 export const StorageService = {
   async uploadAvatar(userId: string, asset: any, fileExtension: string) {
+    console.log('=== STORAGE SERVICE UPLOAD START ===');
     try {
       const fileName = `${userId}.${fileExtension}`;
       console.log('=== UPLOAD AVATAR DEBUG ===');
@@ -42,7 +43,12 @@ export const StorageService = {
           }
 
         } catch (fetchError) {
-          console.error('Error processing asset:', fetchError);
+          console.error('Error processing asset - FULL DETAILS:', {
+            error: fetchError,
+            message: fetchError?.message,
+            stack: fetchError?.stack,
+            assetUri: asset?.uri?.substring(0, 50) + '...'
+          });
           throw new Error(`Failed to process image: ${fetchError.message}`);
         }
       } else if (asset instanceof Blob || asset instanceof File) {
@@ -104,7 +110,13 @@ export const StorageService = {
       };
 
     } catch (error) {
-      console.error('Storage service error:', error);
+      console.error('=== STORAGE SERVICE ERROR - FULL DETAILS ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      console.error('Error type:', typeof error);
+      console.error('Is Error instance:', error instanceof Error);
+      
       return { 
         data: null, 
         error: error instanceof Error ? error : new Error(String(error))
