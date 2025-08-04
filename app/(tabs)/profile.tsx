@@ -204,10 +204,18 @@ export default function ProfileScreen() {
   };
 
   const pickImage = async () => {
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) return;
-
     try {
+      console.log('Starting image picker...');
+
+      // Request permissions first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant photo library access to change your avatar');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -215,12 +223,19 @@ export default function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        console.log('Selected asset:', result.assets[0]);
         await uploadAvatar(result.assets[0]);
+      } else {
+        console.log('Image selection was canceled');
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('Error picking image - full error:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      Alert.alert('Error', `Failed to pick image: ${error.message}`);
     }
   };
 

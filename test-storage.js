@@ -3,7 +3,7 @@ require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing environment variables:');
@@ -16,8 +16,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function testStorage() {
   try {
-    console.log('Testing storage connection...');
+    console.log('Testing storage connection with anon key...');
     console.log('Supabase URL:', supabaseUrl);
+    
+    // Test authentication (RLS policies require authenticated users)
+    console.log('🔐 Testing authentication requirement...');
+    
+    // First test without auth (should fail for upload due to RLS)
+    console.log('📝 Testing upload without authentication (should fail)...');
     
     // Test if we can list buckets
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
@@ -67,29 +73,31 @@ async function testStorage() {
     
     console.log('✅ Files in avatars bucket:', files);
     
-    // Test upload functionality with a simple text file
-    console.log('🧪 Testing upload functionality...');
-    const testContent = `Test upload at ${new Date().toISOString()}`;
-    const testFileName = 'test-upload.txt';
+    // Test upload functionality without authentication first
+    console.log('🧪 Testing upload functionality without auth...');
+    let testContent = `Test upload without auth at ${new Date().toISOString()}`;
+    let testFileName = 'test-upload-no-auth.txt';
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    let { data: uploadData, error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(testFileName, new Blob([testContent], { type: 'text/plain' }), {
         upsert: true
       });
     
     if (uploadError) {
-      console.error('❌ Upload test failed:', uploadError);
-      if (uploadError.message.includes('not allowed')) {
-        console.log('💡 This is likely due to RLS policies or bucket permissions');
+      console.log('❌ Upload without auth failed (expected):', uploadError.message);
+      if (uploadError.message.includes('new row violates row-level security')) {
+        console.log('✅ RLS is working correctly - anonymous users cannot upload');
       }
     } else {
-      console.log('✅ Upload test successful:', uploadData);
-      
-      // Clean up test file
+      console.log('⚠️  Upload without auth succeeded (unexpected - RLS may not be configured)');
+      // Clean up if successful
       await supabase.storage.from('avatars').remove([testFileName]);
-      console.log('🧹 Test file cleaned up');
     }
+    
+    // Now test with a real authentication flow
+    console.log('🔐 For upload testing with auth, you need to be logged in through your app');
+    console.log('💡 The upload button should work once you are authenticated in your app');
     
     console.log('🎉 Storage test completed successfully!');
     
