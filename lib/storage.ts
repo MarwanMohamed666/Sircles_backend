@@ -2,15 +2,31 @@
 import { supabase } from './supabase';
 
 export const StorageService = {
-  async uploadAvatar(userId: string, file: File | Blob, fileExtension: string) {
+  async uploadAvatar(userId: string, asset: any, fileExtension: string) {
     try {
       const fileName = `${userId}.${fileExtension}`;
       
+      let uploadData;
+      
+      if (typeof asset === 'object' && asset.uri) {
+        // React Native file upload
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          type: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
+          name: fileName,
+        } as any);
+        uploadData = formData;
+      } else {
+        // Web file upload (Blob/File)
+        uploadData = asset;
+      }
+
       const { data, error } = await supabase.storage
         .from('avatars')
-        .upload(fileName, file, {
+        .upload(fileName, uploadData, {
           upsert: true,
-          contentType: `image/${fileExtension}`
+          contentType: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
         });
 
       if (error) {

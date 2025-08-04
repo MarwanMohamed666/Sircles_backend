@@ -237,29 +237,14 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Convert to blob for upload
-      let blob: Blob;
-      if (Platform.OS === 'web') {
-        const response = await fetch(asset.uri);
-        blob = await response.blob();
-      } else {
-        // For React Native, we need to create a FormData compatible object
-        const formData = new FormData();
-        formData.append('file', {
-          uri: asset.uri,
-          type: `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`,
-          name: `${user.id}.${fileExtension}`,
-        } as any);
-        
-        // Extract the file from FormData for direct upload
-        blob = formData.get('file') as Blob;
-      }
+      // Normalize extension
+      const normalizedExtension = fileExtension === 'jpeg' ? 'jpg' : fileExtension;
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage with the asset URI directly
       const { data, error } = await StorageService.uploadAvatar(
         user.id, 
-        blob, 
-        fileExtension === 'jpg' ? 'jpg' : 'png'
+        asset, 
+        normalizedExtension
       );
 
       if (error) {
@@ -340,8 +325,8 @@ export default function ProfileScreen() {
 
     try {
       // First check if avatar URL is in user profile
-      if (userProfile?.avatar) {
-        setAvatarUrl(userProfile.avatar);
+      if (userProfile?.avatar_url) {
+        setAvatarUrl(userProfile.avatar_url);
         return;
       }
 
@@ -438,9 +423,9 @@ export default function ProfileScreen() {
             onPress={pickImage}
             disabled={uploading}
           >
-            {avatarUrl || userProfile?.avatar ? (
+            {avatarUrl || userProfile?.avatar_url ? (
               <Image 
-                source={{ uri: avatarUrl || userProfile?.avatar }} 
+                source={{ uri: avatarUrl || userProfile?.avatar_url }} 
                 style={styles.avatar} 
                 onError={() => setAvatarUrl(null)}
               />

@@ -84,7 +84,7 @@ export const DatabaseService = {
   async updateUserAvatar(id: string, avatarUrl: string) {
     const { data, error } = await supabase
       .from('users')
-      .update({ avatar: avatarUrl })
+      .update({ avatar_url: avatarUrl })
       .eq('id', id)
       .select()
       .single();
