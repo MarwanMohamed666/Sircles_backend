@@ -424,8 +424,8 @@ export default function ProfileScreen() {
 
     try {
       // First check if avatar URL is in user profile
-      if (userProfile?.avatar_url) {
-        setAvatarUrl(userProfile.avatar_url);
+      if (userProfile?.avatar) {
+        setAvatarUrl(userProfile.avatar);
         return;
       }
 
@@ -522,9 +522,9 @@ export default function ProfileScreen() {
             onPress={pickImage}
             disabled={uploading}
           >
-            {avatarUrl || userProfile?.avatar_url ? (
+            {avatarUrl || userProfile?.avatar ? (
               <Image 
-                source={{ uri: avatarUrl || userProfile?.avatar_url }} 
+                source={{ uri: avatarUrl || userProfile?.avatar }} 
                 style={styles.avatar} 
                 onError={() => setAvatarUrl(null)}
               />
