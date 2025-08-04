@@ -311,7 +311,7 @@ export default function CircleScreen() {
     <View key={member.id} style={[styles.memberCard, { backgroundColor: surfaceColor }]}>
       <View style={[styles.memberInfo, isRTL && styles.memberInfoRTL]}>
         <Image
-          source={{ uri: member.avatar || 'https://via.placeholder.com/40' }}
+          source={{ uri: member.avatar_url || 'https://via.placeholder.com/40' }}
           style={styles.memberAvatar}
         />
         <View style={styles.memberDetails}>
