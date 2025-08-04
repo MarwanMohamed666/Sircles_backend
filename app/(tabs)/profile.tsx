@@ -271,13 +271,27 @@ export default function ProfileScreen() {
     setUploading(true);
     console.log('Starting upload process...');
     try {
-      // Get file extension from URI
-      const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+      // Get file extension from URI - handle base64 data URIs
+      let fileExtension: string;
+      
+      if (asset.uri.startsWith('data:image/')) {
+        // Extract extension from data URI MIME type
+        const mimeMatch = asset.uri.match(/data:image\/([^;]+)/);
+        fileExtension = mimeMatch ? mimeMatch[1] : 'png';
+        console.log('Extracted extension from data URI:', fileExtension);
+      } else {
+        // Extract from file path
+        fileExtension = asset.uri.split('.').pop()?.toLowerCase() || 'png';
+        console.log('Extracted extension from file path:', fileExtension);
+      }
 
-      if (!fileExtension || !['png', 'jpg', 'jpeg'].includes(fileExtension)) {
+      if (!['png', 'jpg', 'jpeg'].includes(fileExtension)) {
+        console.log('Invalid file extension:', fileExtension);
         Alert.alert('Error', 'Please select a PNG or JPG image');
         return;
       }
+      
+      console.log('File extension validation passed:', fileExtension);
 
       // Normalize extension
       const normalizedExtension = fileExtension === 'jpeg' ? 'jpg' : fileExtension;
