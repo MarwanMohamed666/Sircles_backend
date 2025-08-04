@@ -240,7 +240,18 @@ export default function ProfileScreen() {
   };
 
   const uploadAvatar = async (asset: any) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to upload an avatar');
+      return;
+    }
+
+    // Check if user is actually authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      Alert.alert('Error', 'Your session has expired. Please log in again.');
+      router.replace('/login');
+      return;
+    }
 
     setUploading(true);
     try {

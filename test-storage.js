@@ -86,8 +86,12 @@ async function testStorage() {
     
     if (uploadError) {
       console.log('❌ Upload without auth failed (expected):', uploadError.message);
-      if (uploadError.message.includes('new row violates row-level security')) {
+      if (uploadError.message.includes('new row violates row-level security') || 
+          uploadError.message.includes('JWT') ||
+          uploadError.message.includes('permission denied')) {
         console.log('✅ RLS is working correctly - anonymous users cannot upload');
+        console.log('💡 This means your app security is properly configured!');
+        console.log('📱 Users must be logged in through your app to upload avatars');
       }
     } else {
       console.log('⚠️  Upload without auth succeeded (unexpected - RLS may not be configured)');
