@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -8,13 +9,10 @@ interface AuthContextType {
   userProfile: User | null;
   session: Session | null;
   loading: boolean;
-  needsPasswordSetup: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateUserProfile: (profile: Partial<User>) => Promise<{ error: any }>;
-  setupFirstTimePassword: (email: string, password: string) => Promise<{ error: any }>;
-  setupInitialPassword: (email: string, password: string) => Promise<{ error: any }>;
   checkUserExists: (email: string) => Promise<{ exists: boolean; error: any }>;
 }
 
@@ -23,13 +21,10 @@ const AuthContext = createContext<AuthContextType>({
   userProfile: null,
   session: null,
   loading: true,
-  needsPasswordSetup: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
-  setupFirstTimePassword: async () => ({ error: null }),
-  setupInitialPassword: async () => ({ exists: false, error: null }),
   checkUserExists: async () => ({ exists: false, error: null }),
 });
 
@@ -46,118 +41,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (authUser: AuthUser) => {
     try {
+      // First check if user profile exists
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
+        .eq('auth_id', authUser.id)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching user profile:', error);
-
-        // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          console.log('RLS policy prevented access to user profile');
-          // Create minimal profile from auth data for display
-          const { data: authUser } = await supabase.auth.getUser();
-          if (authUser.user) {
-            setUserProfile({
-              id: userId,
-              email: authUser.user.email || '',
-              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-              phone: null,
-              dob: null,
-              gender: null,
-              address_apartment: null,
-              address_building: null,
-              address_block: null,
-              avatar_url: null,
-              bio: null,
-              creationdate: new Date().toISOString(),
-            } as any);
-          }
-          return;
-        }
-
-        // If user doesn't exist, create a profile
-        if (error.code === 'PGRST116') {
-          const { data: authUser } = await supabase.auth.getUser();
-          if (authUser.user) {
-            const minimalProfile = {
-              id: userId,
-              email: authUser.user.email || '',
-              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-              phone: null,
-              dob: null,
-              gender: null,
-              address_apartment: null,
-              address_building: null,
-              address_block: null,
-              avatar_url: null,
-              bio: null,
-              creationdate: new Date().toISOString(),
-            };
-
-            // Try to insert the profile
-            const { data: insertedUser, error: insertError } = await supabase
-              .from('users')
-              .insert(minimalProfile)
-              .select()
-              .single();
-
-            if (insertError) {
-              console.error('Error creating user profile:', insertError);
-              // If insert fails due to RLS, still set the minimal profile in state
-              setUserProfile(minimalProfile as any);
-            } else {
-              setUserProfile(insertedUser);
-            }
-          }
-        }
         return;
       }
 
-      setUserProfile(data);
+      if (data) {
+        setUserProfile(data);
+      } else {
+        // Create user profile if it doesn't exist
+        const newProfile = {
+          id: crypto.randomUUID(),
+          auth_id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+          phone: null,
+          dob: null,
+          gender: null,
+          address_apartment: null,
+          address_building: null,
+          address_block: null,
+          avatar_url: null,
+          bio: null,
+          creationdate: new Date().toISOString(),
+        };
+
+        const { data: insertedUser, error: insertError } = await supabase
+          .from('users')
+          .insert(newProfile)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+        } else {
+          setUserProfile(insertedUser);
+        }
+      }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      // In case of any error, try to get auth user data
-      try {
-        const { data: authUser } = await supabase.auth.getUser();
-        if (authUser.user) {
-          setUserProfile({
-            id: userId,
-            email: authUser.user.email || '',
-            name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-          } as any);
-        }
-      } catch (authError) {
-        console.error('Error getting auth user:', authError);
-      }
-    }
-  };
-
-  const createUserProfile = async (authUser: any) => {
-    const newProfile = {
-      id: authUser.id,
-      email: authUser.email,
-      name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-      creationdate: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('users')
-      .insert(newProfile)
-      .select()
-      .single();
-
-    if (!error && data) {
-      setUserProfile(data);
-    } else {
-      console.error('Error creating user profile:', error);
     }
   };
 
@@ -167,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user);
       }
       setLoading(false);
     });
@@ -179,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user);
       } else {
         setUserProfile(null);
       }
@@ -203,33 +135,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
     });
 
-    // Create user profile after signup
-    if (!error && data.user) {
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.email?.split('@')[0] || 'User',
-          creationdate: new Date().toISOString(),
-        });
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError);
-      }
-    }
-
     return { error };
   };
 
   const updateUserProfile = async (profile: Partial<User>) => {
-    if (!user) return { error: new Error('No user logged in') };
+    if (!user || !userProfile) return { error: new Error('No user logged in') };
 
     try {
       const { data, error } = await supabase
         .from('users')
         .update(profile)
-        .eq('id', user.id)
+        .eq('auth_id', user.id)
         .select()
         .single();
 
@@ -237,7 +153,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
-      // Update local state immediately
       if (data) {
         setUserProfile(data);
       }
@@ -255,10 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error signing out:', error);
         throw error;
       }
-      // State will be cleared automatically by the auth state change listener
     } catch (error) {
       console.error('Error signing out:', error);
-      // Clear state manually if signOut fails
       setUser(null);
       setUserProfile(null);
       setSession(null);
@@ -266,52 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const setupFirstTimePassword = async (email: string, password: string) => {
-    try {
-      // Check if user exists in database
-      const { exists, error: checkError } = await checkUserExists(email);
-
-      if (checkError) {
-        console.error('Error checking user existence:', checkError);
-        return { error: checkError };
-      }
-
-      if (!exists) {
-        return { error: new Error('User not found in database. Please contact admin to create your account.') };
-      }
-
-      // User exists in database, update their password using admin function
-      // Since signup is disabled, we assume users are pre-created by admin
-      const { data, error } = await supabase.auth.updateUser({
-        password: password,
-      });
-
-      if (error) {
-        console.error('Error updating user password:', error);
-        return { error };
-      }
-
-      // Now sign them in with the new password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        console.error('Error signing in after password setup:', signInError);
-        return { error: signInError };
-      }
-
-      return { error: null };
-    } catch (error) {
-      console.error('Error in setupFirstTimePassword:', error);
-      return { error };
-    }
-  };
-
   const checkUserExists = async (email: string) => {
     try {
-      // Check if user exists in our users table
       const { data, error } = await supabase
         .from('users')
         .select('id')
@@ -319,7 +188,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        // If error code is PGRST116, it means no rows found (user doesn't exist)
         if (error.code === 'PGRST116') {
           return { exists: false, error: null };
         }
@@ -339,13 +207,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userProfile,
     session,
     loading,
-    needsPasswordSetup,
     signIn,
     signUp,
     signOut,
     updateUserProfile,
-    setupFirstTimePassword,
-    setupInitialPassword: setupFirstTimePassword, // Alias for consistency
     checkUserExists,
   };
 

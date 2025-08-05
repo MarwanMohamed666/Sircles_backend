@@ -24,7 +24,7 @@ interface Circle {
 }
 
 export default function CirclesScreen() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
@@ -65,8 +65,8 @@ export default function CirclesScreen() {
 
       // Load user's joined circles if user is logged in
       let joinedCircleIds = new Set<string>();
-      if (user?.id) {
-        const { data: userCirclesResult, error: joinedError } = await getCirclesByUser(user.id);
+      if (userProfile?.id) {
+        const { data: userCirclesResult, error: joinedError } = await getCirclesByUser(userProfile.id);
         if (joinedError) {
           console.error('Error loading joined circles:', joinedError);
           // Don't show error for this, just continue without joined status
@@ -119,7 +119,7 @@ export default function CirclesScreen() {
       return;
     }
 
-    if (!user?.id) {
+    if (!userProfile?.id) {
       Alert.alert('Error', 'You must be logged in to create a circle');
       return;
     }
@@ -129,7 +129,7 @@ export default function CirclesScreen() {
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
         privacy: newCircle.privacy,
-        creator: user.id,
+        creator: userProfile.id,
       });
 
       if (error) {
@@ -141,10 +141,10 @@ export default function CirclesScreen() {
       // If circle was created successfully, make the creator an admin
       if (data) {
         // Make creator an admin
-        await DatabaseService.addCircleAdmin(data.id, user.id, user.id);
+        await DatabaseService.addCircleAdmin(data.id, userProfile.id, userProfile.id);
 
         // Auto-join the creator to their own circle
-        await DatabaseService.joinCircle(user.id, data.id);
+        await DatabaseService.joinCircle(userProfile.id, data.id);
 
         // Add selected interests to the circle
         if (newCircle.interests.length > 0) {
@@ -179,7 +179,7 @@ export default function CirclesScreen() {
   };
 
   const handleJoinLeave = async (circleId: string, isJoined: boolean, circleName: string, circlePrivacy: string) => {
-    if (!user?.id) {
+    if (!userProfile?.id) {
       Alert.alert('Error', 'You must be logged in');
       return;
     }
@@ -199,7 +199,7 @@ export default function CirclesScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                const { error } = await leaveCircle(user.id, circleId);
+                const { error } = await leaveCircle(userProfile.id, circleId);
                 if (error) {
                   Alert.alert('Error', 'Failed to leave circle');
                   return;
@@ -230,7 +230,7 @@ export default function CirclesScreen() {
             text: 'Send Request',
             onPress: async (message) => {
               try {
-                const { error } = await DatabaseService.requestToJoinCircle(user.id, circleId, message);
+                const { error } = await DatabaseService.requestToJoinCircle(userProfile.id, circleId, message);
                 if (error) {
                   if (error.message.includes('already requested')) {
                     Alert.alert('Info', 'You have already requested to join this circle.');
@@ -251,7 +251,7 @@ export default function CirclesScreen() {
     } else {
       // Public circle - join directly
       try {
-        const { error } = await joinCircle(user.id, circleId);
+        const { error } = await joinCircle(userProfile.id, circleId);
 
         if (error) {
           console.error('Error joining circle:', error);
@@ -277,7 +277,7 @@ export default function CirclesScreen() {
 
   useEffect(() => {
     loadCircles();
-  }, [user]);
+  }, [userProfile]);
 
   const renderCircle = (circle: Circle) => (
     <TouchableOpacity

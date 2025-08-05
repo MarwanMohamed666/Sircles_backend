@@ -157,8 +157,9 @@ CREATE TABLE public.users (
 );
 
 -- RLS Policy for creating circles
-alter policy "Authenticated users can create circles"
+create policy "Authenticated users can create circles"
 on "public"."circles"
+for insert
 to authenticated
 with check (
   creator IN (SELECT id FROM users WHERE auth_id = auth.uid())
