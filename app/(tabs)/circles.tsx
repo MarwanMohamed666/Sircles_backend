@@ -138,24 +138,26 @@ export default function CirclesScreen() {
         return;
       }
 
-      // If circle was created successfully, make the creator an admin
-      if (data) {
-        // Make creator an admin
-        await DatabaseService.addCircleAdmin(data.id, userProfile.id, userProfile.id);
-
-        // Auto-join the creator to their own circle
-        await DatabaseService.joinCircle(userProfile.id, data.id);
-
-        // Add selected interests to the circle
-        if (newCircle.interests.length > 0) {
+      // If circle was created successfully, add interests
+      if (data && newCircle.interests.length > 0) {
+        try {
+          // Add selected interests to the circle
           for (const interestId of newCircle.interests) {
-            await supabase
+            const { error: interestError } = await supabase
               .from('circle_interests')
               .insert({
                 circleid: data.id,
                 interestid: interestId
               });
+            
+            if (interestError) {
+              console.error('Error adding interest:', interestError);
+              // Continue with other interests even if one fails
+            }
           }
+        } catch (interestError) {
+          console.error('Error adding interests to circle:', interestError);
+          // Don't fail the entire operation for interests
         }
       }
 

@@ -142,20 +142,66 @@ export const DatabaseService = {
       return { data: null, error: new Error('User not authenticated') };
     }
 
+    const circleId = crypto.randomUUID();
+    const userId = currentUser.user.id;
+
     // Use auth.uid() directly as the creator ID
     const newCircle = {
-      id: crypto.randomUUID(),
+      id: circleId,
       ...circle,
-      creator: currentUser.user.id,
+      creator: userId,
       creationdate: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
-      .from('circles')
-      .insert(newCircle)
-      .select()
-      .single();
-    return { data, error };
+    try {
+      // 1. Insert into circles table
+      const { data: circleData, error: circleError } = await supabase
+        .from('circles')
+        .insert(newCircle)
+        .select()
+        .single();
+
+      if (circleError) {
+        console.error('Error creating circle:', circleError);
+        return { data: null, error: circleError };
+      }
+
+      // 2. Add creator as admin in circle_admins
+      const { error: adminError } = await supabase
+        .from('circle_admins')
+        .insert({
+          circleid: circleId,
+          userid: userId
+        });
+
+      if (adminError) {
+        console.error('Error adding admin:', adminError);
+        // Rollback circle creation if admin creation fails
+        await supabase.from('circles').delete().eq('id', circleId);
+        return { data: null, error: adminError };
+      }
+
+      // 3. Add creator to user_circles (join the circle)
+      const { error: joinError } = await supabase
+        .from('user_circles')
+        .insert({
+          userid: userId,
+          circleid: circleId
+        });
+
+      if (joinError) {
+        console.error('Error joining circle:', joinError);
+        // Rollback previous operations
+        await supabase.from('circle_admins').delete().eq('circleid', circleId);
+        await supabase.from('circles').delete().eq('id', circleId);
+        return { data: null, error: joinError };
+      }
+
+      return { data: circleData, error: null };
+    } catch (error) {
+      console.error('Error in createCircle transaction:', error);
+      return { data: null, error: error as Error };
+    }
   },
 
   // Event operations
