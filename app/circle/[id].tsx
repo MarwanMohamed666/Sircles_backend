@@ -221,6 +221,77 @@ export default function CircleScreen() {
     );
   };
 
+  const handleRemoveMemberAsAdmin = (memberId: string, memberName: string) => {
+    if (!circle?.isAdmin) return;
+
+    Alert.alert(
+      'Remove Member',
+      `Are you sure you want to remove ${memberName} from this circle? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.removeMemberFromCircle(
+                id as string,
+                memberId,
+                user!.id
+              );
+              if (error) {
+                Alert.alert('Error', 'Failed to remove member');
+                return;
+              }
+              
+              Alert.alert('Success', `${memberName} has been removed from the circle`);
+              await loadCircleData();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to remove member');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleToggleAdmin = (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
+    if (!circle?.isMainAdmin) return;
+
+    const action = isCurrentlyAdmin ? 'remove admin privileges from' : 'make admin';
+    
+    Alert.alert(
+      isCurrentlyAdmin ? 'Remove Admin' : 'Make Admin',
+      `Are you sure you want to ${action} ${memberName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              let error;
+              if (isCurrentlyAdmin) {
+                ({ error } = await DatabaseService.removeCircleAdmin(id as string, memberId, user!.id));
+              } else {
+                ({ error } = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id));
+              }
+              
+              if (error) {
+                Alert.alert('Error', `Failed to ${action} ${memberName}`);
+                return;
+              }
+              
+              Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
+              await loadCircleData();
+            } catch (error) {
+              Alert.alert('Error', `Failed to ${action} ${memberName}`);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleLeaveCircle = async () => {
     if (!user?.id || !id) return;
 
@@ -366,6 +437,58 @@ export default function CircleScreen() {
     </View>
   );
 
+  const renderAdminMember = (member: Member) => (
+    <View key={member.id} style={[styles.adminMemberCard, { backgroundColor: surfaceColor }]}>
+      <View style={[styles.adminMemberInfo, isRTL && styles.adminMemberInfoRTL]}>
+        <Image
+          source={{ uri: member.avatar_url || 'https://via.placeholder.com/40' }}
+          style={styles.adminMemberAvatar}
+        />
+        <View style={styles.adminMemberDetails}>
+          <ThemedText type="defaultSemiBold">{member.name}</ThemedText>
+          <View style={styles.memberBadges}>
+            {member.isAdmin && (
+              <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
+                <ThemedText style={styles.badgeText}>Admin</ThemedText>
+              </View>
+            )}
+            {member.id === circle.createdby && (
+              <View style={[styles.badge, { backgroundColor: tintColor }]}>
+                <ThemedText style={styles.badgeText}>Creator</ThemedText>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+      
+      <View style={styles.adminMemberActions}>
+        {/* Only show remove button if not the creator and not the current user */}
+        {member.id !== circle.createdby && member.id !== user?.id && (
+          <TouchableOpacity
+            style={[styles.adminActionButton, { backgroundColor: '#EF5350' }]}
+            onPress={() => handleRemoveMemberAsAdmin(member.id, member.name)}
+          >
+            <IconSymbol name="person.fill.xmark" size={16} color="#fff" />
+            <ThemedText style={styles.adminActionButtonText}>Remove</ThemedText>
+          </TouchableOpacity>
+        )}
+        
+        {/* Show promote/demote admin button for non-creators */}
+        {member.id !== circle.createdby && member.id !== user?.id && circle.isMainAdmin && (
+          <TouchableOpacity
+            style={[styles.adminActionButton, { backgroundColor: member.isAdmin ? '#FF9800' : '#2196F3' }]}
+            onPress={() => handleToggleAdmin(member.id, member.name, member.isAdmin)}
+          >
+            <IconSymbol name={member.isAdmin ? "star.slash" : "star.fill"} size={16} color="#fff" />
+            <ThemedText style={styles.adminActionButtonText}>
+              {member.isAdmin ? 'Remove Admin' : 'Make Admin'}
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header */}
@@ -476,6 +599,13 @@ export default function CircleScreen() {
             ) : (
               <ThemedText style={styles.emptyText}>No pending join requests</ThemedText>
             )}
+            
+            <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
+              Circle Members ({members.length})
+            </ThemedText>
+            <View style={styles.adminMembersContainer}>
+              {members.map(renderAdminMember)}
+            </View>
           </View>
         )}
       </ScrollView>
@@ -675,6 +805,67 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     marginBottom: 8,
+  },
+  adminMembersContainer: {
+    gap: 12,
+  },
+  adminMemberCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  adminMemberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  adminMemberInfoRTL: {
+    flexDirection: 'row-reverse',
+  },
+  adminMemberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  adminMemberDetails: {
+    flex: 1,
+  },
+  memberBadges: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  adminMemberActions: {
+    flexDirection: 'column',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  adminActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  adminActionButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   requestCard: {
     flexDirection: 'row',

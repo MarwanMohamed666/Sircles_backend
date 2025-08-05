@@ -512,16 +512,16 @@ export const DatabaseService = {
 
   async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
     try {
-      // Verify requesting user is admin
-      const { data: adminCheck } = await supabase
-        .from('circle_admins')
-        .select('userid')
-        .eq('circleid', circleId)
-        .eq('userid', requestingAdminId)
+      // Get circle creator
+      const { data: circle } = await supabase
+        .from('circles')
+        .select('creator')
+        .eq('id', circleId)
         .single();
 
-      if (!adminCheck) {
-        return { data: null, error: new Error('You do not have admin permissions') };
+      // Verify requesting user is the main admin (creator)
+      if (circle?.creator !== requestingAdminId) {
+        return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
       }
 
       const { data, error } = await supabase
@@ -543,13 +543,18 @@ export const DatabaseService = {
       // Get circle creator
       const { data: circle } = await supabase
         .from('circles')
-        .select('createdby')
+        .select('creator')
         .eq('id', circleId)
         .single();
 
       // Cannot remove the main admin (creator)
-      if (circle?.createdby === userId) {
+      if (circle?.creator === userId) {
         return { data: null, error: new Error('Cannot remove the main admin') };
+      }
+
+      // Verify requesting user is the main admin (creator)
+      if (circle?.creator !== requestingAdminId) {
+        return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
       }
 
       const { data, error } = await supabase
@@ -605,11 +610,11 @@ export const DatabaseService = {
       // Check if user is the creator
       const { data: circle } = await supabase
         .from('circles')
-        .select('createdby')
+        .select('creator')
         .eq('id', circleId)
         .single();
 
-      if (circle?.createdby === userId) return { data: { isAdmin: true, isMainAdmin: true }, error: null };
+      if (circle?.creator === userId) return { data: { isAdmin: true, isMainAdmin: true }, error: null };
 
       // Check if user is in circle_admins
       const { data: admin } = await supabase
