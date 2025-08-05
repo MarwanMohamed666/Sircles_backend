@@ -49,7 +49,7 @@ export default function TabLayout() {
             <IconSymbol size={28} name={focused ? "calendar.fill" : "calendar"} color={color} />
           ),
         }}
-      /></Tabs.Screen>
+      />
       <Tabs.Screen
         name="explore"
         options={{
