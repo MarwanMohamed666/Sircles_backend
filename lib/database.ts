@@ -145,7 +145,7 @@ export const DatabaseService = {
     const circleId = crypto.randomUUID();
     const userId = currentUser.user.id;
 
-    // Use auth.uid() directly as the creator ID
+    // Use auth.uid() directly as the creator ID and include the generated ID
     const newCircle = {
       id: circleId,
       ...circle,
@@ -154,7 +154,7 @@ export const DatabaseService = {
     };
 
     try {
-      // 1. Insert into circles table
+      // 1. Insert into circles table with the generated ID
       const { data: circleData, error: circleError } = await supabase
         .from('circles')
         .insert(newCircle)
@@ -166,34 +166,34 @@ export const DatabaseService = {
         return { data: null, error: circleError };
       }
 
-      // 2. Add creator as admin in circle_admins
+      // 2. Add creator as admin in circle_admins using the created circle's ID
       const { error: adminError } = await supabase
         .from('circle_admins')
         .insert({
-          circleid: circleId,
+          circleid: circleData.id, // Use the ID from the created circle
           userid: userId
         });
 
       if (adminError) {
         console.error('Error adding admin:', adminError);
         // Rollback circle creation if admin creation fails
-        await supabase.from('circles').delete().eq('id', circleId);
+        await supabase.from('circles').delete().eq('id', circleData.id);
         return { data: null, error: adminError };
       }
 
-      // 3. Add creator to user_circles (join the circle)
+      // 3. Add creator to user_circles (join the circle) using the created circle's ID
       const { error: joinError } = await supabase
         .from('user_circles')
         .insert({
           userid: userId,
-          circleid: circleId
+          circleid: circleData.id // Use the ID from the created circle
         });
 
       if (joinError) {
         console.error('Error joining circle:', joinError);
         // Rollback previous operations
-        await supabase.from('circle_admins').delete().eq('circleid', circleId);
-        await supabase.from('circles').delete().eq('id', circleId);
+        await supabase.from('circle_admins').delete().eq('circleid', circleData.id);
+        await supabase.from('circles').delete().eq('id', circleData.id);
         return { data: null, error: joinError };
       }
 
