@@ -136,6 +136,12 @@ export const DatabaseService = {
   },
 
   async createCircle(circle: Omit<Circle, 'id' | 'creationdate'>) {
+    // Verify user exists and is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('User not authenticated') };
+    }
+
     const newCircle = {
       id: crypto.randomUUID(),
       ...circle,

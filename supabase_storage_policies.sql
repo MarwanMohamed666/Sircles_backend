@@ -155,3 +155,11 @@ CREATE TABLE public.users (
   auth_id uuid UNIQUE,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
+
+-- RLS Policy for creating circles
+alter policy "Authenticated users can create circles"
+on "public"."circles"
+to authenticated
+with check (
+  creator IN (SELECT id FROM users WHERE auth_id = auth.uid())
+);
