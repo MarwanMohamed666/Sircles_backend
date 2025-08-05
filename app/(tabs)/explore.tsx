@@ -67,7 +67,7 @@ export default function ExploreScreen() {
           agePreference: { min: 18, max: 65 }, // Default values since not in DB
           genderPreference: 'Any', // Default value since not in DB
           memberCount: circle.member_count || 0, // Use member_count from DB
-          tags: ['General'], // Mock data for now
+          tags: circle.circle_interests?.map((ci: any) => ci.interests?.title).filter(Boolean) || ['General'],
           isJoined: false, // You can implement this based on user_circles table
         }));
         setCircles(transformedCircles);

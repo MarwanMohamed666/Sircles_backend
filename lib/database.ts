@@ -31,6 +31,7 @@ export const removeCircleAdmin = (circleId: string, userId: string, requestingAd
 export const removeMemberFromCircle = (circleId: string, userId: string, adminId: string) => DatabaseService.removeMemberFromCircle(circleId, userId, adminId);
 export const isCircleAdmin = (circleId: string, userId: string) => DatabaseService.isCircleAdmin(circleId, userId);
 export const getHomePagePosts = (userId: string) => DatabaseService.getHomePagePosts(userId);
+export const getCircleInterests = (circleId: string) => DatabaseService.getCircleInterests(circleId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -104,9 +105,36 @@ export const DatabaseService = {
   async getCircles() {
     const { data, error } = await supabase
       .from('circles')
-      .select('*')
+      .select(`
+        *,
+        circle_interests(
+          interests(
+            id,
+            title,
+            category
+          )
+        )
+      `)
       .order('creationdate', { ascending: false });
     return { data, error };
+  },
+
+  async getCircleInterests(circleId: string) {
+    const { data, error } = await supabase
+      .from('circle_interests')
+      .select(`
+        interests(
+          id,
+          title,
+          category
+        )
+      `)
+      .eq('circleid', circleId);
+    
+    return { 
+      data: data?.map(ci => ci.interests).filter(Boolean) || [], 
+      error 
+    };
   },
 
   async getUserCircles(userId: string) {

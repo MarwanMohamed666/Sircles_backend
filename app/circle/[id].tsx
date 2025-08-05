@@ -21,6 +21,7 @@ interface Circle {
   isJoined: boolean;
   isAdmin: boolean;
   isMainAdmin: boolean;
+  interests?: string[];
 }
 
 interface Post {
@@ -104,12 +105,16 @@ export default function CircleScreen() {
         }
       }
 
+      // Get circle interests
+      const interests = currentCircle.circle_interests?.map((ci: any) => ci.interests?.title).filter(Boolean) || [];
+
       setCircle({
         ...currentCircle,
         isJoined,
         isAdmin,
         isMainAdmin,
-        memberCount: currentCircle.member_count || 0
+        memberCount: currentCircle.member_count || 0,
+        interests
       });
 
       // Load posts if user is member or circle is public
@@ -521,6 +526,22 @@ export default function CircleScreen() {
             </ThemedText>
           </View>
         </View>
+        
+        {/* Circle Interests */}
+        {circle.interests && circle.interests.length > 0 && (
+          <View style={styles.circleInterests}>
+            <ThemedText style={styles.interestsTitle}>Interests:</ThemedText>
+            <View style={styles.interestTags}>
+              {circle.interests.map((interest, index) => (
+                <View key={index} style={[styles.interestTag, { backgroundColor: tintColor + '20' }]}>
+                  <ThemedText style={[styles.interestTagText, { color: tintColor }]}>
+                    {interest}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Tabs */}
@@ -690,6 +711,28 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 12,
     opacity: 0.7,
+  },
+  circleInterests: {
+    marginTop: 12,
+  },
+  interestsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  interestTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  interestTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  interestTagText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   tabContainer: {
     flexDirection: 'row',
