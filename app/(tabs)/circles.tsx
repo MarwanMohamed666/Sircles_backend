@@ -450,6 +450,8 @@ export default function CirclesScreen() {
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {texts.createCircle || 'Create Circle'}
             </ThemedText>
+            
+            <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
 
             <View style={styles.formField}>
               <ThemedText style={styles.fieldLabel}>
@@ -544,6 +546,7 @@ export default function CirclesScreen() {
                     style={styles.interestsScrollView}
                     showsVerticalScrollIndicator={true}
                     nestedScrollEnabled={true}
+                    contentContainerStyle={{ paddingBottom: 8 }}
                   >
                     {Object.entries(interests).map(([category, categoryInterests]) => (
                       <View key={category} style={styles.interestCategory}>
@@ -582,6 +585,7 @@ export default function CirclesScreen() {
                 )}
               </View>
             </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -734,9 +738,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '85%',
     padding: 20,
     borderRadius: 12,
+    paddingBottom: 16,
   },
   modalTitle: {
     textAlign: 'center',
@@ -782,6 +787,10 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
   },
   modalButton: {
     flex: 1,
@@ -806,8 +815,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  modalScrollView: {
+    flex: 1,
+    marginBottom: 12,
+  },
   interestsContainer: {
-    height: 180,
+    height: 160,
     borderRadius: 8,
     borderWidth: 1,
     padding: 4,
