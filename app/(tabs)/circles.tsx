@@ -21,6 +21,7 @@ interface Circle {
   creationDate: string;
   memberCount?: number;
   isJoined?: boolean;
+  member_count?: number; // Added to match backend
 }
 
 export default function CirclesScreen() {
@@ -76,14 +77,14 @@ export default function CirclesScreen() {
       }
 
       // Format circles
-      const circlesWithJoinStatus = allCircles?.map(circle => ({
+      const circlesWithCount = allCircles?.map(circle => ({
         ...circle,
         isJoined: joinedCircleIds.has(circle.id),
-        memberCount: 0 // You can implement actual member count if needed
+        memberCount: circle.member_count || 0 // Use member_count from the table
       })) || [];
 
-      setCircles(circlesWithJoinStatus);
-      setMyCircles(circlesWithJoinStatus.filter(circle => circle.isJoined));
+      setCircles(circlesWithCount);
+      setMyCircles(circlesWithCount.filter(circle => circle.isJoined));
     } catch (error) {
       console.error('Error loading circles:', error);
       setError('Something went wrong. Please try again.');
@@ -149,7 +150,7 @@ export default function CirclesScreen() {
                 circleid: data.id,
                 interestid: interestId
               });
-            
+
             if (interestError) {
               console.error('Error adding interest:', interestError);
               // Continue with other interests even if one fails
@@ -452,7 +453,7 @@ export default function CirclesScreen() {
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {texts.createCircle || 'Create Circle'}
             </ThemedText>
-            
+
             <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
 
             <View style={styles.formField}>

@@ -104,16 +104,12 @@ export default function CircleScreen() {
         }
       }
 
-      // Load members count regardless of membership for public circles
-      const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
-      const memberCount = membersData?.length || 0;
-      
       setCircle({
         ...currentCircle,
         isJoined,
         isAdmin,
         isMainAdmin,
-        memberCount
+        memberCount: currentCircle.member_count || 0
       });
 
       // Load posts if user is member or circle is public

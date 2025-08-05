@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,7 +66,7 @@ export default function ExploreScreen() {
           privacy: circle.privacy || 'public',
           agePreference: { min: 18, max: 65 }, // Default values since not in DB
           genderPreference: 'Any', // Default value since not in DB
-          memberCount: Math.floor(Math.random() * 50) + 1, // Mock data for now
+          memberCount: circle.member_count || 0, // Use member_count from DB
           tags: ['General'], // Mock data for now
           isJoined: false, // You can implement this based on user_circles table
         }));
@@ -98,16 +97,16 @@ export default function ExploreScreen() {
   const filteredCircles = circles.filter(circle => {
     const matchesSearch = circle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          circle.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesInterest = !filters.interestTag || 
                            circle.tags.some(tag => tag.toLowerCase().includes(filters.interestTag.toLowerCase()));
-    
+
     const matchesGender = !filters.gender || filters.gender === 'Any' || 
                          circle.genderPreference === 'Any' || circle.genderPreference === filters.gender;
-    
+
     // Age range matching would require user's age context
     const matchesAge = !filters.ageRange; // Simplified for now
-    
+
     return matchesSearch && matchesInterest && matchesGender && matchesAge;
   });
 
@@ -239,11 +238,11 @@ export default function ExploreScreen() {
                 </View>
               )}
             </View>
-            
+
             <ThemedText style={[styles.circleDescription, isRTL && styles.rtlText]}>
               {circle.description}
             </ThemedText>
-            
+
             <View style={styles.circleTags}>
               {circle.tags.map((tag, index) => (
                 <View key={index} style={[styles.tag, { backgroundColor: tintColor + '15' }]}>
@@ -253,7 +252,7 @@ export default function ExploreScreen() {
                 </View>
               ))}
             </View>
-            
+
             <View style={[styles.circlePreferences, isRTL && styles.circlePreferencesRTL]}>
               <ThemedText style={styles.preferenceText}>
                 {texts.age || 'Age'}: {circle.agePreference.min}-{circle.agePreference.max}
