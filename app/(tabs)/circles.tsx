@@ -534,48 +534,53 @@ export default function CirclesScreen() {
               <ThemedText style={styles.fieldLabel}>
                 {texts.interests || 'Interests'} (Optional)
               </ThemedText>
-              <ScrollView 
-                style={styles.interestsContainer}
-                showsVerticalScrollIndicator={false}
-              >
+              <View style={[styles.interestsContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
                 {loadingInterests ? (
                   <ThemedText style={styles.loadingText}>Loading interests...</ThemedText>
+                ) : Object.keys(interests).length === 0 ? (
+                  <ThemedText style={styles.loadingText}>No interests available</ThemedText>
                 ) : (
-                  Object.entries(interests).map(([category, categoryInterests]) => (
-                    <View key={category} style={styles.interestCategory}>
-                      <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-                      <View style={styles.interestsList}>
-                        {categoryInterests.map((interest) => (
-                          <TouchableOpacity
-                            key={interest.id}
-                            style={[
-                              styles.interestChip,
-                              {
-                                backgroundColor: newCircle.interests.includes(interest.id) 
-                                  ? tintColor 
-                                  : backgroundColor,
-                                borderColor: tintColor,
-                              }
-                            ]}
-                            onPress={() => toggleInterest(interest.id)}
-                          >
-                            <ThemedText style={[
-                              styles.interestChipText,
-                              { 
-                                color: newCircle.interests.includes(interest.id) 
-                                  ? '#fff' 
-                                  : textColor 
-                              }
-                            ]}>
-                              {interest.title}
-                            </ThemedText>
-                          </TouchableOpacity>
-                        ))}
+                  <ScrollView 
+                    style={styles.interestsScrollView}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                  >
+                    {Object.entries(interests).map(([category, categoryInterests]) => (
+                      <View key={category} style={styles.interestCategory}>
+                        <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                        <View style={styles.interestsList}>
+                          {categoryInterests.map((interest) => (
+                            <TouchableOpacity
+                              key={interest.id}
+                              style={[
+                                styles.interestChip,
+                                {
+                                  backgroundColor: newCircle.interests.includes(interest.id) 
+                                    ? tintColor 
+                                    : surfaceColor,
+                                  borderColor: tintColor,
+                                }
+                              ]}
+                              onPress={() => toggleInterest(interest.id)}
+                            >
+                              <ThemedText style={[
+                                styles.interestChipText,
+                                { 
+                                  color: newCircle.interests.includes(interest.id) 
+                                    ? '#fff' 
+                                    : textColor 
+                                }
+                              ]}>
+                                {interest.title}
+                              </ThemedText>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  ))
+                    ))}
+                  </ScrollView>
                 )}
-              </ScrollView>
+              </View>
             </View>
 
             <View style={styles.modalActions}>
@@ -802,8 +807,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   interestsContainer: {
-    maxHeight: 200,
+    height: 180,
     borderRadius: 8,
+    borderWidth: 1,
+    padding: 4,
+  },
+  interestsScrollView: {
+    flex: 1,
     padding: 8,
   },
   interestCategory: {
@@ -834,5 +844,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.6,
     paddingVertical: 20,
+    fontSize: 14,
   },
 });
