@@ -119,7 +119,7 @@ export default function CirclesScreen() {
       return;
     }
 
-    if (!userProfile?.id) {
+    if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to create a circle');
       return;
     }
@@ -129,7 +129,7 @@ export default function CirclesScreen() {
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
         privacy: newCircle.privacy,
-        creator: userProfile.id,
+        creator: user.id, // Use the authenticated user's ID from Supabase Auth
       });
 
       if (error) {
