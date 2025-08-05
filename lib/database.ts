@@ -479,12 +479,12 @@ export const DatabaseService = {
       // Verify admin permissions
       const { data: circle, error: circleError } = await supabase
         .from('circles')
-        .select('createdby')
+        .select('creator')
         .eq('id', circleId)
         .single();
 
       if (circleError) return { data: null, error: circleError };
-      if (circle.createdby !== adminUserId) {
+      if (circle.creator !== adminUserId) {
         return { data: null, error: new Error('Only the circle creator can delete the circle') };
       }
 
