@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Alert, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -180,12 +180,22 @@ export default function HomeScreen() {
         <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
           {texts.home || 'Home'}
         </ThemedText>
-        <TouchableOpacity onPress={() => router.push('/notifications')}>
-          <IconSymbol name="bell" size={24} color={textColor} />
-        </TouchableOpacity>
+        <View style={[styles.headerButtons, isRTL && styles.headerButtonsRTL]}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push('/(tabs)/messages')}
+          >
+            <IconSymbol name="message" size={24} color={textColor} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push('/(tabs)/notifications')}
+          >
+            <IconSymbol name="bell" size={24} color={textColor} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Content */}
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -253,8 +263,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerButtonsRTL: {
+    flexDirection: 'row-reverse',
+  },
+  headerButton: {
+    padding: 8,
+  },
   content: {
     flex: 1,
+    padding: 16,
   },
   postsList: {
     padding: 16,

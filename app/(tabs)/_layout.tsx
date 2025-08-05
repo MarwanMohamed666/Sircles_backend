@@ -33,15 +33,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="notifications"
-        options={{
-          title: texts.notifications,
-          tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={28} name={focused ? "bell.fill" : "bell"} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: texts.home,
@@ -58,16 +49,7 @@ export default function TabLayout() {
             <IconSymbol size={28} name={focused ? "calendar.fill" : "calendar"} color={color} />
           ),
         }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: texts.messages,
-          tabBarIcon: ({ color, focused }) => (
-            <IconSymbol size={28} name={focused ? "message.fill" : "message"} color={color} />
-          ),
-        }}
-      />
+      /></Tabs.Screen>
       <Tabs.Screen
         name="explore"
         options={{
