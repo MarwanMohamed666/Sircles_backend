@@ -142,21 +142,11 @@ export const DatabaseService = {
       return { data: null, error: new Error('User not authenticated') };
     }
 
-    // Get the user's profile ID from their auth ID
-    const { data: userProfile, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', currentUser.user.id)
-      .single();
-
-    if (userError || !userProfile) {
-      return { data: null, error: new Error('User profile not found') };
-    }
-
+    // Use auth.uid() directly as the creator ID
     const newCircle = {
       id: crypto.randomUUID(),
       ...circle,
-      creator: userProfile.id,
+      creator: currentUser.user.id,
       creationdate: new Date().toISOString(),
     };
 

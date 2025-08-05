@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -44,11 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (authUser: AuthUser) => {
     try {
-      // First check if user profile exists
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('auth_id', authUser.id)
+        .eq('id', authUser.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -61,8 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Create user profile if it doesn't exist
         const newProfile = {
-          id: crypto.randomUUID(),
-          auth_id: authUser.id,
+          id: authUser.id, // Use auth.uid() directly as the user ID
           email: authUser.email || '',
           name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
           phone: null,
@@ -72,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           address_building: null,
           address_block: null,
           avatar_url: null,
-          bio: null,
           creationdate: new Date().toISOString(),
         };
 
@@ -145,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase
         .from('users')
         .update(profile)
-        .eq('auth_id', user.id)
+        .eq('id', user.id)
         .select()
         .single();
 

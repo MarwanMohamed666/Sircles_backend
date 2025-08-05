@@ -161,5 +161,5 @@ alter policy "Authenticated users can create circles"
 on "public"."circles"
 to authenticated
 with check (
-  creator IN (SELECT users.id FROM users WHERE users.auth_id = auth.uid())
+  creator = auth.uid()::text
 );
