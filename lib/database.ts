@@ -563,18 +563,36 @@ export const DatabaseService = {
         .from('user_circles')
         .select(`
           userid,
-          users:userid(id, name, avatar_url),
-          circle_admins!left(userid)
+          users!inner(id, name, avatar_url)
         `)
         .eq('circleid', circleId);
 
-      if (error) return { data: [], error };
+      if (error) {
+        console.error('Error fetching circle members:', error);
+        return { data: [], error };
+      }
+
+      if (!data || data.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Get admin status for each member
+      const userIds = data.map(member => member.userid);
+      const { data: adminData } = await supabase
+        .from('circle_admins')
+        .select('userid')
+        .eq('circleid', circleId)
+        .in('userid', userIds);
+
+      const adminUserIds = new Set(adminData?.map(admin => admin.userid) || []);
 
       return { 
-        data: data?.map(member => ({
-          ...member.users,
-          isAdmin: member.circle_admins?.length > 0
-        })) || [], 
+        data: data.map(member => ({
+          id: member.users.id,
+          name: member.users.name,
+          avatar_url: member.users.avatar_url,
+          isAdmin: adminUserIds.has(member.userid)
+        })), 
         error: null 
       };
     } catch (error) {

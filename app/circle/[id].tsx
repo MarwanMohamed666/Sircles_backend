@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
   headerTitle: {
     fontSize: 18,
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   },
   circleInfo: {
     padding: 16,
-    elevation: 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
   circleDescription: {
     fontSize: 14,
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
   postCard: {
     padding: 16,
     borderRadius: 12,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
   postHeader: {
     flexDirection: 'row',
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
     borderRadius: 8,
-    elevation: 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
   memberInfo: {
     flexDirection: 'row',
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    elevation: 2,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
   adminMemberInfo: {
     flexDirection: 'row',
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 8,
-    elevation: 1,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
   requestInfo: {
     flexDirection: 'row',
