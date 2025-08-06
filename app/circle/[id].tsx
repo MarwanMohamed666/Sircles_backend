@@ -538,6 +538,8 @@ export default function CircleScreen() {
           }
 
           if (uploadData?.publicUrl) {
+            console.log('Updating circle in database with new image URL:', uploadData.publicUrl);
+            
             // Update circle with new image URL
             const { error } = await DatabaseService.updateCircle(id as string, {
               circle_profile_url: uploadData.publicUrl
@@ -549,8 +551,18 @@ export default function CircleScreen() {
               return;
             }
 
+            console.log('Database updated successfully, refreshing UI...');
+            
+            // Update local state immediately for instant feedback
+            setCircle(prev => prev ? {
+              ...prev,
+              circle_profile_url: uploadData.publicUrl
+            } : prev);
+
             Alert.alert('Success', 'Circle image updated successfully');
-            await loadCircleData(); // Refresh the data
+            
+            // Refresh the data from database
+            await loadCircleData();
           } else {
             Alert.alert('Error', 'Failed to get image URL after upload');
           }
