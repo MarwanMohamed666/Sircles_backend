@@ -771,7 +771,8 @@ export const DatabaseService = {
         .eq('id', circleId)
         .single();
 
-      if (circle?.creator === userId) return { data: { isAdmin: true, isMainAdmin: true }, error: null };
+      const isCreator = circle?.creator === userId;
+      if (isCreator) return { data: { isAdmin: true, isMainAdmin: true, isCreator: true }, error: null };
 
       // Check if user is in circle_admins
       const { data: admin } = await supabase
@@ -781,10 +782,11 @@ export const DatabaseService = {
         .eq('userid', userId)
         .single();
 
-      return { data: { isAdmin: !!admin, isMainAdmin: false }, error: null };
+      const isAdmin = !!admin;
+      return { data: { isAdmin, isMainAdmin: false, isCreator: false }, error: null };
     } catch (error) {
       console.error('Error in isCircleAdmin:', error);
-      return { data: { isAdmin: false, isMainAdmin: false }, error: error as Error };
+      return { data: { isAdmin: false, isMainAdmin: false, isCreator: false }, error: error as Error };
     }
   },
 
