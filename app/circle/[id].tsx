@@ -22,6 +22,7 @@ interface Circle {
   isAdmin: boolean;
   isMainAdmin: boolean;
   interests?: string[];
+  creator?: string; // Added creator field
 }
 
 interface Post {
@@ -31,7 +32,7 @@ interface Post {
   creationdate: string;
   author: {
     name: string;
-    avatar?: string;
+    avatar_url?: string; // Ensure avatar_url is present
   };
   likes: any[];
   comments: any[];
@@ -74,14 +75,17 @@ export default function CircleScreen() {
 
   const [newPostContent, setNewPostContent] = useState('');
 
+  // Mock circleData to satisfy the new handleDeleteCircle signature, this should be replaced with actual data fetching if needed
+  const circleData = circle ? { name: circle.name, creator: circle.createdby } : null;
+
 
   const loadCircleData = async () => {
     if (!id) return;
 
     try {
       // Load circle details
-      const { data: circleData, error: circleError } = await DatabaseService.getCircles();
-      const currentCircle = circleData?.find(c => c.id === id);
+      const { data: circleDataFromDb, error: circleError } = await DatabaseService.getCircles();
+      const currentCircle = circleDataFromDb?.find(c => c.id === id);
 
       if (!currentCircle) {
         Alert.alert('Error', 'Circle not found');
@@ -114,7 +118,8 @@ export default function CircleScreen() {
         isAdmin,
         isMainAdmin,
         memberCount: currentCircle.member_count || 0,
-        interests
+        interests,
+        creator: currentCircle.createdby // Assign creator
       });
 
       // Load posts if user is member or circle is public
@@ -165,38 +170,55 @@ export default function CircleScreen() {
   };
 
   const handleDeleteCircle = async () => {
-    if (!user?.id || !circle?.id) {
-      console.log('Delete failed: Missing user or circle data', { userId: user?.id, circleId: circle?.id });
+    if (!user?.id || !id) {
+      Alert.alert('Error', 'Unable to delete circle. Please try again.');
       return;
     }
 
-    console.log('Starting delete process for circle:', circle.id, 'by user:', user.id);
-
     Alert.alert(
       'Delete Circle',
-      'Are you sure you want to delete this circle? This action cannot be undone.',
+      `Are you sure you want to delete "${circleData?.name}"? This will permanently remove all posts, messages, and events in this circle. This action cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            console.log('User confirmed deletion');
-            const { error } = await DatabaseService.deleteCircle(circle.id as string, user.id);
-            console.log('Delete result:', { error });
+            try {
+              setLoading(true);
+              const { error } = await DatabaseService.deleteCircle(id, user.id);
 
-            if (error) {
+              if (error) {
+                console.error('Delete error:', error);
+                Alert.alert('Error', error.message || 'Failed to delete circle');
+                return;
+              }
+
+              Alert.alert(
+                'Success',
+                'Circle deleted successfully',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      router.replace('/(tabs)/circles');
+                    }
+                  }
+                ]
+              );
+            } catch (error) {
               console.error('Delete error:', error);
-              Alert.alert('Error', error.message);
-            } else {
-              console.log('Delete successful');
-              Alert.alert('Success', 'Circle deleted successfully', [
-                { text: 'OK', onPress: () => router.replace('/(tabs)/circles') }
-              ]);
+              Alert.alert('Error', 'Failed to delete circle');
+            } finally {
+              setLoading(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
+      { cancelable: false }
     );
   };
 
@@ -510,9 +532,17 @@ export default function CircleScreen() {
         <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
           {circle.name}
         </ThemedText>
-        {circle.isMainAdmin && (
-          <TouchableOpacity onPress={handleDeleteCircle}>
-            <IconSymbol name="trash" size={20} color="#EF5350" />
+        {/* Only show delete button if user is the circle creator */}
+        {circleData?.creator === user?.id && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
+            onPress={handleDeleteCircle}
+            disabled={loading}
+          >
+            <IconSymbol name="trash" size={16} color="#fff" />
+            <ThemedText style={styles.deleteButtonText}>
+              {texts.deleteCircle || 'Delete Circle'}
+            </ThemedText>
           </TouchableOpacity>
         )}
       </View>
@@ -975,5 +1005,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  // Added styles for delete button in header
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
