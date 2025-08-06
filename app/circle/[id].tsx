@@ -427,107 +427,52 @@ export default function CircleScreen() {
 
   const handleImagePicker = async () => {
     try {
-      console.log('Starting image picker for circle edit...');
+      console.log('Starting circle image picker...');
 
-      // Check if ImagePicker is available
-      if (!ImagePicker) {
-        Alert.alert('Error', 'Image picker is not available');
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to change circle picture.');
         return;
       }
 
-      // Request permissions first
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission result:', permissionResult);
-
-      if (permissionResult.status !== 'granted') {
-        Alert.alert(
-          'Permission Required', 
-          'Please grant photo library access to change circle picture',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                // For web/development, show a message
-                Alert.alert('Info', 'Please refresh the page and allow photo access when prompted');
-              }
-            }
-          ]
-        );
-        return;
-      }
-
-      console.log('Launching image picker...');
+      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
-        aspect: [16, 9],
+        aspect: [4, 3],
         quality: 0.8,
-        allowsMultipleSelection: false,
       });
 
       console.log('Image picker result:', result);
 
-      if (result.canceled) {
-        console.log('Image selection was canceled by user');
-        return;
-      }
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log('Selected asset:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
 
-      if (!result.assets || result.assets.length === 0) {
-        console.log('No assets returned from image picker');
-        Alert.alert('Error', 'No image was selected');
-        return;
-      }
-
-      const asset = result.assets[0];
-      console.log('Selected asset for circle edit:', {
-        uri: asset.uri?.substring(0, 50) + '...',
-        width: asset.width,
-        height: asset.height,
-        fileSize: asset.fileSize
-      });
-
-      if (!asset.uri) {
-        Alert.alert('Error', 'Invalid image selected');
-        return;
-      }
-
-      // Upload the image immediately
-      if (circle?.id) {
-        console.log('Uploading circle profile picture...');
-        
-        // Show loading state
-        Alert.alert('Uploading...', 'Please wait while we upload your image');
-        
-        const { data, error } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
-
-        if (error) {
-          console.error('Upload error:', error);
-          Alert.alert('Error', `Failed to upload image: ${error.message}`);
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
           return;
         }
 
-        if (data?.publicUrl) {
-          console.log('Upload successful, updating circle...');
-          // Update the edited circle with the new image URL
-          setEditedCircle(prev => ({
-            ...prev,
-            circle_profile_url: data.publicUrl
-          }));
-          Alert.alert('Success', 'Circle image updated successfully!');
-        } else {
-          Alert.alert('Error', 'Failed to get image URL after upload');
-        }
-      } else {
-        Alert.alert('Error', 'Circle ID not found');
+        // Update the edited circle with the new image URI immediately to show preview
+        setEditedCircle(prev => ({
+          ...prev,
+          circle_profile_url: asset.uri
+        }));
+
+        console.log('Circle image updated in UI');
       }
     } catch (error) {
-      console.error('Error picking image - full details:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
-      Alert.alert('Error', `Failed to pick image: ${errorMessage}`);
+      console.error('Error with image picker:', error);
+      Alert.alert('Error', 'Failed to pick image');
     }
   };
 
@@ -540,12 +485,43 @@ export default function CircleScreen() {
     try {
       setLoading(true);
 
+      let circleProfileUrl = editedCircle.circle_profile_url;
+
+      // Check if we need to upload a new image (if the URL is a local URI)
+      if (editedCircle.circle_profile_url && !editedCircle.circle_profile_url.startsWith('http')) {
+        console.log('Uploading new circle image...');
+        
+        const asset = {
+          uri: editedCircle.circle_profile_url,
+          // These might not be available but we'll let the upload function handle it
+          width: undefined,
+          height: undefined,
+          fileSize: undefined
+        };
+
+        const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Error', `Failed to upload image: ${uploadError.message}`);
+          return;
+        }
+
+        if (uploadData?.publicUrl) {
+          circleProfileUrl = uploadData.publicUrl;
+          console.log('Image uploaded successfully:', circleProfileUrl);
+        } else {
+          Alert.alert('Error', 'Failed to get image URL after upload');
+          return;
+        }
+      }
+
       // Update circle basic info
       const { error } = await DatabaseService.updateCircle(id as string, {
         name: editedCircle.name,
         description: editedCircle.description,
         privacy: editedCircle.privacy,
-        circle_profile_url: editedCircle.circle_profile_url
+        circle_profile_url: circleProfileUrl
       }, user.id);
 
       if (error) {
