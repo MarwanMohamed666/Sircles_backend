@@ -12,6 +12,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
 import { uploadCircleProfileImage } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 
 interface Circle {
   id: string;
@@ -82,8 +83,11 @@ export default function CircleScreen() {
     name: '',
     description: '',
     privacy: 'public' as 'public' | 'private',
-    circle_profile_url: ''
+    circle_profile_url: '',
+    interests: [] as string[]
   });
+  const [allInterests, setAllInterests] = useState<any[]>([]);
+  const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({});
 
   
 
@@ -368,16 +372,49 @@ export default function CircleScreen() {
     );
   };
 
-  const handleEditCircle = () => {
+  const loadInterests = async () => {
+    try {
+      const { data: interestsData, error } = await DatabaseService.getInterestsByCategory();
+      if (error) {
+        console.error('Error loading interests:', error);
+        return;
+      }
+      setInterestsByCategory(interestsData || {});
+      
+      // Flatten interests for easier access
+      const allInterestsFlat = Object.values(interestsData || {}).flat();
+      setAllInterests(allInterestsFlat);
+    } catch (error) {
+      console.error('Error loading interests:', error);
+    }
+  };
+
+  const handleEditCircle = async () => {
     if (!circle) return;
+
+    // Load current circle interests
+    const { data: currentInterests } = await DatabaseService.getCircleInterests(circle.id);
+    const currentInterestIds = currentInterests?.map(interest => interest.id) || [];
 
     setEditedCircle({
       name: circle.name || '',
       description: circle.description || '',
       privacy: circle.privacy || 'public',
-      circle_profile_url: circle.circle_profile_url || ''
+      circle_profile_url: circle.circle_profile_url || '',
+      interests: currentInterestIds
     });
+    
+    await loadInterests();
     setShowEditModal(true);
+  };
+
+  const toggleEditInterest = (interestId: string) => {
+    setEditedCircle(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interestId)
+        ? prev.interests.filter(id => id !== interestId)
+        : [...prev.interests, interestId]
+    }));
   };
 
   const handleImagePicker = async () => {
@@ -423,6 +460,7 @@ export default function CircleScreen() {
     try {
       setLoading(true);
 
+      // Update circle basic info
       const { error } = await DatabaseService.updateCircle(id as string, {
         name: editedCircle.name,
         description: editedCircle.description,
@@ -434,6 +472,39 @@ export default function CircleScreen() {
         console.error('Update error:', error);
         Alert.alert('Error', error.message || 'Failed to update circle');
         return;
+      }
+
+      // Update interests
+      try {
+        // Get current interests
+        const { data: currentInterests } = await DatabaseService.getCircleInterests(id as string);
+        const currentInterestIds = currentInterests?.map(interest => interest.id) || [];
+        
+        // Find interests to add and remove
+        const interestsToAdd = editedCircle.interests.filter(id => !currentInterestIds.includes(id));
+        const interestsToRemove = currentInterestIds.filter(id => !editedCircle.interests.includes(id));
+        
+        // Remove old interests
+        for (const interestId of interestsToRemove) {
+          await supabase
+            .from('circle_interests')
+            .delete()
+            .eq('circleid', id)
+            .eq('interestid', interestId);
+        }
+        
+        // Add new interests
+        for (const interestId of interestsToAdd) {
+          await supabase
+            .from('circle_interests')
+            .insert({
+              circleid: id,
+              interestid: interestId
+            });
+        }
+      } catch (interestError) {
+        console.error('Error updating interests:', interestError);
+        // Don't fail the entire operation for interests
       }
 
       Alert.alert('Success', 'Circle updated successfully');
@@ -878,6 +949,46 @@ export default function CircleScreen() {
                       Private
                     </ThemedText>
                   </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Interests Selection */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.sectionLabel}>Interests</ThemedText>
+                <View style={styles.interestsContainer}>
+                  {Object.entries(interestsByCategory).map(([category, interests]) => (
+                    <View key={category} style={styles.categorySection}>
+                      <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                      <View style={styles.interestsGrid}>
+                        {interests.map((interest: any) => (
+                          <TouchableOpacity
+                            key={interest.id}
+                            style={[
+                              styles.editInterestChip,
+                              {
+                                backgroundColor: editedCircle.interests.includes(interest.id) 
+                                  ? tintColor 
+                                  : backgroundColor,
+                                borderColor: tintColor,
+                              }
+                            ]}
+                            onPress={() => toggleEditInterest(interest.id)}
+                          >
+                            <ThemedText style={[
+                              styles.editInterestChipText,
+                              { 
+                                color: editedCircle.interests.includes(interest.id) 
+                                  ? '#fff' 
+                                  : textColor 
+                              }
+                            ]}>
+                              {interest.title}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
                 </View>
               </View>
             </ScrollView>
@@ -1367,6 +1478,33 @@ const styles = StyleSheet.create({
   },
   privacyText: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  // Interests editing styles
+  interestsContainer: {
+    gap: 16,
+  },
+  categorySection: {
+    gap: 8,
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  interestsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  editInterestChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  editInterestChipText: {
+    fontSize: 12,
     fontWeight: '500',
   },
 });

@@ -33,6 +33,7 @@ export const isCircleAdmin = (circleId: string, userId: string) => DatabaseServi
 export const getHomePagePosts = (userId: string) => DatabaseService.getHomePagePosts(userId);
 export const getCircleInterests = (circleId: string) => DatabaseService.getCircleInterests(circleId);
 export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
+export const updateCircleInterests = (circleId: string, interestIds: string[], userId: string) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -306,6 +307,91 @@ export const DatabaseService = {
       return { data, error: null };
     } catch (error) {
       console.error('Error in updateCircle:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updateCircleInterests(circleId: string, interestIds: string[], userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user is admin or creator
+      const { data: adminCheck } = await supabase
+        .from('circles')
+        .select('creator')
+        .eq('id', circleId)
+        .single();
+
+      if (!adminCheck) {
+        return { data: null, error: new Error('Circle not found') };
+      }
+
+      const isCreator = adminCheck.creator === userId;
+      
+      if (!isCreator) {
+        // Check if user is admin
+        const { data: isAdmin } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', circleId)
+          .eq('userid', userId)
+          .single();
+
+        if (!isAdmin) {
+          return { data: null, error: new Error('You do not have permission to edit circle interests') };
+        }
+      }
+
+      // Get current interests
+      const { data: currentInterests } = await supabase
+        .from('circle_interests')
+        .select('interestid')
+        .eq('circleid', circleId);
+
+      const currentInterestIds = currentInterests?.map(ci => ci.interestid) || [];
+      
+      // Find interests to add and remove
+      const interestsToAdd = interestIds.filter(id => !currentInterestIds.includes(id));
+      const interestsToRemove = currentInterestIds.filter(id => !interestIds.includes(id));
+      
+      // Remove old interests
+      if (interestsToRemove.length > 0) {
+        const { error: removeError } = await supabase
+          .from('circle_interests')
+          .delete()
+          .eq('circleid', circleId)
+          .in('interestid', interestsToRemove);
+
+        if (removeError) {
+          console.error('Error removing interests:', removeError);
+          return { data: null, error: removeError };
+        }
+      }
+      
+      // Add new interests
+      if (interestsToAdd.length > 0) {
+        const newInterests = interestsToAdd.map(interestId => ({
+          circleid: circleId,
+          interestid: interestId
+        }));
+
+        const { error: addError } = await supabase
+          .from('circle_interests')
+          .insert(newInterests);
+
+        if (addError) {
+          console.error('Error adding interests:', addError);
+          return { data: null, error: addError };
+        }
+      }
+
+      return { data: { success: true }, error: null };
+    } catch (error) {
+      console.error('Error in updateCircleInterests:', error);
       return { data: null, error: error as Error };
     }
   },
