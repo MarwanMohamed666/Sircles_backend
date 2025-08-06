@@ -36,6 +36,12 @@ export const getCircleInterests = (circleId: string) => DatabaseService.getCircl
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
   try {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: [], error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('user_circles')
       .select(`
@@ -103,6 +109,12 @@ export const DatabaseService = {
 
   // Circle operations
   async getCircles() {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('circles')
       .select(`
@@ -120,6 +132,12 @@ export const DatabaseService = {
   },
 
   async getCircleInterests(circleId: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: [], error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('circle_interests')
       .select(`
@@ -234,6 +252,12 @@ export const DatabaseService = {
 
   // Event operations
   async getEvents() {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('events')
       .select(`
@@ -246,6 +270,12 @@ export const DatabaseService = {
   },
 
   async createEvent(event: Omit<Event, 'id' | 'creationdate'>) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const newEvent = {
       id: crypto.randomUUID(),
       ...event,
@@ -262,6 +292,12 @@ export const DatabaseService = {
 
   // Post operations
   async getPosts(circleId?: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     let query = supabase
       .from('posts')
       .select(`
@@ -282,6 +318,12 @@ export const DatabaseService = {
   },
 
   async createPost(post: Omit<Post, 'id' | 'creationdate'>) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const newPost = {
       id: crypto.randomUUID(),
       ...post,
@@ -298,6 +340,12 @@ export const DatabaseService = {
 
   // Interest operations
   async getInterests() {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('interests')
       .select('id, title, category')
@@ -332,6 +380,12 @@ export const DatabaseService = {
   },
 
   async getInterestsByCategory() {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('interests')
       .select('id, title, category')
@@ -354,6 +408,12 @@ export const DatabaseService = {
 
   // Notification operations
   async getUserNotifications(userId: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -363,6 +423,12 @@ export const DatabaseService = {
   },
 
   async markNotificationAsRead(notificationId: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
     const { data, error } = await supabase
       .from('notifications')
       .update({ read: true })
