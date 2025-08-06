@@ -429,60 +429,105 @@ export default function CircleScreen() {
     try {
       console.log('Starting image picker for circle edit...');
 
-      // Request permissions first
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status);
-
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant photo library access to change circle picture');
+      // Check if ImagePicker is available
+      if (!ImagePicker) {
+        Alert.alert('Error', 'Image picker is not available');
         return;
       }
 
+      // Request permissions first
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission result:', permissionResult);
+
+      if (permissionResult.status !== 'granted') {
+        Alert.alert(
+          'Permission Required', 
+          'Please grant photo library access to change circle picture',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                // For web/development, show a message
+                Alert.alert('Info', 'Please refresh the page and allow photo access when prompted');
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      console.log('Launching image picker...');
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
+        allowsMultipleSelection: false,
       });
 
       console.log('Image picker result:', result);
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        console.log('Selected asset for circle edit:', {
-          uri: asset.uri?.substring(0, 50) + '...',
-          width: asset.width,
-          height: asset.height,
-          fileSize: asset.fileSize
-        });
+      if (result.canceled) {
+        console.log('Image selection was canceled by user');
+        return;
+      }
 
-        // Upload the image immediately
-        if (circle?.id) {
-          console.log('Uploading circle profile picture...');
-          const { data, error } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
+      if (!result.assets || result.assets.length === 0) {
+        console.log('No assets returned from image picker');
+        Alert.alert('Error', 'No image was selected');
+        return;
+      }
 
-          if (error) {
-            console.error('Upload error:', error);
-            Alert.alert('Error', 'Failed to upload image');
-            return;
-          }
+      const asset = result.assets[0];
+      console.log('Selected asset for circle edit:', {
+        uri: asset.uri?.substring(0, 50) + '...',
+        width: asset.width,
+        height: asset.height,
+        fileSize: asset.fileSize
+      });
 
-          if (data?.publicUrl) {
-            console.log('Upload successful, updating circle...');
-            // Update the edited circle with the new image URL
-            setEditedCircle(prev => ({
-              ...prev,
-              circle_profile_url: data.publicUrl
-            }));
-            Alert.alert('Success', 'Circle image updated successfully!');
-          }
+      if (!asset.uri) {
+        Alert.alert('Error', 'Invalid image selected');
+        return;
+      }
+
+      // Upload the image immediately
+      if (circle?.id) {
+        console.log('Uploading circle profile picture...');
+        
+        // Show loading state
+        Alert.alert('Uploading...', 'Please wait while we upload your image');
+        
+        const { data, error } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
+
+        if (error) {
+          console.error('Upload error:', error);
+          Alert.alert('Error', `Failed to upload image: ${error.message}`);
+          return;
+        }
+
+        if (data?.publicUrl) {
+          console.log('Upload successful, updating circle...');
+          // Update the edited circle with the new image URL
+          setEditedCircle(prev => ({
+            ...prev,
+            circle_profile_url: data.publicUrl
+          }));
+          Alert.alert('Success', 'Circle image updated successfully!');
+        } else {
+          Alert.alert('Error', 'Failed to get image URL after upload');
         }
       } else {
-        console.log('Image selection was canceled');
+        Alert.alert('Error', 'Circle ID not found');
       }
     } catch (error) {
       console.error('Error picking image - full details:', error);
-      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Unknown error'}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      Alert.alert('Error', `Failed to pick image: ${errorMessage}`);
     }
   };
 
@@ -912,20 +957,29 @@ export default function CircleScreen() {
               <View style={styles.imageSection}>
                 <ThemedText style={styles.sectionLabel}>Circle Photo</ThemedText>
                 <TouchableOpacity
-                  style={[styles.imagePickerButton, { backgroundColor: backgroundColor }]}
+                  style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}
                   onPress={handleImagePicker}
+                  activeOpacity={0.7}
                 >
                   {editedCircle.circle_profile_url ? (
-                    <Image
-                      source={{ uri: editedCircle.circle_profile_url }}
-                      style={styles.selectedImage}
-                      resizeMode="cover"
-                    />
+                    <>
+                      <Image
+                        source={{ uri: editedCircle.circle_profile_url }}
+                        style={styles.selectedImage}
+                        resizeMode="cover"
+                      />
+                      <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+                        <IconSymbol name="camera" size={24} color="#fff" />
+                        <ThemedText style={[styles.overlayText, { color: '#fff' }]}>
+                          Change Photo
+                        </ThemedText>
+                      </View>
+                    </>
                   ) : (
                     <View style={styles.imagePlaceholder}>
-                      <IconSymbol name="camera" size={32} color={textColor + '60'} />
-                      <ThemedText style={styles.imagePlaceholderText}>
-                        Add Photo
+                      <IconSymbol name="camera" size={32} color={tintColor} />
+                      <ThemedText style={[styles.imagePlaceholderText, { color: tintColor }]}>
+                        Tap to Add Photo
                       </ThemedText>
                     </View>
                   )}
@@ -1399,12 +1453,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#ddd',
     borderStyle: 'dashed',
+    position: 'relative',
   },
   selectedImage: {
     width: '100%',
     height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  overlayText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   imagePlaceholder: {
     flex: 1,
@@ -1413,7 +1481,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   imagePlaceholderText: {
-    opacity: 0.6,
+    fontSize: 14,
+    fontWeight: '500',
   },
   inputSection: {
     marginBottom: 20,
