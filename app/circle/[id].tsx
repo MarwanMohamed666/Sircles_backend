@@ -432,7 +432,7 @@ export default function CircleScreen() {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log('Permission status:', status);
-      
+
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant photo library access to change circle picture.');
         return;
@@ -440,7 +440,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -494,7 +494,7 @@ export default function CircleScreen() {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log('Permission status:', status);
-      
+
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant photo library access to change circle picture.');
         return;
@@ -502,7 +502,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -1056,7 +1056,7 @@ export default function CircleScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
               style={styles.modalBody}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
@@ -1135,8 +1135,8 @@ export default function CircleScreen() {
                             style={[
                               styles.editInterestChip,
                               {
-                                backgroundColor: editedCircle.interests.includes(interest.id) 
-                                  ? tintColor 
+                                backgroundColor: editedCircle.interests.includes(interest.id)
+                                  ? tintColor
                                   : backgroundColor,
                                 borderColor: tintColor,
                               }
@@ -1145,10 +1145,10 @@ export default function CircleScreen() {
                           >
                             <ThemedText style={[
                               styles.editInterestChipText,
-                              { 
-                                color: editedCircle.interests.includes(interest.id) 
-                                  ? '#fff' 
-                                  : textColor 
+                              {
+                                color: editedCircle.interests.includes(interest.id)
+                                  ? '#fff'
+                                  : textColor
                               }
                             ]}>
                               {interest.title}
