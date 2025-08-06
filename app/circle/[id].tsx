@@ -932,34 +932,42 @@ export default function CircleScreen() {
               {/* Circle Image */}
               <View style={styles.imageSection}>
                 <ThemedText style={styles.sectionLabel}>Circle Photo</ThemedText>
-                <TouchableOpacity
-                  style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}
-                  onPress={handleImagePicker}
-                  activeOpacity={0.7}
-                >
+                <View style={styles.imageContainer}>
                   {editedCircle.circle_profile_url ? (
-                    <>
+                    <View style={styles.imageWithOverlay}>
                       <Image
                         source={{ uri: editedCircle.circle_profile_url }}
-                        style={styles.selectedImage}
+                        style={styles.circleEditImage}
                         resizeMode="cover"
                       />
-                      <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
-                        <IconSymbol name="camera" size={24} color="#fff" />
-                        <ThemedText style={[styles.overlayText, { color: '#fff' }]}>
-                          Change Photo
+                      <TouchableOpacity
+                        style={styles.imageOverlayButton}
+                        onPress={handleImagePicker}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.overlayButtonContent, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                          <IconSymbol name="camera" size={16} color="#fff" />
+                          <ThemedText style={styles.overlayButtonText}>
+                            Change Photo
+                          </ThemedText>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.imagePlaceholderButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}
+                      onPress={handleImagePicker}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.imagePlaceholder}>
+                        <IconSymbol name="camera" size={32} color={tintColor} />
+                        <ThemedText style={[styles.imagePlaceholderText, { color: tintColor }]}>
+                          Tap to Add Photo
                         </ThemedText>
                       </View>
-                    </>
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <IconSymbol name="camera" size={32} color={tintColor} />
-                      <ThemedText style={[styles.imagePlaceholderText, { color: tintColor }]}>
-                        Tap to Add Photo
-                      </ThemedText>
-                    </View>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
               </View>
 
               {/* Circle Name */}
@@ -1424,31 +1432,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
-  imagePickerButton: {
+  imageContainer: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  imageWithOverlay: {
+    position: 'relative',
+    width: '100%',
+    height: 120,
+  },
+  circleEditImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+  },
+  imageOverlayButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  overlayButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  overlayButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imagePlaceholderButton: {
     height: 120,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
     borderStyle: 'dashed',
-    position: 'relative',
-  },
-  selectedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  overlayText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   imagePlaceholder: {
     flex: 1,
