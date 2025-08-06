@@ -85,7 +85,9 @@ export default function CircleScreen() {
     name: '',
     description: '',
     privacy: 'public' as 'public' | 'private',
-    interests: [] as string[]
+    interests: [] as string[],
+    circle_profile_url: undefined as string | undefined,
+    _selectedImageAsset: undefined as any
   });
   const [allInterests, setAllInterests] = useState<any[]>([]);
   const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({});
@@ -425,7 +427,7 @@ export default function CircleScreen() {
 
   const handleImagePicker = async () => {
     try {
-      console.log('Starting circle image picker...');
+      console.log('Starting image picker for circle edit...');
 
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -438,15 +440,16 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: false,
       });
 
       console.log('Image picker result:', result);
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         console.log('Selected asset:', {
           uri: asset.uri?.substring(0, 50) + '...',
@@ -460,17 +463,25 @@ export default function CircleScreen() {
           return;
         }
 
-        // Update the edited circle with the new image URI immediately to show preview
+        // Store the asset for later upload during save
         setEditedCircle(prev => ({
           ...prev,
-          circle_profile_url: asset.uri
+          circle_profile_url: asset.uri,
+          _selectedImageAsset: asset // Store the asset for later upload
         }));
 
-        console.log('Circle image updated in UI');
+        console.log('Circle image updated in UI preview');
+      } else {
+        console.log('Image selection was canceled or no asset selected');
       }
     } catch (error) {
-      console.error('Error with image picker:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('Error with image picker - full details:', {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Please try again'}`);
     }
   };
 
@@ -491,15 +502,16 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: false,
       });
 
       console.log('Image picker result:', result);
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         console.log('Selected asset:', {
           uri: asset.uri?.substring(0, 50) + '...',
@@ -542,16 +554,23 @@ export default function CircleScreen() {
           } else {
             Alert.alert('Error', 'Failed to get image URL after upload');
           }
-        } catch (error) {
-          console.error('Error updating circle image:', error);
-          Alert.alert('Error', 'Failed to update circle image');
+        } catch (uploadError) {
+          console.error('Error updating circle image:', uploadError);
+          Alert.alert('Error', `Failed to update circle image: ${uploadError?.message || 'Unknown error'}`);
         } finally {
           setLoading(false);
         }
+      } else {
+        console.log('Image selection was canceled or no asset selected');
       }
     } catch (error) {
-      console.error('Error with image picker:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('Error with image picker - full details:', {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Please try again'}`);
     }
   };
 
@@ -564,12 +583,33 @@ export default function CircleScreen() {
     try {
       setLoading(true);
 
-      // Update circle basic info (no image handling here)
-      const { error } = await DatabaseService.updateCircle(id as string, {
+      let updateData = {
         name: editedCircle.name,
         description: editedCircle.description,
         privacy: editedCircle.privacy
-      }, user.id);
+      };
+
+      // Handle image upload if a new image was selected
+      if (editedCircle._selectedImageAsset) {
+        try {
+          console.log('Uploading new circle image...');
+          const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(circle.id, editedCircle._selectedImageAsset);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            Alert.alert('Warning', 'Circle updated but image upload failed. You can update the image later.');
+          } else if (uploadData?.publicUrl) {
+            updateData.circle_profile_url = uploadData.publicUrl;
+            console.log('Image uploaded successfully, adding to update data');
+          }
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Warning', 'Circle updated but image upload failed. You can update the image later.');
+        }
+      }
+
+      // Update circle basic info
+      const { error } = await DatabaseService.updateCircle(id as string, updateData, user.id);
 
       if (error) {
         console.error('Update error:', error);
