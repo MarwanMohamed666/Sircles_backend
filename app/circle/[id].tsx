@@ -89,7 +89,7 @@ export default function CircleScreen() {
   const [allInterests, setAllInterests] = useState<any[]>([]);
   const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({});
 
-  
+
 
 
   const loadCircleData = async () => {
@@ -380,7 +380,7 @@ export default function CircleScreen() {
         return;
       }
       setInterestsByCategory(interestsData || {});
-      
+
       // Flatten interests for easier access
       const allInterestsFlat = Object.values(interestsData || {}).flat();
       setAllInterests(allInterestsFlat);
@@ -403,7 +403,7 @@ export default function CircleScreen() {
       circle_profile_url: circle.circle_profile_url || '',
       interests: currentInterestIds
     });
-    
+
     await loadInterests();
     setShowEditModal(true);
   };
@@ -420,15 +420,15 @@ export default function CircleScreen() {
   const handleImagePicker = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
-        aspect: [16, 9],
+        aspect: [4, 3],
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        
+
         if (!id) {
           Alert.alert('Error', 'Circle ID is missing');
           return;
@@ -479,11 +479,11 @@ export default function CircleScreen() {
         // Get current interests
         const { data: currentInterests } = await DatabaseService.getCircleInterests(id as string);
         const currentInterestIds = currentInterests?.map(interest => interest.id) || [];
-        
+
         // Find interests to add and remove
         const interestsToAdd = editedCircle.interests.filter(id => !currentInterestIds.includes(id));
         const interestsToRemove = currentInterestIds.filter(id => !editedCircle.interests.includes(id));
-        
+
         // Remove old interests
         for (const interestId of interestsToRemove) {
           await supabase
@@ -492,7 +492,7 @@ export default function CircleScreen() {
             .eq('circleid', id)
             .eq('interestid', interestId);
         }
-        
+
         // Add new interests
         for (const interestId of interestsToAdd) {
           await supabase
@@ -705,7 +705,7 @@ export default function CircleScreen() {
               </ThemedText>
             </TouchableOpacity>
           )}
-          
+
           {/* Only show delete button if user is the circle creator */}
           {circle?.creator === user?.id && (
             <TouchableOpacity

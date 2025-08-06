@@ -217,7 +217,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -233,9 +233,9 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error picking image - full error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      Alert.alert('Error', `Failed to pick image: ${error.message}`);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
+      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Unknown error occurred'}`);
     }
   };
 

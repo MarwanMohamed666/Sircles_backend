@@ -126,9 +126,9 @@ export default function CirclesScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
-        aspect: [16, 9], // Rectangular aspect ratio like Facebook
+        aspect: [4, 3],
         quality: 0.8,
       });
 
@@ -173,7 +173,7 @@ export default function CirclesScreen() {
       if (selectedImage && data) {
         try {
           const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(data.id, selectedImage);
-          
+
           if (uploadError) {
             console.error('Error uploading circle image:', uploadError);
             // Don't fail circle creation if image upload fails, just warn user
