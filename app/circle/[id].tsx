@@ -440,7 +440,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -502,7 +502,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -539,7 +539,7 @@ export default function CircleScreen() {
 
           if (uploadData?.publicUrl) {
             console.log('Updating circle in database with new image URL:', uploadData.publicUrl);
-            
+
             // Update circle with new image URL
             const { error } = await DatabaseService.updateCircle(id as string, {
               circle_profile_url: uploadData.publicUrl
@@ -552,7 +552,7 @@ export default function CircleScreen() {
             }
 
             console.log('Database updated successfully, refreshing UI...');
-            
+
             // Update local state immediately for instant feedback
             setCircle(prev => prev ? {
               ...prev,
@@ -560,7 +560,7 @@ export default function CircleScreen() {
             } : prev);
 
             Alert.alert('Success', 'Circle image updated successfully');
-            
+
             // Refresh the data from database
             await loadCircleData();
           } else {
