@@ -71,9 +71,9 @@ export default function CircleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
   const [newPostContent, setNewPostContent] = useState('');
-  const [deletePassword, setDeletePassword] = useState('');
+  
 
   const loadCircleData = async () => {
     if (!id) return;
@@ -125,6 +125,7 @@ export default function CircleScreen() {
 
       // Load full member details if user is member
       if (isJoined) {
+        const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
         setMembers(membersData || []);
       }
 
@@ -169,25 +170,35 @@ export default function CircleScreen() {
       return;
     }
 
-    // Verify password (in a real app, you'd verify against the user's actual password)
-    if (!deletePassword.trim()) {
-      Alert.alert('Error', 'Please enter your password');
-      return;
-    }
+    Alert.alert(
+      'Delete Circle',
+      'Are you sure you want to delete this circle? This action cannot be undone and will remove all posts, events, and member data.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.deleteCircle(id as string, user.id);
+              if (error) {
+                Alert.alert('Error', `Failed to delete circle: ${error.message}`);
+                return;
+              }
 
-    try {
-      const { error } = await DatabaseService.deleteCircle(id as string, user.id);
-      if (error) {
-        Alert.alert('Error', 'Failed to delete circle');
-        return;
-      }
-
-      Alert.alert('Success', 'Circle deleted successfully', [
-        { text: 'OK', onPress: () => router.replace('/circles') }
-      ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete circle');
-    }
+              Alert.alert('Success', 'Circle deleted successfully', [
+                { text: 'OK', onPress: () => router.replace('/circles') }
+              ]);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete circle');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
@@ -501,7 +512,7 @@ export default function CircleScreen() {
           {circle.name}
         </ThemedText>
         {circle.isMainAdmin && (
-          <TouchableOpacity onPress={() => setShowDeleteModal(true)}>
+          <TouchableOpacity onPress={handleDeleteCircle}>
             <IconSymbol name="trash" size={20} color="#EF5350" />
           </TouchableOpacity>
         )}
@@ -627,48 +638,7 @@ export default function CircleScreen() {
         )}
       </ScrollView>
 
-      {/* Delete Circle Modal */}
-      <Modal
-        visible={showDeleteModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowDeleteModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>
-              Delete Circle
-            </ThemedText>
-            <ThemedText style={styles.modalText}>
-              This action cannot be undone. All posts, events, and member data will be permanently deleted.
-            </ThemedText>
-            <TextInput
-              style={[styles.passwordInput, { backgroundColor, color: textColor }]}
-              placeholder="Enter your password to confirm"
-              secureTextEntry
-              value={deletePassword}
-              onChangeText={setDeletePassword}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor }]}
-                onPress={() => {
-                  setShowDeleteModal(false);
-                  setDeletePassword('');
-                }}
-              >
-                <ThemedText>Cancel</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#EF5350' }]}
-                onPress={handleDeleteCircle}
-              >
-                <ThemedText style={{ color: '#fff' }}>Delete</ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      
     </SafeAreaView>
   );
 }
