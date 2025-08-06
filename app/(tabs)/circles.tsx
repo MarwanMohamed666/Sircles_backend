@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -22,6 +23,7 @@ interface Circle {
   memberCount?: number;
   isJoined?: boolean;
   member_count?: number; // Added to match backend
+  circle_profile_url?: string;
 }
 
 export default function CirclesScreen() {
@@ -47,6 +49,7 @@ export default function CirclesScreen() {
     interests: [] as string[],
     image: null as string | null,
   });
+  const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [interests, setInterests] = useState<{[key: string]: any[]}>({});
   const [loadingInterests, setLoadingInterests] = useState(false);
 
@@ -114,6 +117,30 @@ export default function CirclesScreen() {
     }
   };
 
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to select images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9], // Rectangular aspect ratio like Facebook
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
   const handleCreateCircle = async () => {
     if (!newCircle.name.trim()) {
       Alert.alert('Error', 'Circle name is required');
@@ -126,6 +153,7 @@ export default function CirclesScreen() {
     }
 
     try {
+      // First create the circle
       const { data, error } = await createCircle({
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
@@ -137,6 +165,42 @@ export default function CirclesScreen() {
         console.error('Error creating circle:', error);
         Alert.alert('Error', 'Failed to create circle');
         return;
+      }
+
+      let circleProfileUrl = null;
+
+      // Upload image if one was selected
+      if (selectedImage && data) {
+        try {
+          const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(data.id, selectedImage);
+          
+          if (uploadError) {
+            console.error('Error uploading circle image:', uploadError);
+            // Don't fail circle creation if image upload fails, just warn user
+            Alert.alert('Warning', 'Circle created but image upload failed. You can add an image later.');
+          } else if (uploadData?.publicUrl) {
+            circleProfileUrl = uploadData.publicUrl;
+          }
+        } catch (uploadError) {
+          console.error('Error uploading circle image:', uploadError);
+          Alert.alert('Warning', 'Circle created but image upload failed. You can add an image later.');
+        }
+      }
+
+      // Update circle with profile URL if image was uploaded
+      if (circleProfileUrl && data) {
+        try {
+          const { error: updateError } = await supabase
+            .from('circles')
+            .update({ circle_profile_url: circleProfileUrl })
+            .eq('id', data.id);
+
+          if (updateError) {
+            console.error('Error updating circle profile URL:', updateError);
+          }
+        } catch (updateError) {
+          console.error('Error updating circle profile URL:', updateError);
+        }
       }
 
       // If circle was created successfully, add interests
@@ -164,6 +228,7 @@ export default function CirclesScreen() {
 
       setShowCreateModal(false);
       setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
+      setSelectedImage(null);
       await loadCircles();
       Alert.alert('Success', 'Circle created successfully!');
     } catch (error) {
@@ -289,6 +354,13 @@ export default function CirclesScreen() {
       onPress={() => router.push(`/circle/${circle.id}`)}
     >
       <View style={styles.circleHeader}>
+        {circle.circle_profile_url && (
+          <Image
+            source={{ uri: circle.circle_profile_url }}
+            style={styles.circleProfileImage}
+            resizeMode="cover"
+          />
+        )}
         <View style={styles.circleInfo}>
           <ThemedText type="defaultSemiBold" style={[styles.circleName, isRTL && styles.rtlText]}>
             {circle.name}
@@ -458,6 +530,37 @@ export default function CirclesScreen() {
 
             <View style={styles.formField}>
               <ThemedText style={styles.fieldLabel}>
+                {texts.profilePicture || 'Profile Picture'} (Optional)
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.imagePickerButton, { backgroundColor, borderColor: tintColor }]}
+                onPress={pickImage}
+              >
+                {selectedImage ? (
+                  <View style={styles.selectedImageContainer}>
+                    <Image
+                      source={{ uri: selectedImage.uri }}
+                      style={styles.selectedImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.imageOverlay}>
+                      <IconSymbol name="camera" size={20} color="#fff" />
+                      <ThemedText style={styles.changeImageText}>Change Image</ThemedText>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <IconSymbol name="camera" size={32} color={tintColor} />
+                    <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>
+                      Select Cover Image
+                    </ThemedText>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formField}>
+              <ThemedText style={styles.fieldLabel}>
                 {texts.name || 'Name'}
               </ThemedText>
               <TextInput
@@ -596,6 +699,7 @@ export default function CirclesScreen() {
                 onPress={() => {
                   setShowCreateModal(false);
                   setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
+                  setSelectedImage(null);
                 }}
               >
                 <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
@@ -674,13 +778,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   circleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  circleProfileImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   circleInfo: {
     flex: 1,
-    marginRight: 12,
   },
   circleName: {
     fontSize: 16,
@@ -861,5 +969,47 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     paddingVertical: 20,
     fontSize: 14,
+  },
+  imagePickerButton: {
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+  },
+  selectedImageContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  selectedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changeImageText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

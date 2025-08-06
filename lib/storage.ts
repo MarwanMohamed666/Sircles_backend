@@ -153,46 +153,117 @@ export const StorageService = {
     return `${data.publicUrl}?t=${Date.now()}`;
   },
 
-  async uploadCircleProfilePicture(circleId: string, base64Data: string) {
+  async uploadCircleProfilePicture(circleId: string, asset: any) {
     try {
-      // Extract file extension from base64 data URI
-      const matches = base64Data.match(/^data:image\/([a-zA-Z]*);base64,(.*)$/);
-      if (!matches) {
-        return { data: null, error: new Error('Invalid base64 data') };
+      console.log('Starting circle profile picture upload for circle:', circleId);
+      console.log('Asset details:', {
+        uri: asset?.uri?.substring(0, 50) + '...',
+        type: asset?.type,
+        fileSize: asset?.fileSize,
+        fileName: asset?.fileName,
+        width: asset?.width,
+        height: asset?.height
+      });
+
+      if (!asset?.uri) {
+        throw new Error('No asset URI provided');
       }
-      
-      const extension = matches[1];
-      const base64 = matches[2];
-      
-      // Convert base64 to blob
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+
+      // Determine file extension
+      let fileExtension = 'jpg'; // default
+      if (asset.fileName) {
+        const match = asset.fileName.match(/\.([^.]+)$/);
+        if (match) {
+          fileExtension = match[1].toLowerCase();
+        }
+      } else if (asset.uri) {
+        const match = asset.uri.match(/\.([^.]+)(\?|$)/);
+        if (match) {
+          fileExtension = match[1].toLowerCase();
+        }
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: `image/${extension}` });
-      
+
       // Generate filename with circle ID
-      const fileName = `${circleId}.${extension}`;
+      const fileName = `${circleId}.${fileExtension}`;
       
-      console.log('Uploading circle profile picture:', fileName);
-      
-      // Upload to circle-profile-pics bucket
+      console.log('Generated filename:', fileName);
+
+      let uploadData;
+
+      if (asset?.uri) {
+        // Mobile/Expo - fetch the asset as blob
+        console.log('Processing asset from URI for mobile/Expo');
+        
+        try {
+          const response = await fetch(asset.uri);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch asset: ${response.status} ${response.statusText}`);
+          }
+          
+          uploadData = await response.blob();
+          console.log('Successfully converted URI to blob:', {
+            size: uploadData.size,
+            type: uploadData.type
+          });
+
+          // Validate blob
+          if (uploadData.size === 0) {
+            throw new Error('Blob is empty - asset may not have been processed correctly');
+          }
+
+        } catch (fetchError) {
+          console.error('Error processing asset - FULL DETAILS:', {
+            error: fetchError,
+            message: fetchError?.message,
+            stack: fetchError?.stack,
+            assetUri: asset?.uri?.substring(0, 50) + '...'
+          });
+          throw new Error(`Failed to process image: ${fetchError.message}`);
+        }
+      } else if (asset instanceof Blob || asset instanceof File) {
+        // Direct blob/file upload (web)
+        uploadData = asset;
+        console.log('Using direct blob/file upload');
+      } else {
+        throw new Error('Invalid asset format - expected asset with URI or Blob/File');
+      }
+
+      // Determine correct content type
+      const contentType = fileExtension === 'jpg' || fileExtension === 'jpeg' 
+        ? 'image/jpeg' 
+        : `image/${fileExtension}`;
+
+      console.log('Uploading to Supabase with params:', {
+        bucket: 'circle-profile-pics',
+        fileName,
+        contentType,
+        blobSize: uploadData.size,
+        upsert: true
+      });
+
+      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('circle-profile-pics')
-        .upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: true
+        .upload(fileName, uploadData, {
+          upsert: true,
+          contentType: contentType,
+          cacheControl: '3600'  // Cache for 1 hour
         });
-      
+
       if (error) {
-        console.error('Upload error:', error);
+        console.error('Supabase upload error details:', {
+          message: error.message,
+          statusCode: error.statusCode,
+          error: error
+        });
         return { data: null, error };
       }
-      
+
+      console.log('Upload successful - Supabase response:', data);
       console.log('Uploaded file path:', data?.path);
-      
+      console.log('Uploaded file name should be:', fileName);
+
       // Get public URL with cache-busting parameter
       const { data: urlData } = supabase.storage
         .from('circle-profile-pics')

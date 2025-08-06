@@ -23,6 +23,7 @@ interface Circle {
   isMainAdmin: boolean;
   interests?: string[];
   creator?: string; // Added creator field
+  circle_profile_url?: string;
 }
 
 interface Post {
@@ -548,6 +549,13 @@ export default function CircleScreen() {
 
       {/* Circle Info */}
       <View style={[styles.circleInfo, { backgroundColor: surfaceColor }]}>
+        {circle.circle_profile_url && (
+          <Image
+            source={{ uri: circle.circle_profile_url }}
+            style={styles.circleHeaderImage}
+            resizeMode="cover"
+          />
+        )}
         <ThemedText style={styles.circleDescription}>{circle.description}</ThemedText>
         <View style={styles.circleStats}>
           <View style={styles.statItem}>
@@ -691,6 +699,12 @@ const styles = StyleSheet.create({
   circleInfo: {
     padding: 16,
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+  },
+  circleHeaderImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 12,
   },
   circleDescription: {
     fontSize: 14,
