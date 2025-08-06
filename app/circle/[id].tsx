@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
 import { uploadCircleProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import * as StorageService from '@/lib/storage';
+
 
 interface Circle {
   id: string;
@@ -89,7 +91,13 @@ export default function CircleScreen() {
   const [allInterests, setAllInterests] = useState<any[]>([]);
   const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({});
 
-
+  // Placeholder for handleSaveEdit, assuming it's defined elsewhere or needs to be implemented.
+  // For now, we'll use a dummy function to avoid errors.
+  const handleSaveEdit = async () => {
+    // This function needs to be implemented to save the edited circle data
+    console.log('Saving edited circle data...');
+    await handleSaveChanges();
+  };
 
 
   const loadCircleData = async () => {
@@ -419,35 +427,62 @@ export default function CircleScreen() {
 
   const handleImagePicker = async () => {
     try {
+      console.log('Starting image picker for circle edit...');
+
+      // Request permissions first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant photo library access to change circle picture');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [16, 9],
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        console.log('Selected asset for circle edit:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
 
-        if (!id) {
-          Alert.alert('Error', 'Circle ID is missing');
-          return;
-        }
+        // Upload the image immediately
+        if (circle?.id) {
+          console.log('Uploading circle profile picture...');
+          const { data, error } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
 
-        try {
-          const imageUrl = await uploadCircleProfileImage(asset, id as string);
-          setEditedCircle(prev => ({
-            ...prev,
-            circle_profile_url: imageUrl
-          }));
-        } catch (uploadError) {
-          console.error('Error uploading image:', uploadError);
-          Alert.alert('Error', 'Failed to upload image. Please try again.');
+          if (error) {
+            console.error('Upload error:', error);
+            Alert.alert('Error', 'Failed to upload image');
+            return;
+          }
+
+          if (data?.publicUrl) {
+            console.log('Upload successful, updating circle...');
+            // Update the edited circle with the new image URL
+            setEditedCircle(prev => ({
+              ...prev,
+              circle_profile_url: data.publicUrl
+            }));
+            Alert.alert('Success', 'Circle image updated successfully!');
+          }
         }
+      } else {
+        console.log('Image selection was canceled');
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select image');
+      console.error('Error picking image - full details:', error);
+      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -859,15 +894,20 @@ export default function CircleScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.editModalContent, { backgroundColor: surfaceColor }]}>
             <View style={styles.modalHeader}>
-              <ThemedText type="subtitle" style={styles.modalTitle}>
-                Edit Circle
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <IconSymbol name="xmark" size={24} color={textColor} />
+              <ThemedText style={styles.modalTitle}>Edit Circle</ThemedText>
+              <TouchableOpacity
+                style={[styles.closeButton, { backgroundColor: textColor + '20' }]}
+                onPress={() => setShowEditModal(false)}
+              >
+                <IconSymbol name="xmark" size={18} color={textColor} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView 
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               {/* Circle Image */}
               <View style={styles.imageSection}>
                 <ThemedText style={styles.sectionLabel}>Circle Photo</ThemedText>
@@ -993,22 +1033,19 @@ export default function CircleScreen() {
               </View>
             </ScrollView>
 
-            {/* Modal Actions */}
-            <View style={styles.modalActions}>
+            {/* Modal Footer */}
+            <View style={[styles.modalFooter, { backgroundColor: surfaceColor, borderTopColor: textColor + '20' }]}>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: backgroundColor }]}
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor, borderColor: textColor + '30' }]}
                 onPress={() => setShowEditModal(false)}
               >
-                <ThemedText>Cancel</ThemedText>
+                <ThemedText style={{ color: textColor }}>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleSaveChanges}
-                disabled={loading}
+                onPress={handleSaveEdit}
               >
-                <ThemedText style={{ color: '#fff' }}>
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </ThemedText>
+                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Save Changes</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1328,69 +1365,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    width: '90%',
-    padding: 20,
-    borderRadius: 12,
-  },
-  modalTitle: {
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  modalText: {
-    textAlign: 'center',
-    marginBottom: 16,
-    opacity: 0.8,
-  },
-  passwordInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  // Header actions styles
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  // Edit modal styles
   editModalContent: {
     width: '95%',
     maxHeight: '90%',
@@ -1447,15 +1421,16 @@ const styles = StyleSheet.create({
   textInput: {
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    minHeight: 44,
   },
   textAreaInput: {
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
@@ -1506,5 +1481,63 @@ const styles = StyleSheet.create({
   editInterestChipText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  // Header actions styles
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Edit modal styles
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
