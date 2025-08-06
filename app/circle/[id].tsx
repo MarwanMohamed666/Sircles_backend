@@ -183,16 +183,21 @@ export default function CircleScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await DatabaseService.deleteCircle(id as string, user.id);
+              console.log('Attempting to delete circle:', id, 'by user:', user.id);
+              const { data, error } = await DatabaseService.deleteCircle(id as string, user.id);
+              
               if (error) {
+                console.error('Delete circle error:', error);
                 Alert.alert('Error', `Failed to delete circle: ${error.message}`);
                 return;
               }
 
+              console.log('Circle deleted successfully:', data);
               Alert.alert('Success', 'Circle deleted successfully', [
-                { text: 'OK', onPress: () => router.replace('/circles') }
+                { text: 'OK', onPress: () => router.replace('/(tabs)/circles') }
               ]);
             } catch (error) {
+              console.error('Delete circle catch error:', error);
               Alert.alert('Error', 'Failed to delete circle');
             }
           }

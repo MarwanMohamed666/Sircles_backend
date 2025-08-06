@@ -468,6 +468,8 @@ export const DatabaseService = {
 
   async deleteCircle(circleId: string, adminUserId: string) {
     try {
+      console.log('deleteCircle called with:', { circleId, adminUserId });
+      
       // Verify admin permissions
       const { data: circle, error: circleError } = await supabase
         .from('circles')
@@ -475,48 +477,80 @@ export const DatabaseService = {
         .eq('id', circleId)
         .single();
 
+      console.log('Circle verification result:', { circle, circleError });
+
       if (circleError) return { data: null, error: circleError };
       if (circle.creator !== adminUserId) {
         return { data: null, error: new Error('Only the circle creator can delete the circle') };
       }
 
-      // Delete all related data (handle errors gracefully)
-      try {
-        await supabase.from('circle_messages').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No circle_messages to delete'); }
-      
-      try {
-        await supabase.from('posts').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No posts to delete'); }
-      
-      try {
-        await supabase.from('events').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No events to delete'); }
-      
-      try {
-        await supabase.from('user_circles').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No user_circles to delete'); }
-      
-      try {
-        await supabase.from('circle_admins').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No circle_admins to delete'); }
+      // Delete all related data in order (to handle foreign key constraints)
+      console.log('Starting deletion of related data...');
 
-      try {
-        await supabase.from('circle_interests').delete().eq('circleid', circleId);
-      } catch (e) { console.log('No circle_interests to delete'); }
+      // Delete circle interests
+      const { error: interestsError } = await supabase
+        .from('circle_interests')
+        .delete()
+        .eq('circleid', circleId);
+      if (interestsError) console.log('Error deleting circle_interests:', interestsError);
+
+      // Delete circle admins
+      const { error: adminsError } = await supabase
+        .from('circle_admins')
+        .delete()
+        .eq('circleid', circleId);
+      if (adminsError) console.log('Error deleting circle_admins:', adminsError);
+
+      // Delete user_circles (memberships)
+      const { error: membershipError } = await supabase
+        .from('user_circles')
+        .delete()
+        .eq('circleid', circleId);
+      if (membershipError) console.log('Error deleting user_circles:', membershipError);
+
+      // Delete posts
+      const { error: postsError } = await supabase
+        .from('posts')
+        .delete()
+        .eq('circleid', circleId);
+      if (postsError) console.log('Error deleting posts:', postsError);
+
+      // Delete events
+      const { error: eventsError } = await supabase
+        .from('events')
+        .delete()
+        .eq('circleid', circleId);
+      if (eventsError) console.log('Error deleting events:', eventsError);
+
+      // Delete notifications related to this circle
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('circleid', circleId);
+      if (notificationsError) console.log('Error deleting notifications:', notificationsError);
 
       // Delete circle avatar from storage if exists
       try {
         await supabase.storage.from('avatars').remove([`circle_${circleId}.jpg`, `circle_${circleId}.png`]);
-      } catch (e) { console.log('No avatar to delete'); }
+      } catch (e) { 
+        console.log('No avatar to delete or error deleting avatar:', e); 
+      }
 
       // Finally delete the circle
+      console.log('Deleting the circle itself...');
       const { error: deleteError } = await supabase
         .from('circles')
         .delete()
         .eq('id', circleId);
 
-      return { data: { success: true }, error: deleteError };
+      console.log('Circle deletion result:', { deleteError });
+
+      if (deleteError) {
+        return { data: null, error: deleteError };
+      }
+
+      console.log('Circle deleted successfully');
+      return { data: { success: true }, error: null };
     } catch (error) {
       console.error('Error in deleteCircle:', error);
       return { data: null, error: error as Error };
