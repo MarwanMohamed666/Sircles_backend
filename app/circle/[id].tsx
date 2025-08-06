@@ -85,7 +85,6 @@ export default function CircleScreen() {
     name: '',
     description: '',
     privacy: 'public' as 'public' | 'private',
-    circle_profile_url: '',
     interests: [] as string[]
   });
   const [allInterests, setAllInterests] = useState<any[]>([]);
@@ -408,7 +407,6 @@ export default function CircleScreen() {
       name: circle.name || '',
       description: circle.description || '',
       privacy: circle.privacy || 'public',
-      circle_profile_url: circle.circle_profile_url || '',
       interests: currentInterestIds
     });
 
@@ -476,6 +474,87 @@ export default function CircleScreen() {
     }
   };
 
+  const handleCircleImagePicker = async () => {
+    if (!circle?.isAdmin) return;
+
+    try {
+      console.log('Starting circle image picker from main page...');
+
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to change circle picture.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: [ImagePicker.MediaType.Images],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log('Selected asset:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
+
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
+          return;
+        }
+
+        try {
+          setLoading(true);
+
+          // Upload image directly
+          const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            Alert.alert('Error', `Failed to upload image: ${uploadError.message}`);
+            return;
+          }
+
+          if (uploadData?.publicUrl) {
+            // Update circle with new image URL
+            const { error } = await DatabaseService.updateCircle(id as string, {
+              circle_profile_url: uploadData.publicUrl
+            }, user!.id);
+
+            if (error) {
+              console.error('Update error:', error);
+              Alert.alert('Error', error.message || 'Failed to update circle image');
+              return;
+            }
+
+            Alert.alert('Success', 'Circle image updated successfully');
+            await loadCircleData(); // Refresh the data
+          } else {
+            Alert.alert('Error', 'Failed to get image URL after upload');
+          }
+        } catch (error) {
+          console.error('Error updating circle image:', error);
+          Alert.alert('Error', 'Failed to update circle image');
+        } finally {
+          setLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error with image picker:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!user?.id || !id || !circle) {
       Alert.alert('Error', 'Unable to save changes. Please try again.');
@@ -485,43 +564,11 @@ export default function CircleScreen() {
     try {
       setLoading(true);
 
-      let circleProfileUrl = editedCircle.circle_profile_url;
-
-      // Check if we need to upload a new image (if the URL is a local URI)
-      if (editedCircle.circle_profile_url && !editedCircle.circle_profile_url.startsWith('http')) {
-        console.log('Uploading new circle image...');
-        
-        const asset = {
-          uri: editedCircle.circle_profile_url,
-          // These might not be available but we'll let the upload function handle it
-          width: undefined,
-          height: undefined,
-          fileSize: undefined
-        };
-
-        const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
-
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          Alert.alert('Error', `Failed to upload image: ${uploadError.message}`);
-          return;
-        }
-
-        if (uploadData?.publicUrl) {
-          circleProfileUrl = uploadData.publicUrl;
-          console.log('Image uploaded successfully:', circleProfileUrl);
-        } else {
-          Alert.alert('Error', 'Failed to get image URL after upload');
-          return;
-        }
-      }
-
-      // Update circle basic info
+      // Update circle basic info (no image handling here)
       const { error } = await DatabaseService.updateCircle(id as string, {
         name: editedCircle.name,
         description: editedCircle.description,
-        privacy: editedCircle.privacy,
-        circle_profile_url: circleProfileUrl
+        privacy: editedCircle.privacy
       }, user.id);
 
       if (error) {
@@ -780,13 +827,58 @@ export default function CircleScreen() {
 
       {/* Circle Info */}
       <View style={[styles.circleInfo, { backgroundColor: surfaceColor }]}>
-        {circle.circle_profile_url && (
-          <Image
-            source={{ uri: circle.circle_profile_url }}
-            style={styles.circleHeaderImage}
-            resizeMode="cover"
-          />
-        )}
+        {/* Circle Image with Edit Overlay */}
+        <View style={styles.circleImageContainer}>
+          {circle.circle_profile_url ? (
+            <View style={styles.circleImageWithOverlay}>
+              <Image
+                source={{ uri: circle.circle_profile_url }}
+                style={styles.circleHeaderImage}
+                resizeMode="cover"
+              />
+              {circle.isAdmin && (
+                <TouchableOpacity
+                  style={styles.circleImageOverlayButton}
+                  onPress={handleCircleImagePicker}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.circleOverlayButtonContent, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                    <IconSymbol name="camera" size={16} color="#fff" />
+                    <ThemedText style={styles.circleOverlayButtonText}>
+                      Change Photo
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <>
+              {circle.isAdmin ? (
+                <TouchableOpacity
+                  style={[styles.circleImagePlaceholderButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}
+                  onPress={handleCircleImagePicker}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.circleImagePlaceholder}>
+                    <IconSymbol name="camera" size={32} color={tintColor} />
+                    <ThemedText style={[styles.circleImagePlaceholderText, { color: tintColor }]}>
+                      Tap to Add Photo
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.circleImagePlaceholderView, { backgroundColor: backgroundColor + '40', borderColor: textColor + '20' }]}>
+                  <View style={styles.circleImagePlaceholder}>
+                    <IconSymbol name="photo" size={32} color={textColor + '40'} />
+                    <ThemedText style={[styles.circleImagePlaceholderText, { color: textColor + '40' }]}>
+                      No Photo
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+        </View>
         <ThemedText style={styles.circleDescription}>{circle.description}</ThemedText>
         <View style={styles.circleStats}>
           <View style={styles.statItem}>
@@ -929,47 +1021,6 @@ export default function CircleScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
             >
-              {/* Circle Image */}
-              <View style={styles.imageSection}>
-                <ThemedText style={styles.sectionLabel}>Circle Photo</ThemedText>
-                <View style={styles.imageContainer}>
-                  {editedCircle.circle_profile_url ? (
-                    <View style={styles.imageWithOverlay}>
-                      <Image
-                        source={{ uri: editedCircle.circle_profile_url }}
-                        style={styles.circleEditImage}
-                        resizeMode="cover"
-                      />
-                      <TouchableOpacity
-                        style={styles.imageOverlayButton}
-                        onPress={handleImagePicker}
-                        activeOpacity={0.8}
-                      >
-                        <View style={[styles.overlayButtonContent, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-                          <IconSymbol name="camera" size={16} color="#fff" />
-                          <ThemedText style={styles.overlayButtonText}>
-                            Change Photo
-                          </ThemedText>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.imagePlaceholderButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}
-                      onPress={handleImagePicker}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.imagePlaceholder}>
-                        <IconSymbol name="camera" size={32} color={tintColor} />
-                        <ThemedText style={[styles.imagePlaceholderText, { color: tintColor }]}>
-                          Tap to Add Photo
-                        </ThemedText>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
               {/* Circle Name */}
               <View style={styles.inputSection}>
                 <ThemedText style={styles.sectionLabel}>Circle Name</ThemedText>
@@ -1432,6 +1483,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  // Circle image styles for main page
+  circleImageContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  circleImageWithOverlay: {
+    position: 'relative',
+    width: '100%',
+    height: 150,
+  },
+  circleImageOverlayButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  circleOverlayButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  circleOverlayButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  circleImagePlaceholderButton: {
+    height: 150,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+  },
+  circleImagePlaceholderView: {
+    height: 150,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  circleImagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  circleImagePlaceholderText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  // Edit modal styles (keeping existing ones for other elements)
   imageContainer: {
     position: 'relative',
     borderRadius: 12,
