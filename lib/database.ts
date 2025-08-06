@@ -470,7 +470,7 @@ export const DatabaseService = {
     try {
       console.log('deleteCircle called with:', { circleId, adminUserId });
       
-      // First check if circle exists and get creator info
+      // First check if circle exists and get creator info using regular supabase
       const { data: circle, error: circleError } = await supabase
         .from('circles')
         .select('creator, name')
@@ -494,61 +494,117 @@ export const DatabaseService = {
         return { data: null, error: new Error('Only the circle creator can delete the circle') };
       }
 
-      // Delete all related data in order (to handle foreign key constraints)
+      // Import service role client for admin operations
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseAdmin = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+
+      // Delete all related data in order using service role (bypasses RLS)
       console.log('Starting deletion of related data...');
 
+      // Delete circle messages first
+      const { error: messagesError } = await supabaseAdmin
+        .from('circle_messages')
+        .delete()
+        .eq('circleid', circleId);
+      if (messagesError) console.log('Error deleting circle_messages:', messagesError);
+
+      // Delete comments on posts in this circle
+      const { error: commentsError } = await supabaseAdmin
+        .from('comments')
+        .delete()
+        .in('postid', 
+          supabaseAdmin
+            .from('posts')
+            .select('id')
+            .eq('circleid', circleId)
+        );
+      if (commentsError) console.log('Error deleting comments:', commentsError);
+
+      // Delete post likes
+      const { error: likesError } = await supabaseAdmin
+        .from('post_likes')
+        .delete()
+        .in('postid', 
+          supabaseAdmin
+            .from('posts')
+            .select('id')
+            .eq('circleid', circleId)
+        );
+      if (likesError) console.log('Error deleting post_likes:', likesError);
+
+      // Delete posts
+      const { error: postsError } = await supabaseAdmin
+        .from('posts')
+        .delete()
+        .eq('circleid', circleId);
+      if (postsError) console.log('Error deleting posts:', postsError);
+
+      // Delete event interests
+      const { error: eventInterestsError } = await supabaseAdmin
+        .from('event_interests')
+        .delete()
+        .in('eventid', 
+          supabaseAdmin
+            .from('events')
+            .select('id')
+            .eq('circleid', circleId)
+        );
+      if (eventInterestsError) console.log('Error deleting event_interests:', eventInterestsError);
+
+      // Delete events
+      const { error: eventsError } = await supabaseAdmin
+        .from('events')
+        .delete()
+        .eq('circleid', circleId);
+      if (eventsError) console.log('Error deleting events:', eventsError);
+
       // Delete circle interests
-      const { error: interestsError } = await supabase
+      const { error: interestsError } = await supabaseAdmin
         .from('circle_interests')
         .delete()
         .eq('circleid', circleId);
       if (interestsError) console.log('Error deleting circle_interests:', interestsError);
 
       // Delete circle admins
-      const { error: adminsError } = await supabase
+      const { error: adminsError } = await supabaseAdmin
         .from('circle_admins')
         .delete()
         .eq('circleid', circleId);
       if (adminsError) console.log('Error deleting circle_admins:', adminsError);
 
       // Delete user_circles (memberships)
-      const { error: membershipError } = await supabase
+      const { error: membershipError } = await supabaseAdmin
         .from('user_circles')
         .delete()
         .eq('circleid', circleId);
       if (membershipError) console.log('Error deleting user_circles:', membershipError);
 
-      // Delete posts
-      const { error: postsError } = await supabase
-        .from('posts')
-        .delete()
-        .eq('circleid', circleId);
-      if (postsError) console.log('Error deleting posts:', postsError);
-
-      // Delete events
-      const { error: eventsError } = await supabase
-        .from('events')
-        .delete()
-        .eq('circleid', circleId);
-      if (eventsError) console.log('Error deleting events:', eventsError);
-
       // Delete notifications related to this circle
-      const { error: notificationsError } = await supabase
+      const { error: notificationsError } = await supabaseAdmin
         .from('notifications')
         .delete()
-        .eq('circleid', circleId);
+        .eq('linkeditemid', circleId);
       if (notificationsError) console.log('Error deleting notifications:', notificationsError);
 
       // Delete circle avatar from storage if exists
       try {
-        await supabase.storage.from('avatars').remove([`circle_${circleId}.jpg`, `circle_${circleId}.png`]);
+        await supabaseAdmin.storage.from('circle-profile-pics').remove([`${circleId}.jpg`, `${circleId}.png`]);
       } catch (e) { 
         console.log('No avatar to delete or error deleting avatar:', e); 
       }
 
       // Finally delete the circle
       console.log('Deleting the circle itself...');
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseAdmin
         .from('circles')
         .delete()
         .eq('id', circleId);
