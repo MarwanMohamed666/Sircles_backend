@@ -32,6 +32,7 @@ export const removeMemberFromCircle = (circleId: string, userId: string, adminId
 export const isCircleAdmin = (circleId: string, userId: string) => DatabaseService.isCircleAdmin(circleId, userId);
 export const getHomePagePosts = (userId: string) => DatabaseService.getHomePagePosts(userId);
 export const getCircleInterests = (circleId: string) => DatabaseService.getCircleInterests(circleId);
+export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -246,6 +247,65 @@ export const DatabaseService = {
       return { data: circleData, error: null };
     } catch (error) {
       console.error('Error in createCircle transaction:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updateCircle(circleId: string, updates: {
+    name?: string;
+    description?: string;
+    privacy?: 'public' | 'private';
+    circle_profile_url?: string;
+  }, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user is admin or creator
+      const { data: adminCheck } = await supabase
+        .from('circles')
+        .select('creator')
+        .eq('id', circleId)
+        .single();
+
+      if (!adminCheck) {
+        return { data: null, error: new Error('Circle not found') };
+      }
+
+      const isCreator = adminCheck.creator === userId;
+      
+      if (!isCreator) {
+        // Check if user is admin
+        const { data: isAdmin } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', circleId)
+          .eq('userid', userId)
+          .single();
+
+        if (!isAdmin) {
+          return { data: null, error: new Error('You do not have permission to edit this circle') };
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('circles')
+        .update(updates)
+        .eq('id', circleId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating circle:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in updateCircle:', error);
       return { data: null, error: error as Error };
     }
   },

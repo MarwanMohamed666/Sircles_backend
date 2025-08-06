@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -10,6 +11,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
+import { uploadCircleProfileImage } from '@/lib/storage';
 
 interface Circle {
   id: string;
@@ -73,8 +75,15 @@ export default function CircleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [newPostContent, setNewPostContent] = useState('');
+  const [editedCircle, setEditedCircle] = useState({
+    name: '',
+    description: '',
+    privacy: 'public' as 'public' | 'private',
+    circle_profile_url: ''
+  });
 
   
 
@@ -359,6 +368,85 @@ export default function CircleScreen() {
     );
   };
 
+  const handleEditCircle = () => {
+    if (!circle) return;
+
+    setEditedCircle({
+      name: circle.name || '',
+      description: circle.description || '',
+      privacy: circle.privacy || 'public',
+      circle_profile_url: circle.circle_profile_url || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleImagePicker = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (!id) {
+          Alert.alert('Error', 'Circle ID is missing');
+          return;
+        }
+
+        try {
+          const imageUrl = await uploadCircleProfileImage(asset, id as string);
+          setEditedCircle(prev => ({
+            ...prev,
+            circle_profile_url: imageUrl
+          }));
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          Alert.alert('Error', 'Failed to upload image. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!user?.id || !id || !circle) {
+      Alert.alert('Error', 'Unable to save changes. Please try again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await DatabaseService.updateCircle(id as string, {
+        name: editedCircle.name,
+        description: editedCircle.description,
+        privacy: editedCircle.privacy,
+        circle_profile_url: editedCircle.circle_profile_url
+      }, user.id);
+
+      if (error) {
+        console.error('Update error:', error);
+        Alert.alert('Error', error.message || 'Failed to update circle');
+        return;
+      }
+
+      Alert.alert('Success', 'Circle updated successfully');
+      setShowEditModal(false);
+      await loadCircleData(); // Refresh the data
+    } catch (error) {
+      console.error('Update error:', error);
+      Alert.alert('Error', 'Failed to update circle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCircleData();
   }, [id, user]);
@@ -532,19 +620,35 @@ export default function CircleScreen() {
         <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
           {circle.name}
         </ThemedText>
-        {/* Only show delete button if user is the circle creator */}
-        {circle?.creator === user?.id && (
-          <TouchableOpacity
-            style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
-            onPress={handleDeleteCircle}
-            disabled={loading}
-          >
-            <IconSymbol name="trash" size={16} color="#fff" />
-            <ThemedText style={styles.deleteButtonText}>
-              {texts.deleteCircle || 'Delete Circle'}
-            </ThemedText>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerActions}>
+          {/* Only show edit button if user is admin or creator */}
+          {circle?.isAdmin && (
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: tintColor }]}
+              onPress={handleEditCircle}
+              disabled={loading}
+            >
+              <IconSymbol name="pencil" size={16} color="#fff" />
+              <ThemedText style={styles.editButtonText}>
+                Edit
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+          
+          {/* Only show delete button if user is the circle creator */}
+          {circle?.creator === user?.id && (
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
+              onPress={handleDeleteCircle}
+              disabled={loading}
+            >
+              <IconSymbol name="trash" size={16} color="#fff" />
+              <ThemedText style={styles.deleteButtonText}>
+                Delete
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Circle Info */}
@@ -674,6 +778,131 @@ export default function CircleScreen() {
         )}
       </ScrollView>
 
+      {/* Edit Circle Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.editModalContent, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle" style={styles.modalTitle}>
+                Edit Circle
+              </ThemedText>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <IconSymbol name="xmark" size={24} color={textColor} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Circle Image */}
+              <View style={styles.imageSection}>
+                <ThemedText style={styles.sectionLabel}>Circle Photo</ThemedText>
+                <TouchableOpacity
+                  style={[styles.imagePickerButton, { backgroundColor: backgroundColor }]}
+                  onPress={handleImagePicker}
+                >
+                  {editedCircle.circle_profile_url ? (
+                    <Image
+                      source={{ uri: editedCircle.circle_profile_url }}
+                      style={styles.selectedImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <IconSymbol name="camera" size={32} color={textColor + '60'} />
+                      <ThemedText style={styles.imagePlaceholderText}>
+                        Add Photo
+                      </ThemedText>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Circle Name */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.sectionLabel}>Circle Name</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
+                  value={editedCircle.name}
+                  onChangeText={(text) => setEditedCircle(prev => ({ ...prev, name: text }))}
+                  placeholder="Enter circle name"
+                  placeholderTextColor={textColor + '60'}
+                />
+              </View>
+
+              {/* Circle Description */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.sectionLabel}>Description</ThemedText>
+                <TextInput
+                  style={[styles.textAreaInput, { backgroundColor: backgroundColor, color: textColor }]}
+                  value={editedCircle.description}
+                  onChangeText={(text) => setEditedCircle(prev => ({ ...prev, description: text }))}
+                  placeholder="Enter circle description"
+                  placeholderTextColor={textColor + '60'}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+
+              {/* Privacy Setting */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.sectionLabel}>Privacy</ThemedText>
+                <View style={styles.privacyOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.privacyOption,
+                      { backgroundColor: backgroundColor },
+                      editedCircle.privacy === 'public' && { backgroundColor: tintColor + '20', borderColor: tintColor }
+                    ]}
+                    onPress={() => setEditedCircle(prev => ({ ...prev, privacy: 'public' }))}
+                  >
+                    <IconSymbol name="globe" size={20} color={editedCircle.privacy === 'public' ? tintColor : textColor} />
+                    <ThemedText style={[styles.privacyText, editedCircle.privacy === 'public' && { color: tintColor }]}>
+                      Public
+                    </ThemedText>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.privacyOption,
+                      { backgroundColor: backgroundColor },
+                      editedCircle.privacy === 'private' && { backgroundColor: tintColor + '20', borderColor: tintColor }
+                    ]}
+                    onPress={() => setEditedCircle(prev => ({ ...prev, privacy: 'private' }))}
+                  >
+                    <IconSymbol name="lock.fill" size={20} color={editedCircle.privacy === 'private' ? tintColor : textColor} />
+                    <ThemedText style={[styles.privacyText, editedCircle.privacy === 'private' && { color: tintColor }]}>
+                      Private
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: backgroundColor }]}
+                onPress={() => setShowEditModal(false)}
+              >
+                <ThemedText>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleSaveChanges}
+                disabled={loading}
+              >
+                <ThemedText style={{ color: '#fff' }}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -1019,7 +1248,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  // Added styles for delete button in header
+  // Header actions styles
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1032,5 +1278,95 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Edit modal styles
+  editModalContent: {
+    width: '95%',
+    maxHeight: '90%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+  },
+  modalBody: {
+    padding: 20,
+    maxHeight: 400,
+  },
+  imageSection: {
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  imagePickerButton: {
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+  },
+  selectedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imagePlaceholderText: {
+    opacity: 0.6,
+  },
+  inputSection: {
+    marginBottom: 20,
+  },
+  textInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  textAreaInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  privacyOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  privacyOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    gap: 8,
+  },
+  privacyText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
