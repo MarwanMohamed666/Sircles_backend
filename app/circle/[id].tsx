@@ -75,8 +75,7 @@ export default function CircleScreen() {
 
   const [newPostContent, setNewPostContent] = useState('');
 
-  // Mock circleData to satisfy the new handleDeleteCircle signature, this should be replaced with actual data fetching if needed
-  const circleData = circle ? { name: circle.name, creator: circle.createdby } : null;
+  
 
 
   const loadCircleData = async () => {
@@ -177,7 +176,7 @@ export default function CircleScreen() {
 
     Alert.alert(
       'Delete Circle',
-      `Are you sure you want to delete "${circleData?.name}"? This will permanently remove all posts, messages, and events in this circle. This action cannot be undone.`,
+      `Are you sure you want to delete "${circle?.name}"? This will permanently remove all posts, messages, and events in this circle. This action cannot be undone.`,
       [
         {
           text: 'Cancel',
@@ -533,7 +532,7 @@ export default function CircleScreen() {
           {circle.name}
         </ThemedText>
         {/* Only show delete button if user is the circle creator */}
-        {circleData?.creator === user?.id && (
+        {circle?.creator === user?.id && (
           <TouchableOpacity
             style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
             onPress={handleDeleteCircle}
