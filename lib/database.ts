@@ -470,16 +470,26 @@ export const DatabaseService = {
     try {
       console.log('deleteCircle called with:', { circleId, adminUserId });
       
-      // Verify admin permissions
+      // First check if circle exists and get creator info
       const { data: circle, error: circleError } = await supabase
         .from('circles')
-        .select('creator')
+        .select('creator, name')
         .eq('id', circleId)
         .single();
 
       console.log('Circle verification result:', { circle, circleError });
 
-      if (circleError) return { data: null, error: circleError };
+      if (circleError) {
+        console.error('Error fetching circle:', circleError);
+        return { data: null, error: circleError };
+      }
+
+      if (!circle) {
+        return { data: null, error: new Error('Circle not found') };
+      }
+
+      console.log('Circle creator:', circle.creator, 'Admin user:', adminUserId);
+      
       if (circle.creator !== adminUserId) {
         return { data: null, error: new Error('Only the circle creator can delete the circle') };
       }

@@ -71,9 +71,9 @@ export default function CircleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
-  
+
   const [newPostContent, setNewPostContent] = useState('');
-  
+
 
   const loadCircleData = async () => {
     if (!id) return;
@@ -165,40 +165,34 @@ export default function CircleScreen() {
   };
 
   const handleDeleteCircle = async () => {
-    if (!circle?.isMainAdmin || !user?.id) {
-      Alert.alert('Error', 'Only the circle creator can delete the circle');
+    if (!user?.id || !circle?.id) {
+      console.log('Delete failed: Missing user or circle data', { userId: user?.id, circleId: circle?.id });
       return;
     }
 
+    console.log('Starting delete process for circle:', circle.id, 'by user:', user.id);
+
     Alert.alert(
       'Delete Circle',
-      'Are you sure you want to delete this circle? This action cannot be undone and will remove all posts, events, and member data.',
+      'Are you sure you want to delete this circle? This action cannot be undone.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            try {
-              console.log('Attempting to delete circle:', id, 'by user:', user.id);
-              const { data, error } = await DatabaseService.deleteCircle(id as string, user.id);
-              
-              if (error) {
-                console.error('Delete circle error:', error);
-                Alert.alert('Error', `Failed to delete circle: ${error.message}`);
-                return;
-              }
+            console.log('User confirmed deletion');
+            const { error } = await DatabaseService.deleteCircle(circle.id as string, user.id);
+            console.log('Delete result:', { error });
 
-              console.log('Circle deleted successfully:', data);
+            if (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', error.message);
+            } else {
+              console.log('Delete successful');
               Alert.alert('Success', 'Circle deleted successfully', [
                 { text: 'OK', onPress: () => router.replace('/(tabs)/circles') }
               ]);
-            } catch (error) {
-              console.error('Delete circle catch error:', error);
-              Alert.alert('Error', 'Failed to delete circle');
             }
           }
         }
@@ -260,7 +254,7 @@ export default function CircleScreen() {
                 Alert.alert('Error', 'Failed to remove member');
                 return;
               }
-              
+
               Alert.alert('Success', `${memberName} has been removed from the circle`);
               await loadCircleData();
             } catch (error) {
@@ -276,7 +270,7 @@ export default function CircleScreen() {
     if (!circle?.isMainAdmin) return;
 
     const action = isCurrentlyAdmin ? 'remove admin privileges from' : 'make admin';
-    
+
     Alert.alert(
       isCurrentlyAdmin ? 'Remove Admin' : 'Make Admin',
       `Are you sure you want to ${action} ${memberName}?`,
@@ -292,12 +286,12 @@ export default function CircleScreen() {
               } else {
                 ({ error } = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id));
               }
-              
+
               if (error) {
                 Alert.alert('Error', `Failed to ${action} ${memberName}`);
                 return;
               }
-              
+
               Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
               await loadCircleData();
             } catch (error) {
@@ -477,7 +471,7 @@ export default function CircleScreen() {
           </View>
         </View>
       </View>
-      
+
       <View style={styles.adminMemberActions}>
         {/* Only show remove button if not the creator and not the current user */}
         {member.id !== circle.createdby && member.id !== user?.id && (
@@ -489,7 +483,7 @@ export default function CircleScreen() {
             <ThemedText style={styles.adminActionButtonText}>Remove</ThemedText>
           </TouchableOpacity>
         )}
-        
+
         {/* Show promote/demote admin button for non-creators */}
         {member.id !== circle.createdby && member.id !== user?.id && circle.isMainAdmin && (
           <TouchableOpacity
@@ -532,17 +526,17 @@ export default function CircleScreen() {
             <ThemedText style={styles.statText}>{circle.memberCount} members</ThemedText>
           </View>
           <View style={styles.statItem}>
-            <IconSymbol 
-              name={circle.privacy === 'private' ? "lock.fill" : "globe"} 
-              size={16} 
-              color={textColor} 
+            <IconSymbol
+              name={circle.privacy === 'private' ? "lock.fill" : "globe"}
+              size={16}
+              color={textColor}
             />
             <ThemedText style={styles.statText}>
               {circle.privacy === 'private' ? 'Private' : 'Public'}
             </ThemedText>
           </View>
         </View>
-        
+
         {/* Circle Interests */}
         {circle.interests && circle.interests.length > 0 && (
           <View style={styles.circleInterests}>
@@ -632,7 +626,7 @@ export default function CircleScreen() {
             ) : (
               <ThemedText style={styles.emptyText}>No pending join requests</ThemedText>
             )}
-            
+
             <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
               Circle Members ({members.length})
             </ThemedText>
@@ -643,7 +637,7 @@ export default function CircleScreen() {
         )}
       </ScrollView>
 
-      
+
     </SafeAreaView>
   );
 }
