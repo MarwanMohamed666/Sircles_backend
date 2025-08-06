@@ -169,21 +169,9 @@ export const StorageService = {
         throw new Error('No asset URI provided');
       }
 
-      // Determine file extension
-      let fileExtension = 'jpg'; // default
-      if (asset.fileName) {
-        const match = asset.fileName.match(/\.([^.]+)$/);
-        if (match) {
-          fileExtension = match[1].toLowerCase();
-        }
-      } else if (asset.uri) {
-        const match = asset.uri.match(/\.([^.]+)(\?|$)/);
-        if (match) {
-          fileExtension = match[1].toLowerCase();
-        }
-      }
-
-      // Generate filename with circle ID
+      // Always use .jpg for consistency
+      const fileExtension = 'jpg';
+      // Generate filename with circle ID - always use .jpg for consistency
       const fileName = `${circleId}.${fileExtension}`;
       
       console.log('Generated filename:', fileName);
@@ -288,7 +276,7 @@ export const StorageService = {
   },
 
   getCircleProfilePictureUrl(circleId: string) {
-    const fileName = `${circleId}.jpg`; // Default to jpg, could be png too
+    const fileName = `${circleId}.jpg`; // Always use .jpg for consistency
     const { data } = supabase.storage
       .from('circle-profile-pics')
       .getPublicUrl(fileName);

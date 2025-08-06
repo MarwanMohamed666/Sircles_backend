@@ -540,14 +540,15 @@ export default function CircleScreen() {
           if (uploadData?.publicUrl) {
             console.log('Updating circle in database with new image URL:', uploadData.publicUrl);
 
-            // Update circle with new image URL
-            const { error } = await DatabaseService.updateCircle(id as string, {
-              circle_profile_url: uploadData.publicUrl
-            }, user!.id);
+            // Update circle with new image URL directly in database
+            const { error } = await supabase
+              .from('circles')
+              .update({ circle_profile_url: uploadData.publicUrl })
+              .eq('id', id as string);
 
             if (error) {
-              console.error('Update error:', error);
-              Alert.alert('Error', error.message || 'Failed to update circle image');
+              console.error('Database update error:', error);
+              Alert.alert('Error', error.message || 'Failed to update circle image in database');
               return;
             }
 
