@@ -440,7 +440,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -475,13 +475,18 @@ export default function CircleScreen() {
         console.log('Image selection was canceled or no asset selected');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
       console.error('Error with image picker - full details:', {
-        error,
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
+        error: error,
+        message: errorMessage,
+        stack: errorStack,
+        name: error instanceof Error ? error.name : typeof error,
+        isError: error instanceof Error,
+        errorString: String(error)
       });
-      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Please try again'}`);
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
     }
   };
 
@@ -502,7 +507,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -577,13 +582,18 @@ export default function CircleScreen() {
         console.log('Image selection was canceled or no asset selected');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
       console.error('Error with image picker - full details:', {
-        error,
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
+        error: error,
+        message: errorMessage,
+        stack: errorStack,
+        name: error instanceof Error ? error.name : typeof error,
+        isError: error instanceof Error,
+        errorString: String(error)
       });
-      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Please try again'}`);
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
     }
   };
 
