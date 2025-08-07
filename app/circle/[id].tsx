@@ -320,11 +320,11 @@ export default function CircleScreen() {
                 memberId,
                 user!.id
               );
-              
+
               if (error) {
                 console.error('Remove member error:', error);
                 Alert.alert(
-                  'Error', 
+                  'Error',
                   `Failed to remove member: ${error.message || 'Unknown error occurred'}`
                 );
                 return;
@@ -336,7 +336,7 @@ export default function CircleScreen() {
             } catch (error) {
               console.error('Unexpected error in handleRemoveMemberAsAdmin:', error);
               Alert.alert(
-                'Error', 
+                'Error',
                 `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
               );
             }
@@ -384,7 +384,7 @@ export default function CircleScreen() {
               if (error) {
                 console.error('Admin toggle error:', error);
                 Alert.alert(
-                  'Error', 
+                  'Error',
                   `Failed to ${action} ${memberName}: ${error.message || 'Unknown error occurred'}`
                 );
                 return;
@@ -396,7 +396,7 @@ export default function CircleScreen() {
             } catch (error) {
               console.error('Unexpected error in handleToggleAdmin:', error);
               Alert.alert(
-                'Error', 
+                'Error',
                 `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
               );
             }
