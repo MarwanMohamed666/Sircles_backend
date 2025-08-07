@@ -539,7 +539,7 @@ export default function CircleScreen() {
 
       console.log('Calling StorageService.uploadCircleProfilePicture...');
       const result = await StorageService.uploadCircleProfilePicture(id as string, asset);
-      
+
       console.log('Upload result:', {
         hasData: !!result.data,
         hasError: !!result.error,
