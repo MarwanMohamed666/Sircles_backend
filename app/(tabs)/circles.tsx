@@ -388,19 +388,21 @@ export default function CirclesScreen() {
       return;
     }
 
+    // Show confirmation dialog specifically for the creator
     Alert.alert(
       'Delete Circle',
-      `Are you sure you want to delete "${circleName}"? This action cannot be undone.`,
+      `Are you sure you want to permanently delete "${circleName}"?\n\nThis action cannot be undone and will remove:\n• All circle posts and messages\n• All member data\n• Circle settings and profile\n\nOnly you, as the creator, can delete this circle.`,
       [
         {
           text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Delete',
+          text: 'Yes, Delete',
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('User confirmed deletion, proceeding...');
               const { error } = await DatabaseService.deleteCircle(circleId, user.id);
 
               if (error) {
@@ -409,6 +411,7 @@ export default function CirclesScreen() {
                 return;
               }
 
+              console.log('Circle deleted successfully');
               Alert.alert('Success', 'Circle deleted successfully');
               await loadCircles(); // Refresh the circles list
             } catch (error) {
@@ -417,7 +420,8 @@ export default function CirclesScreen() {
             }
           },
         },
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
