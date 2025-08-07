@@ -16,7 +16,7 @@ CREATE POLICY "Public can view circle profile pics" ON storage.objects
     bucket_id = 'circle-profile-pics'
   );
 
--- Allow circle admins to INSERT (upload) circle profile pics
+-- Allow circle creators and admins to INSERT (upload) circle profile pics
 CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'circle-profile-pics' AND
@@ -26,20 +26,20 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
       -- First check if user created the circle
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SPLIT_PART(name, '.', 1)
-        AND c.creator = auth.uid()::text
+        WHERE c.id::text = SPLIT_PART(name, '.', 1)
+        AND c.createdby = auth.uid()
       )
       OR
       -- Then check if user is admin of the circle
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
-        AND ca.userid = auth.uid()::text
+        WHERE ca.circleid::text = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()
       )
     )
   );
 
--- Allow circle admins to UPDATE circle profile pics
+-- Allow circle creators and admins to UPDATE circle profile pics
 CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
   FOR UPDATE USING (
     bucket_id = 'circle-profile-pics' AND
@@ -48,19 +48,19 @@ CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SPLIT_PART(name, '.', 1)
-        AND c.creator = auth.uid()::text
+        WHERE c.id::text = SPLIT_PART(name, '.', 1)
+        AND c.createdby = auth.uid()
       )
       OR
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
-        AND ca.userid = auth.uid()::text
+        WHERE ca.circleid::text = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()
       )
     )
   );
 
--- Allow circle admins to DELETE circle profile pics
+-- Allow circle creators and admins to DELETE circle profile pics
 CREATE POLICY "Circle admins can delete circle profile pics" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'circle-profile-pics' AND
@@ -69,14 +69,14 @@ CREATE POLICY "Circle admins can delete circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SPLIT_PART(name, '.', 1)
-        AND c.creator = auth.uid()::text
+        WHERE c.id::text = SPLIT_PART(name, '.', 1)
+        AND c.createdby = auth.uid()
       )
       OR
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
-        AND ca.userid = auth.uid()::text
+        WHERE ca.circleid::text = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()
       )
     )
   );
