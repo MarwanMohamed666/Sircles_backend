@@ -131,9 +131,9 @@ export default function CirclesScreen() {
         return;
       }
 
-      // Launch image picker with the same config as the working one
+      // Launch image picker with web-compatible config
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
