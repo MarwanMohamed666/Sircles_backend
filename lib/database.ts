@@ -277,7 +277,7 @@ export const DatabaseService = {
       }
 
       const isCreator = adminCheck.creator === userId;
-      
+
       if (!isCreator) {
         // Check if user is admin
         const { data: isAdmin } = await supabase
@@ -331,7 +331,7 @@ export const DatabaseService = {
       }
 
       const isCreator = adminCheck.creator === userId;
-      
+
       if (!isCreator) {
         // Check if user is admin
         const { data: isAdmin } = await supabase
@@ -353,11 +353,11 @@ export const DatabaseService = {
         .eq('circleid', circleId);
 
       const currentInterestIds = currentInterests?.map(ci => ci.interestid) || [];
-      
+
       // Find interests to add and remove
       const interestsToAdd = interestIds.filter(id => !currentInterestIds.includes(id));
       const interestsToRemove = currentInterestIds.filter(id => !interestIds.includes(id));
-      
+
       // Remove old interests
       if (interestsToRemove.length > 0) {
         const { error: removeError } = await supabase
@@ -371,7 +371,7 @@ export const DatabaseService = {
           return { data: null, error: removeError };
         }
       }
-      
+
       // Add new interests
       if (interestsToAdd.length > 0) {
         const newInterests = interestsToAdd.map(interestId => ({

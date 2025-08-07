@@ -156,11 +156,11 @@ export default function CircleScreen() {
 
       // Load full member details if user is member or if circle is public
       console.log('Loading members check:', { isJoined, privacy: currentCircle.privacy, shouldLoadMembers: isJoined || currentCircle.privacy === 'public' });
-      
+
       if (isJoined || currentCircle.privacy === 'public') {
         console.log('Loading circle members for circle:', id);
         const { data: membersData, error: membersError } = await DatabaseService.getCircleMembers(id as string);
-        
+
         if (membersError) {
           console.error('Error loading members:', membersError);
         } else {
@@ -748,7 +748,7 @@ export default function CircleScreen() {
           )}
         </View>
       </View>
-      {circle.isAdmin && member.id !== circle.createdby && member.id !== user?.id && (
+      {circle.isAdmin && member.id !== circle.creator && member.id !== user?.id && (
         <TouchableOpacity
           style={styles.removeButton}
           onPress={() => handleRemoveMember(member.id, member.name)}
@@ -798,11 +798,9 @@ export default function CircleScreen() {
       memberId: member.id,
       memberName: member.name,
       isAdmin: member.isAdmin,
-      isCreator: member.id === circle.createdby,
-      isCurrentUser: member.id === user?.id,
-      circleCreatedBy: circle.createdby,
+      isCreator: member.id === circle.creator,
       currentUserId: user?.id,
-      circleIsMainAdmin: circle.isMainAdmin
+      circleCreatedBy: circle.creator
     });
 
     return (
@@ -820,7 +818,7 @@ export default function CircleScreen() {
                   <ThemedText style={styles.badgeText}>Admin</ThemedText>
                 </View>
               )}
-              {member.id === circle.createdby && (
+              {member.id === circle.creator && (
                 <View style={[styles.badge, { backgroundColor: tintColor }]}>
                   <ThemedText style={styles.badgeText}>Creator</ThemedText>
                 </View>
@@ -831,7 +829,7 @@ export default function CircleScreen() {
 
         <View style={styles.adminMemberActions}>
           {/* Only show remove button if not the creator and not the current user */}
-          {member.id !== circle.createdby && member.id !== user?.id && (
+          {member.id !== circle.creator && member.id !== user?.id && (
             <TouchableOpacity
               style={[styles.adminActionButton, { backgroundColor: '#EF5350' }]}
               onPress={() => {
@@ -845,7 +843,7 @@ export default function CircleScreen() {
           )}
 
           {/* Show promote/demote admin button for non-creators if current user is main admin */}
-          {member.id !== circle.createdby && member.id !== user?.id && circle.isMainAdmin && (
+          {member.id !== circle.creator && member.id !== user?.id && circle.isMainAdmin && (
             <TouchableOpacity
               style={[styles.adminActionButton, { backgroundColor: member.isAdmin ? '#FF9800' : '#2196F3' }]}
               onPress={() => {
@@ -890,7 +888,7 @@ export default function CircleScreen() {
           )}
 
           {/* Only show delete button if user is the circle creator */}
-          {circle?.createdby === user?.id && (
+          {circle?.creator === user?.id && (
             <TouchableOpacity
               style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
               onPress={handleDeleteCircle}
@@ -1074,11 +1072,11 @@ export default function CircleScreen() {
                 <ThemedText style={styles.emptyText}>No members found</ThemedText>
               )}
             </View>
-            
+
             {/* Debug info */}
             <View style={styles.debugInfo}>
               <ThemedText style={styles.debugText}>
-                Debug Info: isAdmin={String(circle.isAdmin)}, isMainAdmin={String(circle.isMainAdmin)}, creator={circle.createdby}, currentUser={user?.id}
+                Debug Info: isAdmin={String(circle.isAdmin)}, isMainAdmin={String(circle.isMainAdmin)}, creator={circle.creator}, currentUser={user?.id}
               </ThemedText>
             </View>
           </View>
