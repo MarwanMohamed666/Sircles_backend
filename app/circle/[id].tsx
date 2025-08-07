@@ -793,57 +793,76 @@ export default function CircleScreen() {
     </View>
   );
 
-  const renderAdminMember = (member: Member) => (
-    <View key={member.id} style={[styles.adminMemberCard, { backgroundColor: surfaceColor }]}>
-      <View style={[styles.adminMemberInfo, isRTL && styles.adminMemberInfoRTL]}>
-        <Image
-          source={{ uri: member.avatar_url || 'https://via.placeholder.com/40' }}
-          style={styles.adminMemberAvatar}
-        />
-        <View style={styles.adminMemberDetails}>
-          <ThemedText type="defaultSemiBold">{member.name}</ThemedText>
-          <View style={styles.memberBadges}>
-            {member.isAdmin && (
-              <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
-                <ThemedText style={styles.badgeText}>Admin</ThemedText>
-              </View>
-            )}
-            {member.id === circle.createdby && (
-              <View style={[styles.badge, { backgroundColor: tintColor }]}>
-                <ThemedText style={styles.badgeText}>Creator</ThemedText>
-              </View>
-            )}
+  const renderAdminMember = (member: Member) => {
+    console.log('Rendering admin member:', {
+      memberId: member.id,
+      memberName: member.name,
+      isAdmin: member.isAdmin,
+      isCreator: member.id === circle.createdby,
+      isCurrentUser: member.id === user?.id,
+      circleCreatedBy: circle.createdby,
+      currentUserId: user?.id,
+      circleIsMainAdmin: circle.isMainAdmin
+    });
+
+    return (
+      <View key={member.id} style={[styles.adminMemberCard, { backgroundColor: surfaceColor }]}>
+        <View style={[styles.adminMemberInfo, isRTL && styles.adminMemberInfoRTL]}>
+          <Image
+            source={{ uri: member.avatar_url || 'https://via.placeholder.com/40' }}
+            style={styles.adminMemberAvatar}
+          />
+          <View style={styles.adminMemberDetails}>
+            <ThemedText type="defaultSemiBold">{member.name}</ThemedText>
+            <View style={styles.memberBadges}>
+              {member.isAdmin && (
+                <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
+                  <ThemedText style={styles.badgeText}>Admin</ThemedText>
+                </View>
+              )}
+              {member.id === circle.createdby && (
+                <View style={[styles.badge, { backgroundColor: tintColor }]}>
+                  <ThemedText style={styles.badgeText}>Creator</ThemedText>
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.adminMemberActions}>
-        {/* Only show remove button if not the creator and not the current user */}
-        {member.id !== circle.createdby && member.id !== user?.id && (
-          <TouchableOpacity
-            style={[styles.adminActionButton, { backgroundColor: '#EF5350' }]}
-            onPress={() => handleRemoveMemberAsAdmin(member.id, member.name)}
-          >
-            <IconSymbol name="person.fill.xmark" size={16} color="#fff" />
-            <ThemedText style={styles.adminActionButtonText}>Remove</ThemedText>
-          </TouchableOpacity>
-        )}
+        <View style={styles.adminMemberActions}>
+          {/* Only show remove button if not the creator and not the current user */}
+          {member.id !== circle.createdby && member.id !== user?.id && (
+            <TouchableOpacity
+              style={[styles.adminActionButton, { backgroundColor: '#EF5350' }]}
+              onPress={() => {
+                console.log('Remove button pressed for:', member.name);
+                handleRemoveMemberAsAdmin(member.id, member.name);
+              }}
+            >
+              <IconSymbol name="person.fill.xmark" size={16} color="#fff" />
+              <ThemedText style={styles.adminActionButtonText}>Remove</ThemedText>
+            </TouchableOpacity>
+          )}
 
-        {/* Show promote/demote admin button for non-creators */}
-        {member.id !== circle.createdby && member.id !== user?.id && circle.isMainAdmin && (
-          <TouchableOpacity
-            style={[styles.adminActionButton, { backgroundColor: member.isAdmin ? '#FF9800' : '#2196F3' }]}
-            onPress={() => handleToggleAdmin(member.id, member.name, member.isAdmin)}
-          >
-            <IconSymbol name={member.isAdmin ? "star.slash" : "star.fill"} size={16} color="#fff" />
-            <ThemedText style={styles.adminActionButtonText}>
-              {member.isAdmin ? 'Remove Admin' : 'Make Admin'}
-            </ThemedText>
-          </TouchableOpacity>
-        )}
+          {/* Show promote/demote admin button for non-creators if current user is main admin */}
+          {member.id !== circle.createdby && member.id !== user?.id && circle.isMainAdmin && (
+            <TouchableOpacity
+              style={[styles.adminActionButton, { backgroundColor: member.isAdmin ? '#FF9800' : '#2196F3' }]}
+              onPress={() => {
+                console.log('Admin toggle button pressed for:', member.name, 'current admin status:', member.isAdmin);
+                handleToggleAdmin(member.id, member.name, member.isAdmin);
+              }}
+            >
+              <IconSymbol name={member.isAdmin ? "star.slash" : "star.fill"} size={16} color="#fff" />
+              <ThemedText style={styles.adminActionButtonText}>
+                {member.isAdmin ? 'Remove Admin' : 'Make Admin'}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -1049,7 +1068,18 @@ export default function CircleScreen() {
               Circle Members ({members.length})
             </ThemedText>
             <View style={styles.adminMembersContainer}>
-              {members.map(renderAdminMember)}
+              {members.length > 0 ? (
+                members.map(renderAdminMember)
+              ) : (
+                <ThemedText style={styles.emptyText}>No members found</ThemedText>
+              )}
+            </View>
+            
+            {/* Debug info */}
+            <View style={styles.debugInfo}>
+              <ThemedText style={styles.debugText}>
+                Debug Info: isAdmin={String(circle.isAdmin)}, isMainAdmin={String(circle.isMainAdmin)}, creator={circle.createdby}, currentUser={user?.id}
+              </ThemedText>
             </View>
           </View>
         )}
@@ -1765,5 +1795,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  debugInfo: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
   },
 });
