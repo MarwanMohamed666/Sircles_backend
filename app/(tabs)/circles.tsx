@@ -25,6 +25,7 @@ interface Circle {
   isJoined?: boolean;
   member_count?: number; // Added to match backend
   circle_profile_url?: string;
+  createdby?: string; // Added to match backend for creator check
 }
 
 export default function CirclesScreen() {
@@ -379,6 +380,45 @@ export default function CirclesScreen() {
     }
   };
 
+  const handleDeleteCircle = async (circleId: string, circleName: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to delete a circle');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Circle',
+      `Are you sure you want to delete "${circleName}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.deleteCircle(circleId, user.id);
+
+              if (error) {
+                console.error('Delete error:', error);
+                Alert.alert('Error', error.message || 'Failed to delete circle');
+                return;
+              }
+
+              Alert.alert('Success', 'Circle deleted successfully');
+              await loadCircles(); // Refresh the circles list
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete circle');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     loadCircles();
   }, [userProfile]);
@@ -409,7 +449,7 @@ export default function CirclesScreen() {
             <IconSymbol name="trash" size={16} color="#EF5350" />
           </TouchableOpacity>
         )}
-        
+
         {circle.circle_profile_url && (
           <Image
             source={{ uri: circle.circle_profile_url }}
