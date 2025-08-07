@@ -382,47 +382,36 @@ export default function CirclesScreen() {
 
   const handleDeleteCircle = async (circleId: string, circleName: string) => {
     console.log('handleDeleteCircle called with:', { circleId, circleName, userId: user?.id });
-    
+
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to delete a circle');
       return;
     }
 
-    // Show confirmation dialog specifically for the creator
-    Alert.alert(
-      'Delete Circle',
-      `Are you sure you want to permanently delete "${circleName}"?\n\nThis action cannot be undone and will remove:\n• All circle posts and messages\n• All member data\n• Circle settings and profile\n\nOnly you, as the creator, can delete this circle.`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('User confirmed deletion, proceeding...');
-              const { error } = await DatabaseService.deleteCircle(circleId, user.id);
-
-              if (error) {
-                console.error('Delete error:', error);
-                Alert.alert('Error', error.message || 'Failed to delete circle');
-                return;
-              }
-
-              console.log('Circle deleted successfully');
-              Alert.alert('Success', 'Circle deleted successfully');
-              await loadCircles(); // Refresh the circles list
-            } catch (error) {
-              console.error('Delete error:', error);
-              Alert.alert('Error', 'Failed to delete circle');
-            }
-          },
-        },
-      ],
-      { cancelable: true }
+    // Use window.confirm for web compatibility
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${circleName}"?\n\nThis action cannot be undone and will remove:\n• All circle posts and messages\n• All member data\n• Circle settings and profile\n\nOnly you, as the creator, can delete this circle.`
     );
+
+    if (confirmed) {
+      try {
+        console.log('User confirmed deletion, proceeding...');
+        const { error } = await DatabaseService.deleteCircle(circleId, user.id);
+
+        if (error) {
+          console.error('Delete error:', error);
+          window.alert(`Error: ${error.message || 'Failed to delete circle'}`);
+          return;
+        }
+
+        console.log('Circle deleted successfully');
+        window.alert('Circle deleted successfully');
+        await loadCircles(); // Refresh the circles list
+      } catch (error) {
+        console.error('Delete circle error:', error);
+        window.alert('Error: An unexpected error occurred while deleting the circle');
+      }
+    }
   };
 
   useEffect(() => {
