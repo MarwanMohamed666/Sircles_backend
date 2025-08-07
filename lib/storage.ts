@@ -169,9 +169,33 @@ export const StorageService = {
         throw new Error('No asset URI provided');
       }
 
-      // Always use .jpg for consistency
-      const fileExtension = 'jpg';
-      // Generate filename with circle ID - always use .jpg for consistency
+      // Determine file extension from the asset
+      let fileExtension: string;
+      
+      if (asset.uri.startsWith('data:image/')) {
+        // Extract extension from data URI MIME type
+        const mimeMatch = asset.uri.match(/data:image\/([^;]+)/);
+        fileExtension = mimeMatch ? mimeMatch[1] : 'png';
+        console.log('Extracted extension from data URI:', fileExtension);
+      } else {
+        // Extract from file path or fileName
+        fileExtension = asset.fileName 
+          ? asset.fileName.split('.').pop()?.toLowerCase() || 'png'
+          : asset.uri.split('.').pop()?.toLowerCase() || 'png';
+        console.log('Extracted extension from file path/name:', fileExtension);
+      }
+
+      // Normalize extension but preserve the original type
+      if (fileExtension === 'jpeg') {
+        fileExtension = 'jpg';
+      }
+      
+      // Validate supported formats
+      if (!['png', 'jpg', 'jpeg'].includes(fileExtension)) {
+        throw new Error('Unsupported file format. Please use PNG or JPG/JPEG.');
+      }
+
+      // Generate filename with circle ID using original extension
       const fileName = `${circleId}.${fileExtension}`;
       
       console.log('Generated filename:', fileName);
@@ -275,13 +299,34 @@ export const StorageService = {
     }
   },
 
-  getCircleProfilePictureUrl(circleId: string) {
-    const fileName = `${circleId}.jpg`; // Always use .jpg for consistency
+  getCircleProfilePictureUrl(circleId: string, extension: string = 'jpg') {
+    const fileName = `${circleId}.${extension}`;
     const { data } = supabase.storage
       .from('circle-profile-pics')
       .getPublicUrl(fileName);
     
     return `${data.publicUrl}?t=${Date.now()}`;
+  },
+
+  async getCircleProfilePictureUrlWithExtensionCheck(circleId: string) {
+    // Check for both .png and .jpg files
+    const extensions = ['png', 'jpg'];
+
+    for (const ext of extensions) {
+      const fileName = `${circleId}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from('circle-profile-pics')
+        .list('', {
+          search: fileName
+        });
+
+      if (!error && data && data.length > 0) {
+        return this.getCircleProfilePictureUrl(circleId, ext);
+      }
+    }
+
+    // Return default if no file found
+    return this.getCircleProfilePictureUrl(circleId, 'jpg');
   },
 
   async checkAvatarExists(userId: string) {
