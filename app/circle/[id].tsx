@@ -347,8 +347,8 @@ export default function CircleScreen() {
   };
 
   const handleToggleAdmin = (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
-    if (!circle?.isMainAdmin) {
-      console.log('User is not main admin, cannot toggle admin status');
+    if (!circle?.isAdmin) {
+      console.log('User is not admin, cannot toggle admin status');
       return;
     }
 
