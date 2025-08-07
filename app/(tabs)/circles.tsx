@@ -381,6 +381,8 @@ export default function CirclesScreen() {
   };
 
   const handleDeleteCircle = async (circleId: string, circleName: string) => {
+    console.log('handleDeleteCircle called with:', { circleId, circleName, userId: user?.id });
+    
     if (!user?.id) {
       Alert.alert('Error', 'You must be logged in to delete a circle');
       return;
@@ -442,6 +444,8 @@ export default function CirclesScreen() {
           <TouchableOpacity
             style={styles.circleDeleteButton}
             onPress={(e) => {
+              console.log('Delete button pressed for circle:', circle.id, 'by user:', user?.id);
+              console.log('Circle creator:', circle.creator, 'User ID:', user?.id);
               e.stopPropagation();
               handleDeleteCircle(circle.id, circle.name);
             }}
