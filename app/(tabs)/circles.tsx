@@ -285,97 +285,85 @@ export default function CirclesScreen() {
 
   const handleJoinLeave = async (circleId: string, isJoined: boolean, circleName: string, circlePrivacy: string) => {
     if (!userProfile?.id) {
-      Alert.alert('Error', 'You must be logged in');
+      window.alert('Error: You must be logged in');
       return;
     }
 
     if (isJoined) {
-      // Show confirmation dialog for leaving
-      Alert.alert(
-        'Leave Circle',
-        `Are you sure you want to leave "${circleName}"?`,
-        [
-          {
-            text: 'No',
-            style: 'cancel',
-          },
-          {
-            text: 'Yes',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                const { error } = await leaveCircle(userProfile.id, circleId);
-                if (error) {
-                  Alert.alert('Error', 'Failed to leave circle');
-                  return;
-                }
-                await loadCircles();
-              } catch (error) {
-                Alert.alert('Error', 'Failed to leave circle');
-              }
-            },
-          },
-        ]
-      );
+      // Show confirmation dialog for leaving using window.confirm
+      const confirmed = window.confirm(`Are you sure you want to leave "${circleName}"?`);
+      
+      if (confirmed) {
+        try {
+          console.log('User confirmed leaving circle:', circleId);
+          const { error } = await leaveCircle(userProfile.id, circleId);
+          if (error) {
+            console.error('Error leaving circle:', error);
+            window.alert('Error: Failed to leave circle');
+            return;
+          }
+          console.log('Successfully left circle');
+          window.alert('You have left the circle');
+          await loadCircles();
+        } catch (error) {
+          console.error('Error leaving circle:', error);
+          window.alert('Error: Failed to leave circle');
+        }
+      }
       return;
     }
 
     // Handle joining based on privacy
     if (circlePrivacy === 'private') {
-      // Show request to join modal
-      Alert.prompt(
-        'Request to Join',
+      // Use window.prompt for web compatibility
+      const message = window.prompt(
         `Send a request to join "${circleName}". You can include an optional message:`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Send Request',
-            onPress: async (message) => {
-              try {
-                const { error } = await DatabaseService.requestToJoinCircle(userProfile.id, circleId, message);
-                if (error) {
-                  if (error.message.includes('already requested')) {
-                    Alert.alert('Info', 'You have already requested to join this circle.');
-                  } else {
-                    Alert.alert('Error', 'Failed to send join request');
-                  }
-                  return;
-                }
-                Alert.alert('Success', 'Join request sent! The admin will review your request.');
-              } catch (error) {
-                Alert.alert('Error', 'Failed to send join request');
-              }
-            },
-          },
-        ],
-        'plain-text'
+        ''
       );
+      
+      if (message !== null) { // User didn't cancel
+        try {
+          const { error } = await DatabaseService.requestToJoinCircle(userProfile.id, circleId, message);
+          if (error) {
+            if (error.message.includes('already requested')) {
+              window.alert('Info: You have already requested to join this circle.');
+            } else {
+              window.alert('Error: Failed to send join request');
+            }
+            return;
+          }
+          window.alert('Success: Join request sent! The admin will review your request.');
+        } catch (error) {
+          window.alert('Error: Failed to send join request');
+        }
+      }
     } else {
       // Public circle - join directly
       try {
+        console.log('Attempting to join public circle:', circleId);
         const { error } = await joinCircle(userProfile.id, circleId);
 
         if (error) {
           console.error('Error joining circle:', error);
           if (error.message.includes('already a member')) {
-            Alert.alert(texts.info || 'Info', 'You are already a member of this circle!');
+            window.alert('Info: You are already a member of this circle!');
             setCircles(circles.map(circle => 
               circle.id === circleId 
                 ? { ...circle, isJoined: true }
                 : circle
             ));
           } else {
-            Alert.alert(texts.error || 'Error', 'Unable to join circle. Please try again.');
+            window.alert('Error: Unable to join circle. Please try again.');
           }
           return;
         }
 
+        console.log('Successfully joined circle');
+        window.alert('Successfully joined the circle!');
         await loadCircles();
       } catch (error) {
-        Alert.alert('Error', 'Failed to join circle');
+        console.error('Error joining circle:', error);
+        window.alert('Error: Failed to join circle');
       }
     }
   };
