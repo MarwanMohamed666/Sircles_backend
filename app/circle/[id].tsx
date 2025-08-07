@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
 import { uploadCircleProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
-import * as StorageService from '@/lib/storage';
+import { StorageService } from '@/lib/storage';
 
 
 interface Circle {
@@ -618,10 +618,11 @@ export default function CircleScreen() {
           return;
         }
 
-        // Update local state
+        // Update local state with cache-busting URL
+        const cacheBustingUrl = `${data.publicUrl}?t=${Date.now()}`;
         setCircle(prev => prev ? {
           ...prev,
-          circle_profile_url: data.publicUrl
+          circle_profile_url: cacheBustingUrl
         } : prev);
 
         // Refresh the data from database
