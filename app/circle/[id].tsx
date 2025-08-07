@@ -122,15 +122,11 @@ export default function CircleScreen() {
       let isMainAdmin = false;
 
       if (user?.id) {
-        // First check if user is in user_circles table
-        const { data: membershipCheck } = await supabase
-          .from('user_circles')
-          .select('userid')
-          .eq('userid', user.id)
-          .eq('circleid', id)
-          .single();
-        
-        isJoined = !!membershipCheck;
+        // Check if user is in user_circles table using getUserJoinedCircles function
+        const { data: joinedCircles } = await DatabaseService.getUserJoinedCircles(user.id);
+        isJoined = joinedCircles?.some(jc => jc.circleid === id) || false;
+
+        console.log('Membership check result:', { userId: user.id, circleId: id, isJoined });
 
         if (isJoined) {
           const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
@@ -159,9 +155,21 @@ export default function CircleScreen() {
       }
 
       // Load full member details if user is member or if circle is public
+      console.log('Loading members check:', { isJoined, privacy: currentCircle.privacy, shouldLoadMembers: isJoined || currentCircle.privacy === 'public' });
+      
       if (isJoined || currentCircle.privacy === 'public') {
-        const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
-        setMembers(membersData || []);
+        console.log('Loading circle members for circle:', id);
+        const { data: membersData, error: membersError } = await DatabaseService.getCircleMembers(id as string);
+        
+        if (membersError) {
+          console.error('Error loading members:', membersError);
+        } else {
+          console.log('Successfully loaded members:', membersData?.length || 0, 'members');
+          setMembers(membersData || []);
+        }
+      } else {
+        console.log('Not loading members - user not joined and circle is private');
+        setMembers([]);
       }
 
       // Load join requests if user is admin
