@@ -533,7 +533,7 @@ export default function CircleScreen() {
     console.log('User exists:', !!user);
     console.log('User ID:', user?.id);
     console.log('Circle ID:', circle?.id);
-    
+
     if (!user?.id || !circle?.id) {
       console.error('No user ID or circle ID found');
       Alert.alert('Error', 'You must be logged in and have admin rights to upload a circle image');
@@ -544,13 +544,13 @@ export default function CircleScreen() {
     console.log('Checking session...');
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     console.log('Session check result:', { hasSession: !!session, sessionError });
-    
+
     if (sessionError) {
       console.error('Session error:', sessionError);
       Alert.alert('Error', `Session error: ${sessionError.message}`);
       return;
     }
-    
+
     if (!session) {
       console.error('No active session found');
       Alert.alert('Error', 'Your session has expired. Please log in again.');
@@ -576,17 +576,17 @@ export default function CircleScreen() {
         hasStorageService: !!StorageService,
         hasUploadMethod: !!StorageService.uploadCircleProfilePicture
       });
-      
+
       console.log('Calling StorageService.uploadCircleProfilePicture NOW...');
       const { data, error } = await StorageService.uploadCircleProfilePicture(
-        circle.id, 
+        circle.id,
         asset
       );
-      
-      console.log('StorageService.uploadCircleProfilePicture returned:', { 
-        hasData: !!data, 
+
+      console.log('StorageService.uploadCircleProfilePicture returned:', {
+        hasData: !!data,
         hasError: !!error,
-        errorMessage: error?.message 
+        errorMessage: error?.message
       });
 
       if (error) {
@@ -607,7 +607,7 @@ export default function CircleScreen() {
       if (data?.publicUrl) {
         console.log('Upload successful, updating circle in database...');
         console.log('Public URL received:', data.publicUrl);
-        
+
         // Update circle with new image URL
         const { data: updateData, error: updateError } = await supabase
           .from('circles')
@@ -645,22 +645,21 @@ export default function CircleScreen() {
         await loadCircleData();
 
         Alert.alert('Success', 'Circle image updated successfully!');
-        console.log('Circle image update process completed successfully');
       } else {
-        console.error('No public URL in response:', data);
+        console.error('No public URL in upload response');
         Alert.alert('Error', 'Upload succeeded but no URL returned');
       }
     } catch (error) {
-      console.error('Circle image upload error - FULL DETAILS:', {
-        error: error,
+      console.error('Upload circle image error:', error);
+      console.error('Error details:', {
         message: error?.message,
         stack: error?.stack,
         name: error?.name
       });
       Alert.alert('Error', `Failed to upload circle image: ${error?.message || 'Unknown error'}`);
     } finally {
-      console.log('Upload process finished, setting loading to false');
       setLoading(false);
+      console.log('Upload process finished, setting loading to false');
     }
   };
 
