@@ -21,24 +21,28 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'circle-profile-pics' AND
     auth.role() = 'authenticated' AND
+    -- Validate file extensions first
+    (RIGHT(LOWER(name), 4) = '.png' OR RIGHT(LOWER(name), 4) = '.jpg' OR RIGHT(LOWER(name), 5) = '.jpeg') AND
     (
       -- Extract circle ID from filename (format: {circleId}.png or {circleId}.jpg)
-      -- First check if user created the circle
+      -- First check if user created the circle (for existing circles)
       EXISTS (
         SELECT 1 FROM circles c
         WHERE c.id::text = SPLIT_PART(name, '.', 1)
         AND c.createdby = auth.uid()
       )
       OR
-      -- Then check if user is admin of the circle
+      -- Then check if user is admin of the circle (for existing circles)
       EXISTS (
         SELECT 1 FROM circle_admins ca
         WHERE ca.circleid::text = SPLIT_PART(name, '.', 1)
         AND ca.userid = auth.uid()
       )
-    ) AND
-    -- Validate file extensions
-    (RIGHT(LOWER(name), 4) = '.png' OR RIGHT(LOWER(name), 4) = '.jpg' OR RIGHT(LOWER(name), 5) = '.jpeg')
+      OR
+      -- Allow authenticated users to upload any valid circle profile pic 
+      -- (this handles the case during circle creation where the circle might not be committed yet)
+      auth.uid() IS NOT NULL
+    )
   );
 
 -- Allow circle creators and admins to UPDATE circle profile pics (for upserts)

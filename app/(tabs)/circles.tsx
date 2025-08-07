@@ -140,17 +140,22 @@ export default function CirclesScreen() {
         base64: false,
       });
 
-      console.log('Image picker result:', result);
+      console.log('Image picker result:', JSON.stringify(result, null, 2));
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        console.log('Selected asset for new circle:', {
-          uri: asset.uri?.substring(0, 50) + '...',
-          width: asset.width,
-          height: asset.height,
-          fileSize: asset.fileSize
-        });
-        setSelectedImage(asset);
+      if (!result.canceled) {
+        if (result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          console.log('Selected asset for new circle:', {
+            uri: asset.uri?.substring(0, 50) + '...',
+            width: asset.width,
+            height: asset.height,
+            fileSize: asset.fileSize
+          });
+          setSelectedImage(asset);
+        } else {
+          console.log('No assets in result:', result);
+          Alert.alert('Error', 'No image was selected. Please try again.');
+        }
       } else {
         console.log('Image selection was canceled');
       }
