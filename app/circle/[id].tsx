@@ -885,8 +885,8 @@ export default function CircleScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Show promote/demote admin button for non-creators if current user is main admin */}
-          {member.id !== circle.creator && member.id !== user?.id && circle.isMainAdmin && (
+          {/* Show promote/demote admin button for non-creators if current user is any admin */}
+          {member.id !== circle.creator && member.id !== user?.id && circle.isAdmin && (
             <TouchableOpacity
               style={[styles.adminActionButton, { backgroundColor: member.isAdmin ? '#FF9800' : '#2196F3' }]}
               onPress={() => {

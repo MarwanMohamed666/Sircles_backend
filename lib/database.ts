@@ -780,10 +780,21 @@ export const DatabaseService = {
 
       console.log('Circle creator:', circle?.creator);
 
-      // Verify requesting user is the main admin (creator)
-      if (circle?.creator !== requestingAdminId) {
-        console.error('Permission denied: requesting user is not the creator');
-        return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
+      // Verify requesting user is the main admin (creator) OR a regular admin
+      const isCreator = circle?.creator === requestingAdminId;
+      if (!isCreator) {
+        // Check if requesting user is at least an admin
+        const { data: adminCheck, error: adminError } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', circleId)
+          .eq('userid', requestingAdminId)
+          .single();
+
+        if (adminError || !adminCheck) {
+          console.error('Permission denied: requesting user is not an admin');
+          return { data: null, error: new Error('Only circle admins can manage admin privileges') };
+        }
       }
 
       const { data, error } = await supabase
@@ -830,10 +841,21 @@ export const DatabaseService = {
         return { data: null, error: new Error('Cannot remove the main admin') };
       }
 
-      // Verify requesting user is the main admin (creator)
-      if (circle?.creator !== requestingAdminId) {
-        console.error('Permission denied: requesting user is not the creator');
-        return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
+      // Verify requesting user is the main admin (creator) OR a regular admin
+      const isCreator = circle?.creator === requestingAdminId;
+      if (!isCreator) {
+        // Check if requesting user is at least an admin
+        const { data: adminCheck, error: adminError } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', circleId)
+          .eq('userid', requestingAdminId)
+          .single();
+
+        if (adminError || !adminCheck) {
+          console.error('Permission denied: requesting user is not an admin');
+          return { data: null, error: new Error('Only circle admins can manage admin privileges') };
+        }
       }
 
       const { data, error } = await supabase
