@@ -120,25 +120,43 @@ export default function CirclesScreen() {
 
   const pickImage = async () => {
     try {
+      console.log('Starting image picker for new circle...');
+      
+      // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+      
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to select images.');
         return;
       }
 
+      console.log('Launching image library...');
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: false,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setSelectedImage(result.assets[0]);
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        console.log('Selected asset for new circle:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
+        setSelectedImage(asset);
+      } else {
+        console.log('Image selection was canceled');
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
