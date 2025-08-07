@@ -606,17 +606,30 @@ export default function CircleScreen() {
 
       if (data?.publicUrl) {
         console.log('Upload successful, updating circle in database...');
+        console.log('Public URL received:', data.publicUrl);
+        
         // Update circle with new image URL
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('circles')
           .update({ circle_profile_url: data.publicUrl })
-          .eq('id', circle.id);
+          .eq('id', circle.id)
+          .select();
+
+        console.log('Database update result:', { updateData, updateError });
 
         if (updateError) {
           console.error('Update circle image error:', updateError);
-          Alert.alert('Error', 'Failed to update circle');
+          Alert.alert('Error', `Failed to update circle: ${updateError.message}`);
           return;
         }
+
+        if (!updateData || updateData.length === 0) {
+          console.error('No data returned from update');
+          Alert.alert('Error', 'Failed to update circle - no data returned');
+          return;
+        }
+
+        console.log('Circle updated successfully in database');
 
         // Update local state with cache-busting URL
         const cacheBustingUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -625,10 +638,14 @@ export default function CircleScreen() {
           circle_profile_url: cacheBustingUrl
         } : prev);
 
+        console.log('Local state updated with new image URL');
+
         // Refresh the data from database
+        console.log('Refreshing circle data...');
         await loadCircleData();
 
         Alert.alert('Success', 'Circle image updated successfully!');
+        console.log('Circle image update process completed successfully');
       } else {
         console.error('No public URL in response:', data);
         Alert.alert('Error', 'Upload succeeded but no URL returned');

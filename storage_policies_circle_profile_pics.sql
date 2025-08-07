@@ -6,6 +6,9 @@ DROP POLICY IF EXISTS "Authenticated users can upload circle profile pics" ON st
 DROP POLICY IF EXISTS "Authenticated users can update circle profile pics" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can delete circle profile pics" ON storage.objects;
 DROP POLICY IF EXISTS "Public can view circle profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Circle admins can upload circle profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Circle admins can update circle profile pics" ON storage.objects;
+DROP POLICY IF EXISTS "Circle admins can delete circle profile pics" ON storage.objects;
 
 -- Allow public access to SELECT (view) circle profile pics
 CREATE POLICY "Public can view circle profile pics" ON storage.objects
@@ -22,7 +25,7 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
         AND c.createdby = auth.uid()
       )
       OR
@@ -30,7 +33,7 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
         SELECT 1 FROM circle_admins ca
         JOIN circles c ON c.id = ca.circleid
         WHERE ca.userid = auth.uid()
-        AND c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
       )
     )
   );
@@ -44,7 +47,7 @@ CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
         AND c.createdby = auth.uid()
       )
       OR
@@ -52,7 +55,7 @@ CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
         SELECT 1 FROM circle_admins ca
         JOIN circles c ON c.id = ca.circleid
         WHERE ca.userid = auth.uid()
-        AND c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
       )
     )
   );
@@ -66,7 +69,7 @@ CREATE POLICY "Circle admins can delete circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
         AND c.createdby = auth.uid()
       )
       OR
@@ -74,7 +77,7 @@ CREATE POLICY "Circle admins can delete circle profile pics" ON storage.objects
         SELECT 1 FROM circle_admins ca
         JOIN circles c ON c.id = ca.circleid
         WHERE ca.userid = auth.uid()
-        AND c.id = SUBSTRING(name FROM '^([^.]+)')::uuid
+        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
       )
     )
   );
