@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useCallback } from 'react';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -346,6 +347,13 @@ export default function CirclesScreen() {
   useEffect(() => {
     loadCircles();
   }, [userProfile]);
+
+  // Refresh data when the screen comes into focus (e.g., when navigating back from a circle page)
+  useFocusEffect(
+    useCallback(() => {
+      loadCircles();
+    }, [userProfile])
+  );
 
   const renderCircle = (circle: Circle) => (
     <TouchableOpacity
