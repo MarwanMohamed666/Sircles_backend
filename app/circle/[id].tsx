@@ -293,7 +293,10 @@ export default function CircleScreen() {
   };
 
   const handleRemoveMemberAsAdmin = (memberId: string, memberName: string) => {
-    if (!circle?.isAdmin) return;
+    if (!circle?.isAdmin) {
+      console.log('User is not admin, cannot remove members');
+      return;
+    }
 
     Alert.alert(
       'Remove Member',
@@ -305,20 +308,37 @@ export default function CircleScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Starting remove member process...', {
+                circleId: id,
+                memberId,
+                memberName,
+                adminId: user?.id
+              });
+
               const { error } = await DatabaseService.removeMemberFromCircle(
                 id as string,
                 memberId,
                 user!.id
               );
+              
               if (error) {
-                Alert.alert('Error', 'Failed to remove member');
+                console.error('Remove member error:', error);
+                Alert.alert(
+                  'Error', 
+                  `Failed to remove member: ${error.message || 'Unknown error occurred'}`
+                );
                 return;
               }
 
+              console.log('Member removed successfully');
               Alert.alert('Success', `${memberName} has been removed from the circle`);
               await loadCircleData();
             } catch (error) {
-              Alert.alert('Error', 'Failed to remove member');
+              console.error('Unexpected error in handleRemoveMemberAsAdmin:', error);
+              Alert.alert(
+                'Error', 
+                `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
+              );
             }
           }
         }
@@ -327,7 +347,10 @@ export default function CircleScreen() {
   };
 
   const handleToggleAdmin = (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
-    if (!circle?.isMainAdmin) return;
+    if (!circle?.isMainAdmin) {
+      console.log('User is not main admin, cannot toggle admin status');
+      return;
+    }
 
     const action = isCurrentlyAdmin ? 'remove admin privileges from' : 'make admin';
 
@@ -340,22 +363,42 @@ export default function CircleScreen() {
           text: 'Confirm',
           onPress: async () => {
             try {
+              console.log('Starting admin toggle process...', {
+                circleId: id,
+                memberId,
+                memberName,
+                isCurrentlyAdmin,
+                action,
+                requestingAdminId: user?.id
+              });
+
               let error;
               if (isCurrentlyAdmin) {
+                console.log('Removing admin privileges...');
                 ({ error } = await DatabaseService.removeCircleAdmin(id as string, memberId, user!.id));
               } else {
+                console.log('Adding admin privileges...');
                 ({ error } = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id));
               }
 
               if (error) {
-                Alert.alert('Error', `Failed to ${action} ${memberName}`);
+                console.error('Admin toggle error:', error);
+                Alert.alert(
+                  'Error', 
+                  `Failed to ${action} ${memberName}: ${error.message || 'Unknown error occurred'}`
+                );
                 return;
               }
 
+              console.log('Admin status toggled successfully');
               Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
               await loadCircleData();
             } catch (error) {
-              Alert.alert('Error', `Failed to ${action} ${memberName}`);
+              console.error('Unexpected error in handleToggleAdmin:', error);
+              Alert.alert(
+                'Error', 
+                `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
+              );
             }
           }
         }

@@ -764,15 +764,25 @@ export const DatabaseService = {
 
   async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
     try {
+      console.log('addCircleAdmin called:', { circleId, userId, requestingAdminId });
+
       // Get circle creator
-      const { data: circle } = await supabase
+      const { data: circle, error: circleError } = await supabase
         .from('circles')
         .select('creator')
         .eq('id', circleId)
         .single();
 
+      if (circleError) {
+        console.error('Error fetching circle for addCircleAdmin:', circleError);
+        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
+      }
+
+      console.log('Circle creator:', circle?.creator);
+
       // Verify requesting user is the main admin (creator)
       if (circle?.creator !== requestingAdminId) {
+        console.error('Permission denied: requesting user is not the creator');
         return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
       }
 
@@ -783,7 +793,13 @@ export const DatabaseService = {
           userid: userId
         });
 
-      return { data, error };
+      if (error) {
+        console.error('Error inserting circle admin:', error);
+        return { data: null, error: new Error(`Failed to add admin: ${error.message}`) };
+      }
+
+      console.log('Successfully added circle admin');
+      return { data, error: null };
     } catch (error) {
       console.error('Error in addCircleAdmin:', error);
       return { data: null, error: error as Error };
@@ -792,20 +808,31 @@ export const DatabaseService = {
 
   async removeCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
     try {
+      console.log('removeCircleAdmin called:', { circleId, userId, requestingAdminId });
+
       // Get circle creator
-      const { data: circle } = await supabase
+      const { data: circle, error: circleError } = await supabase
         .from('circles')
         .select('creator')
         .eq('id', circleId)
         .single();
 
+      if (circleError) {
+        console.error('Error fetching circle for removeCircleAdmin:', circleError);
+        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
+      }
+
+      console.log('Circle creator:', circle?.creator);
+
       // Cannot remove the main admin (creator)
       if (circle?.creator === userId) {
+        console.error('Cannot remove the main admin (creator)');
         return { data: null, error: new Error('Cannot remove the main admin') };
       }
 
       // Verify requesting user is the main admin (creator)
       if (circle?.creator !== requestingAdminId) {
+        console.error('Permission denied: requesting user is not the creator');
         return { data: null, error: new Error('Only the circle creator can manage admin privileges') };
       }
 
@@ -815,7 +842,13 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', userId);
 
-      return { data, error };
+      if (error) {
+        console.error('Error removing circle admin:', error);
+        return { data: null, error: new Error(`Failed to remove admin: ${error.message}`) };
+      }
+
+      console.log('Successfully removed circle admin');
+      return { data, error: null };
     } catch (error) {
       console.error('Error in removeCircleAdmin:', error);
       return { data: null, error: error as Error };
@@ -824,18 +857,50 @@ export const DatabaseService = {
 
   async removeMemberFromCircle(circleId: string, userId: string, adminId: string) {
     try {
-      // Verify admin permissions
-      const { data: adminCheck } = await supabase
-        .from('circle_admins')
-        .select('userid')
-        .eq('circleid', circleId)
-        .eq('userid', adminId)
+      console.log('removeMemberFromCircle called:', { circleId, userId, adminId });
+
+      // First check if requesting user is the creator
+      const { data: circle, error: circleError } = await supabase
+        .from('circles')
+        .select('creator')
+        .eq('id', circleId)
         .single();
 
-      if (!adminCheck) {
-        return { data: null, error: new Error('You do not have admin permissions') };
+      if (circleError) {
+        console.error('Error fetching circle for removeMember:', circleError);
+        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
       }
 
+      const isCreator = circle?.creator === adminId;
+      console.log('Admin check - isCreator:', isCreator, 'circle creator:', circle?.creator);
+
+      if (!isCreator) {
+        // Check if user is admin
+        const { data: adminCheck, error: adminError } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', circleId)
+          .eq('userid', adminId)
+          .single();
+
+        if (adminError) {
+          console.error('Error checking admin status:', adminError);
+          return { data: null, error: new Error(`Failed to verify admin status: ${adminError.message}`) };
+        }
+
+        if (!adminCheck) {
+          console.error('User is not an admin and not the creator');
+          return { data: null, error: new Error('You do not have admin permissions to remove members') };
+        }
+      }
+
+      // Cannot remove the creator from their own circle
+      if (circle?.creator === userId) {
+        console.error('Cannot remove the circle creator');
+        return { data: null, error: new Error('Cannot remove the circle creator') };
+      }
+
+      console.log('Removing user from circle...');
       // Remove from circle
       const { data, error } = await supabase
         .from('user_circles')
@@ -843,14 +908,25 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', userId);
 
-      // Also remove admin status if they had it
-      await supabase
+      if (error) {
+        console.error('Error removing member from circle:', error);
+        return { data: null, error: new Error(`Failed to remove member: ${error.message}`) };
+      }
+
+      console.log('Removing admin status if exists...');
+      // Also remove admin status if they had it (ignore errors here as they might not be admin)
+      const { error: adminRemoveError } = await supabase
         .from('circle_admins')
         .delete()
         .eq('circleid', circleId)
         .eq('userid', userId);
 
-      return { data, error };
+      if (adminRemoveError) {
+        console.log('Note: Could not remove admin status (user might not be admin):', adminRemoveError);
+      }
+
+      console.log('Successfully removed member from circle');
+      return { data, error: null };
     } catch (error) {
       console.error('Error in removeMemberFromCircle:', error);
       return { data: null, error: error as Error };
