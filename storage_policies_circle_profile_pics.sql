@@ -41,9 +41,28 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
     (RIGHT(LOWER(name), 4) = '.png' OR RIGHT(LOWER(name), 4) = '.jpg' OR RIGHT(LOWER(name), 5) = '.jpeg')
   );
 
--- Allow circle creators and admins to UPDATE circle profile pics
+-- Allow circle creators and admins to UPDATE circle profile pics (for upserts)
 CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
   FOR UPDATE USING (
+    bucket_id = 'circle-profile-pics' AND
+    auth.role() = 'authenticated' AND
+    (
+      -- Extract circle ID from filename (format: {circleId}.png or {circleId}.jpg)
+      EXISTS (
+        SELECT 1 FROM circles c
+        WHERE c.id::text = SPLIT_PART(name, '.', 1)
+        AND c.createdby = auth.uid()
+      )
+      OR
+      EXISTS (
+        SELECT 1 FROM circle_admins ca
+        WHERE ca.circleid::text = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()
+      )
+    ) AND
+    -- Validate file extensions
+    (RIGHT(LOWER(name), 4) = '.png' OR RIGHT(LOWER(name), 4) = '.jpg' OR RIGHT(LOWER(name), 5) = '.jpeg')
+  ) WITH CHECK (
     bucket_id = 'circle-profile-pics' AND
     auth.role() = 'authenticated' AND
     (
