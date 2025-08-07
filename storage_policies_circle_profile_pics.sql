@@ -23,17 +23,18 @@ CREATE POLICY "Circle admins can upload circle profile pics" ON storage.objects
     auth.role() = 'authenticated' AND
     (
       -- Extract circle ID from filename (format: {circleId}.jpg)
+      -- First check if user created the circle
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
-        AND c.createdby = auth.uid()
+        WHERE c.id = SPLIT_PART(name, '.', 1)
+        AND c.creator = auth.uid()::text
       )
       OR
+      -- Then check if user is admin of the circle
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        JOIN circles c ON c.id = ca.circleid
-        WHERE ca.userid = auth.uid()
-        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
+        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()::text
       )
     )
   );
@@ -47,15 +48,14 @@ CREATE POLICY "Circle admins can update circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
-        AND c.createdby = auth.uid()
+        WHERE c.id = SPLIT_PART(name, '.', 1)
+        AND c.creator = auth.uid()::text
       )
       OR
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        JOIN circles c ON c.id = ca.circleid
-        WHERE ca.userid = auth.uid()
-        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
+        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()::text
       )
     )
   );
@@ -69,15 +69,14 @@ CREATE POLICY "Circle admins can delete circle profile pics" ON storage.objects
       -- Extract circle ID from filename (format: {circleId}.jpg)
       EXISTS (
         SELECT 1 FROM circles c
-        WHERE c.id::text = SUBSTRING(name FROM '^([^.]+)')
-        AND c.createdby = auth.uid()
+        WHERE c.id = SPLIT_PART(name, '.', 1)
+        AND c.creator = auth.uid()::text
       )
       OR
       EXISTS (
         SELECT 1 FROM circle_admins ca
-        JOIN circles c ON c.id = ca.circleid
-        WHERE ca.userid = auth.uid()
-        AND c.id::text = SUBSTRING(name FROM '^([^.]+)')
+        WHERE ca.circleid = SPLIT_PART(name, '.', 1)
+        AND ca.userid = auth.uid()::text
       )
     )
   );
