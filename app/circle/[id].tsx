@@ -494,7 +494,7 @@ export default function CircleScreen() {
     if (!circle?.isAdmin) return;
 
     try {
-      console.log('Starting circle image picker...');
+      console.log('Starting circle image picker from main page...');
 
       // Request permissions first
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -506,7 +506,7 @@ export default function CircleScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
