@@ -856,13 +856,13 @@ export default function CircleScreen() {
           )}
 
           {/* Only show delete button if user is the circle creator */}
-          {circle?.creator === user?.id && (
+          {circle?.createdby === user?.id && (
             <TouchableOpacity
               style={[styles.deleteButton, { backgroundColor: '#EF5350' }]}
               onPress={handleDeleteCircle}
               disabled={loading}
             >
-              <IconSymbol name="trash" size={16} color="#fff" />
+              <IconSymbol name="trash" size={18} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
@@ -1719,9 +1719,10 @@ const styles = StyleSheet.create({
   deleteButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 32,
-    height: 32,
-    borderRadius: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    marginLeft: 8,
   },
   // Edit modal styles
   modalFooter: {
