@@ -525,10 +525,26 @@ export default function CircleScreen() {
       return;
     }
 
+    console.log('=== CIRCLE IMAGE UPLOAD STARTING ===');
+    console.log('User ID:', user.id);
+    console.log('Circle ID:', id);
+    console.log('Asset URI exists:', !!asset?.uri);
+
     setImageUploading(true);
 
     try {
-      const result = await StorageService.uploadProfilePicture(user.id, asset);
+      // Use consistent file extension
+      const fileExtension = 'jpg';
+      console.log('Using file extension:', fileExtension);
+
+      console.log('Calling StorageService.uploadCircleProfilePicture...');
+      const result = await StorageService.uploadCircleProfilePicture(id as string, asset);
+      
+      console.log('Upload result:', {
+        hasData: !!result.data,
+        hasError: !!result.error,
+        errorMessage: result.error?.message
+      });
 
       if (result.error) {
         console.error('Upload error:', result.error);
@@ -536,13 +552,14 @@ export default function CircleScreen() {
         return;
       }
 
-      if (result.data) {
-        const imageUrl = result.data;
+      if (result.data?.publicUrl) {
+        const imageUrl = result.data.publicUrl;
+        console.log('Got public URL:', imageUrl);
 
         // Update circle with new image URL in database
         const { error: updateError } = await supabase
           .from('circles')
-          .update({ profile_picture_url: imageUrl })
+          .update({ circle_profile_url: imageUrl })
           .eq('id', id);
 
         if (updateError) {
@@ -550,8 +567,9 @@ export default function CircleScreen() {
           Alert.alert('Error', 'Failed to update circle image.');
         } else {
           // Update local state
-          setCircle(prev => prev ? { ...prev, profile_picture_url: imageUrl } : null);
+          setCircle(prev => prev ? { ...prev, circle_profile_url: imageUrl } : null);
           Alert.alert('Success', 'Circle image updated successfully!');
+          await loadCircleData(); // Refresh the data
         }
       }
     } catch (error) {
