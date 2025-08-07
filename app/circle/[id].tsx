@@ -122,8 +122,15 @@ export default function CircleScreen() {
       let isMainAdmin = false;
 
       if (user?.id) {
-        const { data: joinedCircles } = await DatabaseService.getUserJoinedCircles(user.id);
-        isJoined = joinedCircles?.some(jc => jc.circleid === id) || false;
+        // First check if user is in user_circles table
+        const { data: membershipCheck } = await supabase
+          .from('user_circles')
+          .select('userid')
+          .eq('userid', user.id)
+          .eq('circleid', id)
+          .single();
+        
+        isJoined = !!membershipCheck;
 
         if (isJoined) {
           const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
@@ -151,8 +158,8 @@ export default function CircleScreen() {
         setPosts(postsData || []);
       }
 
-      // Load full member details if user is member
-      if (isJoined) {
+      // Load full member details if user is member or if circle is public
+      if (isJoined || currentCircle.privacy === 'public') {
         const { data: membersData } = await DatabaseService.getCircleMembers(id as string);
         setMembers(membersData || []);
       }
