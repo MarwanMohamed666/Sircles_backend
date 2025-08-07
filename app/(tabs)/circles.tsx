@@ -25,7 +25,7 @@ interface Circle {
   isJoined?: boolean;
   member_count?: number; // Added to match backend
   circle_profile_url?: string;
-  createdby?: string; // Added to match backend for creator check
+  creator?: string; // Added to match backend for creator check
 }
 
 export default function CirclesScreen() {
@@ -438,7 +438,7 @@ export default function CirclesScreen() {
     >
       <View style={styles.circleHeader}>
         {/* Delete button for circle creator */}
-        {circle.createdby === user?.id && (
+        {circle.creator === user?.id && (
           <TouchableOpacity
             style={styles.circleDeleteButton}
             onPress={(e) => {
