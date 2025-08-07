@@ -79,6 +79,7 @@ export default function CircleScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false); // State to track image upload
 
   const [newPostContent, setNewPostContent] = useState('');
   const [editedCircle, setEditedCircle] = useState({
@@ -491,148 +492,73 @@ export default function CircleScreen() {
   };
 
   const handleCircleImagePicker = async () => {
-    if (!circle?.isAdmin) return;
-
     try {
-      console.log('Starting circle image picker...');
-      
       // Request permissions first
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status);
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant photo library access to change your circle picture');
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.status !== 'granted') {
+        Alert.alert('Permission required', 'Please allow access to your photo library to change the circle image.');
         return;
       }
 
+      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [16, 9],
         quality: 0.8,
       });
 
-      console.log('Image picker result:', result);
-
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        console.log('Selected asset:', {
-          uri: asset.uri?.substring(0, 50) + '...',
-          width: asset.width,
-          height: asset.height,
-          fileSize: asset.fileSize
-        });
-
-        if (!asset.uri) {
-          Alert.alert('Error', 'Invalid image selected');
-          return;
-        }
-
-        await handleCircleImageUpload(asset);
-      } else {
-        console.log('Image selection was canceled or no asset selected');
+        const selectedAsset = result.assets[0];
+        await uploadCircleImage(selectedAsset);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Error with image picker:', {
-        error: error,
-        message: errorMessage
-      });
-      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
+      console.error('Error in handleCircleImagePicker:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
     }
   };
 
-  const handleCircleImageUpload = async (asset: any) => {
-    if (!user?.id || !circle?.id) {
-      Alert.alert('Error', 'You must be logged in to upload a circle image');
+  const uploadCircleImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!user?.id || !id) {
+      Alert.alert('Error', 'User or circle information is missing.');
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      console.log('=== CIRCLE IMAGE UPLOAD STARTING ===');
-      console.log('User ID:', user.id);
-      console.log('Circle ID:', circle.id);
-      console.log('Asset URI exists:', !!asset.uri);
+    setImageUploading(true);
 
-      // Determine file extension from the asset
-      let fileExtension = 'jpg'; // Default to jpg
-      if (asset.fileName) {
-        const extension = asset.fileName.split('.').pop()?.toLowerCase();
-        if (extension && ['jpg', 'jpeg', 'png'].includes(extension)) {
-          fileExtension = extension === 'jpeg' ? 'jpg' : extension;
+    try {
+      const result = await StorageService.uploadProfilePicture(user.id, asset);
+
+      if (result.error) {
+        console.error('Upload error:', result.error);
+        Alert.alert('Upload Error', result.error.message || 'Failed to upload circle image.');
+        return;
+      }
+
+      if (result.data) {
+        const imageUrl = result.data;
+
+        // Update circle with new image URL in database
+        const { error: updateError } = await supabase
+          .from('circles')
+          .update({ profile_picture_url: imageUrl })
+          .eq('id', id);
+
+        if (updateError) {
+          console.error('Error updating circle:', updateError);
+          Alert.alert('Error', 'Failed to update circle image.');
+        } else {
+          // Update local state
+          setCircle(prev => prev ? { ...prev, profile_picture_url: imageUrl } : null);
+          Alert.alert('Success', 'Circle image updated successfully!');
         }
       }
-
-      console.log('Using file extension:', fileExtension);
-      console.log('Calling StorageService.uploadCircleProfilePicture...');
-
-      const { data, error } = await StorageService.uploadCircleProfilePicture(circle.id, asset);
-
-      console.log('Upload result:', {
-        hasData: !!data,
-        hasError: !!error,
-        errorMessage: error?.message
-      });
-
-      if (error) {
-        console.error('Upload failed:', error);
-        Alert.alert('Error', `Failed to upload circle image: ${error.message}`);
-        return;
-      }
-
-      if (!data?.publicUrl) {
-        console.error('No public URL returned from upload');
-        Alert.alert('Error', 'Upload completed but no image URL was returned');
-        return;
-      }
-
-      console.log('Upload successful, updating database...');
-      console.log('Public URL:', data.publicUrl);
-
-      // Update circle in database with new image URL
-      const { data: updateResult, error: updateError } = await supabase
-        .from('circles')
-        .update({ circle_profile_url: data.publicUrl })
-        .eq('id', circle.id)
-        .select();
-
-      if (updateError) {
-        console.error('Database update failed:', updateError);
-        Alert.alert('Error', `Failed to update circle: ${updateError.message}`);
-        return;
-      }
-
-      if (!updateResult || updateResult.length === 0) {
-        console.error('Database update returned no data');
-        Alert.alert('Error', 'Failed to update circle in database');
-        return;
-      }
-
-      console.log('Database updated successfully');
-
-      // Update local state with cache-busting URL
-      const cacheBustingUrl = `${data.publicUrl}?t=${Date.now()}`;
-      setCircle(prev => prev ? {
-        ...prev,
-        circle_profile_url: cacheBustingUrl
-      } : prev);
-
-      console.log('Local state updated');
-
-      // Refresh circle data from database
-      await loadCircleData();
-
-      console.log('Circle image upload completed successfully');
-      Alert.alert('Success', 'Circle image updated successfully!');
-
     } catch (error) {
-      console.error('Circle image upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert('Error', `Failed to upload circle image: ${errorMessage}`);
+      console.error('Error uploading circle image:', error);
+      Alert.alert('Error', 'Failed to upload circle image. Please try again.');
     } finally {
-      setLoading(false);
+      setImageUploading(false);
     }
   };
 
