@@ -121,47 +121,59 @@ export default function CirclesScreen() {
   const pickImage = async () => {
     try {
       console.log('Starting image picker for new circle...');
-      
+
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log('Permission status:', status);
-      
+
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to select images.');
+        Alert.alert('Permission Required', 'Please grant photo library access to select images.');
         return;
       }
 
-      console.log('Launching image library...');
+      // Launch image picker with the same config as the working one
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
         base64: false,
       });
 
-      console.log('Image picker result:', JSON.stringify(result, null, 2));
+      console.log('Image picker result:', result);
 
-      if (!result.canceled) {
-        if (result.assets && result.assets.length > 0) {
-          const asset = result.assets[0];
-          console.log('Selected asset for new circle:', {
-            uri: asset.uri?.substring(0, 50) + '...',
-            width: asset.width,
-            height: asset.height,
-            fileSize: asset.fileSize
-          });
-          setSelectedImage(asset);
-        } else {
-          console.log('No assets in result:', result);
-          Alert.alert('Error', 'No image was selected. Please try again.');
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        console.log('Selected asset for new circle:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
+
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
+          return;
         }
+
+        setSelectedImage(asset);
+        console.log('Circle image updated in UI preview');
       } else {
-        console.log('Image selection was canceled');
+        console.log('Image selection was canceled or no asset selected');
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      console.error('Error with image picker - full details:', {
+        error: error,
+        message: errorMessage,
+        stack: errorStack,
+        name: error instanceof Error ? error.name : typeof error,
+        isError: error instanceof Error,
+        errorString: String(error)
+      });
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
     }
   };
 
