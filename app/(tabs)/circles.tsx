@@ -290,25 +290,20 @@ export default function CirclesScreen() {
     }
 
     if (isJoined) {
-      // Show confirmation dialog for leaving using window.confirm
-      const confirmed = window.confirm(`Are you sure you want to leave "${circleName}"?`);
-      
-      if (confirmed) {
-        try {
-          console.log('User confirmed leaving circle:', circleId);
-          const { error } = await leaveCircle(userProfile.id, circleId);
-          if (error) {
-            console.error('Error leaving circle:', error);
-            window.alert('Error: Failed to leave circle');
-            return;
-          }
-          console.log('Successfully left circle');
-          window.alert('You have left the circle');
-          await loadCircles();
-        } catch (error) {
+      // Leave circle directly without confirmation
+      try {
+        console.log('Leaving circle:', circleId);
+        const { error } = await leaveCircle(userProfile.id, circleId);
+        if (error) {
           console.error('Error leaving circle:', error);
           window.alert('Error: Failed to leave circle');
+          return;
         }
+        console.log('Successfully left circle');
+        await loadCircles();
+      } catch (error) {
+        console.error('Error leaving circle:', error);
+        window.alert('Error: Failed to leave circle');
       }
       return;
     }
