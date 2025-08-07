@@ -200,14 +200,14 @@ export default function CircleScreen() {
 
     Alert.alert(
       'Delete Circle',
-      `Are you sure you want to delete "${circle?.name}"? This will permanently remove all posts, messages, and events in this circle. This action cannot be undone.`,
+      'Are you sure you want to delete the circle?',
       [
         {
-          text: 'Cancel',
+          text: 'No',
           style: 'cancel',
         },
         {
-          text: 'Delete',
+          text: 'Yes',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -863,9 +863,6 @@ export default function CircleScreen() {
               disabled={loading}
             >
               <IconSymbol name="trash" size={16} color="#fff" />
-              <ThemedText style={styles.deleteButtonText}>
-                Delete
-              </ThemedText>
             </TouchableOpacity>
           )}
         </View>
@@ -1720,17 +1717,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deleteButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 4,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 4,
   },
   // Edit modal styles
   modalFooter: {
