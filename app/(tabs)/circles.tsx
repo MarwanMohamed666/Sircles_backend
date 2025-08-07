@@ -397,6 +397,19 @@ export default function CirclesScreen() {
       onPress={() => router.push(`/circle/${circle.id}`)}
     >
       <View style={styles.circleHeader}>
+        {/* Delete button for circle creator */}
+        {circle.createdby === user?.id && (
+          <TouchableOpacity
+            style={styles.circleDeleteButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteCircle(circle.id, circle.name);
+            }}
+          >
+            <IconSymbol name="trash" size={16} color="#EF5350" />
+          </TouchableOpacity>
+        )}
+        
         {circle.circle_profile_url && (
           <Image
             source={{ uri: circle.circle_profile_url }}
@@ -819,6 +832,24 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     elevation: 2,
+    position: 'relative',
+  },
+  circleDeleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   circleHeader: {
     flexDirection: 'column',
