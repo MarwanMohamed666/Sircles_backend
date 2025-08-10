@@ -79,6 +79,8 @@ const MAPPING = {
   'ellipsis': 'more-horiz',
   'ellipsis.vertical': 'more-vert',
   'xmark': 'close',
+  'xmark.circle': 'cancel',
+  'xmark.circle.fill': 'cancel',
   'checkmark': 'check',
   'checkmark.circle': 'check-circle',
   'checkmark.circle.fill': 'check-circle',
