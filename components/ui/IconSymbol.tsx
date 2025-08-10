@@ -65,6 +65,14 @@ const MAPPING = {
   'key': 'vpn-key',
   'key.fill': 'vpn-key',
 
+  // Additional Action Icons
+  'pencil': 'edit',
+  'trash': 'delete',
+  'ellipsis': 'more-vert',
+  'globe': 'public',
+  'xmark': 'close',
+  'square.and.arrow.up': 'share',
+
   // Content Icons
   'tag': 'local-offer',
   'tag.fill': 'local-offer',
