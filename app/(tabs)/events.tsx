@@ -90,58 +90,87 @@ export default function EventsScreen() {
   const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
   const circles = ['Tech Enthusiasts', 'Book Club', 'Photography Club', 'Fitness Group'];
 
-  const handleRSVP = (eventId: string, response: 'yes' | 'maybe' | 'no') => {
-    setEvents(events.map(event => {
-      if (event.id === eventId) {
-        const updatedAttendees = { ...event.attendees };
+  const handleRSVP = async (eventId: string, response: 'yes' | 'maybe' | 'no') => {
+    try {
+      // Update local state immediately for better UX
+      setEvents(events.map(event => {
+        if (event.id === eventId) {
+          const updatedAttendees = { ...event.attendees };
 
-        // Remove from previous RSVP if exists
-        if (event.rsvp) {
-          updatedAttendees[event.rsvp] = Math.max(0, updatedAttendees[event.rsvp] - 1);
+          // Remove from previous RSVP if exists
+          if (event.rsvp) {
+            updatedAttendees[event.rsvp] = Math.max(0, updatedAttendees[event.rsvp] - 1);
+          }
+
+          // Add to new RSVP
+          updatedAttendees[response] = updatedAttendees[response] + 1;
+
+          return {
+            ...event,
+            rsvp: response,
+            attendees: updatedAttendees,
+          };
         }
+        return event;
+      }));
 
-        // Add to new RSVP
-        updatedAttendees[response] = updatedAttendees[response] + 1;
-
-        return {
-          ...event,
-          rsvp: response,
-          attendees: updatedAttendees,
-        };
+      if (selectedEvent && selectedEvent.id === eventId) {
+        const updatedEvent = events.find(e => e.id === eventId);
+        if (updatedEvent) {
+          setSelectedEvent({ ...updatedEvent, rsvp: response });
+        }
       }
-      return event;
-    }));
 
-    if (selectedEvent && selectedEvent.id === eventId) {
-      const updatedEvent = events.find(e => e.id === eventId);
-      if (updatedEvent) {
-        setSelectedEvent({ ...updatedEvent, rsvp: response });
-      }
+      // Here you could add database call to save RSVP
+      // await DatabaseService.updateEventRSVP(eventId, user?.id, response);
+      
+    } catch (error) {
+      console.error('Error updating RSVP:', error);
+      // Revert changes on error
+      await fetchEvents();
     }
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     if (newEvent.title.trim() && newEvent.date && newEvent.time && newEvent.location.trim()) {
-      const event: Event = {
-        id: Date.now().toString(),
-        ...newEvent,
-        createdBy: 'You',
-        circleName: circles.find(c => c === newEvent.circleId) || undefined,
-        attendees: { yes: 0, maybe: 0, no: 0 },
-      };
+      try {
+        const eventData = {
+          title: newEvent.title.trim(),
+          date: newEvent.date,
+          time: newEvent.time,
+          location: newEvent.location.trim(),
+          description: newEvent.description.trim(),
+          tag: newEvent.tag,
+          circleId: newEvent.circleId || null,
+          createdBy: user?.id || '',
+        };
 
-      setEvents([event, ...events]);
-      setNewEvent({
-        title: '',
-        date: '',
-        time: '',
-        location: '',
-        description: '',
-        tag: 'Social',
-        circleId: '',
-      });
-      setShowCreateModal(false);
-      Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
+        const { data, error } = await DatabaseService.createEvent(eventData);
+        
+        if (error) {
+          console.error('Error creating event:', error);
+          Alert.alert(texts.error || 'Error', 'Failed to create event. Please try again.');
+          return;
+        }
+
+        // Refresh events list
+        await fetchEvents();
+        
+        setNewEvent({
+          title: '',
+          date: '',
+          time: '',
+          location: '',
+          description: '',
+          tag: 'Social',
+          circleId: '',
+        });
+        setShowCreateModal(false);
+        Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
+      } catch (error) {
+        console.error('Unexpected error creating event:', error);
+        Alert.alert(texts.error || 'Error', 'Failed to create event. Please try again.');
+      }
     } else {
       Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all required fields.');
     }
@@ -176,7 +205,16 @@ export default function EventsScreen() {
 
       {/* Events List */}
       <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
-        {events.map((event) => (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
+          </View>
+        ) : events.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <ThemedText style={styles.emptyText}>{texts.noEventsYet || 'No events yet'}</ThemedText>
+          </View>
+        ) : (
+          events.map((event) => (
           <TouchableOpacity
             key={event.id}
             style={[styles.eventCard, { backgroundColor: surfaceColor }]}
@@ -234,7 +272,8 @@ export default function EventsScreen() {
               </View>
             </View>
           </TouchableOpacity>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       {/* Event Details Modal */}
@@ -696,5 +735,21 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: 'right',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    opacity: 0.6,
+    textAlign: 'center',
   },
 });
