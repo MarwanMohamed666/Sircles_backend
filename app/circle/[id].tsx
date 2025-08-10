@@ -363,29 +363,33 @@ export default function CircleScreen() {
           text: 'Confirm',
           onPress: async () => {
             try {
-              console.log('Starting admin toggle process...', {
+              console.log('=== Starting admin toggle process ===');
+              console.log('Details:', {
                 circleId: id,
                 memberId,
                 memberName,
                 isCurrentlyAdmin,
                 action,
-                requestingAdminId: user?.id
+                requestingAdminId: user?.id,
+                circleCreator: circle?.creator
               });
 
-              let error;
+              let result;
               if (isCurrentlyAdmin) {
-                console.log('Removing admin privileges...');
-                ({ error } = await DatabaseService.removeCircleAdmin(id as string, memberId, user!.id));
+                console.log('=== Removing admin privileges ===');
+                result = await DatabaseService.removeCircleAdmin(id as string, memberId, user!.id);
               } else {
-                console.log('Adding admin privileges...');
-                ({ error } = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id));
+                console.log('=== Adding admin privileges ===');
+                result = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id);
               }
 
-              if (error) {
-                console.error('Admin toggle error:', error);
+              console.log('Database operation result:', result);
+
+              if (result.error) {
+                console.error('Admin toggle error:', result.error);
                 Alert.alert(
                   'Error',
-                  `Failed to ${action} ${memberName}: ${error.message || 'Unknown error occurred'}`
+                  `Failed to ${action} ${memberName}: ${result.error.message || 'Unknown error occurred'}`
                 );
                 return;
               }
@@ -394,9 +398,11 @@ export default function CircleScreen() {
               Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
               
               // Force refresh the data
+              console.log('Refreshing circle data...');
               setLoading(true);
               await loadCircleData();
               setLoading(false);
+              console.log('Data refresh completed');
             } catch (error) {
               console.error('Unexpected error in handleToggleAdmin:', error);
               Alert.alert(

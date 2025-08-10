@@ -765,7 +765,8 @@ export const DatabaseService = {
 
   async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
     try {
-      console.log('addCircleAdmin called:', { circleId, userId, requestingAdminId });
+      console.log('=== addCircleAdmin called ===');
+      console.log('Parameters:', { circleId, userId, requestingAdminId });
 
       // Get circle creator
       const { data: circle, error: circleError } = await supabase
@@ -783,8 +784,11 @@ export const DatabaseService = {
 
       // Verify requesting user is the main admin (creator) OR a regular admin
       const isCreator = circle?.creator === requestingAdminId;
+      console.log('Permission check - isCreator:', isCreator);
+      
       if (!isCreator) {
         // Check if requesting user is at least an admin
+        console.log('Checking if requesting user is admin...');
         const { data: adminCheck, error: adminError } = await supabase
           .from('circle_admins')
           .select('userid')
@@ -792,10 +796,28 @@ export const DatabaseService = {
           .eq('userid', requestingAdminId)
           .single();
 
+        console.log('Admin check result:', { adminCheck, adminError });
+
         if (adminError || !adminCheck) {
           console.error('Permission denied: requesting user is not an admin');
           return { data: null, error: new Error('Only circle admins can manage admin privileges') };
         }
+      }
+
+      // Check if user is already an admin
+      console.log('Checking if user is already an admin...');
+      const { data: existingAdmin, error: existingError } = await supabase
+        .from('circle_admins')
+        .select('userid')
+        .eq('circleid', circleId)
+        .eq('userid', userId)
+        .single();
+
+      console.log('Existing admin check:', { existingAdmin, existingError });
+
+      if (existingAdmin) {
+        console.log('User is already an admin, no action needed');
+        return { data: null, error: new Error('User is already an admin') };
       }
 
       console.log('Attempting to insert admin:', { circleId, userId });
@@ -804,7 +826,10 @@ export const DatabaseService = {
         .insert({
           circleid: circleId,
           userid: userId
-        });
+        })
+        .select();
+
+      console.log('Insert result:', { data, error });
 
       if (error) {
         console.error('Error inserting circle admin:', error);
