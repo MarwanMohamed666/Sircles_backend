@@ -396,12 +396,20 @@ export default function ProfileScreen() {
       await authSignOut();
       console.log('🔴 SIGNOUT: authSignOut() completed successfully');
 
-      console.log('🔴 SIGNOUT: About to show success alert');
-      Alert.alert(texts.success || 'Success', texts.loggedOut || 'Logged out successfully!');
-
-      console.log('🔴 SIGNOUT: About to navigate to login screen');
-      router.replace('/login');
-      console.log('🔴 SIGNOUT: Navigation to login initiated');
+      console.log('🔴 SIGNOUT: Showing success alert before navigation');
+      Alert.alert(
+        texts.success || 'Success', 
+        texts.loggedOut || 'Logged out successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('🔴 SIGNOUT: User acknowledged logout, navigating to login');
+              router.replace('/login');
+            }
+          }
+        ]
+      );
 
     } catch (error) {
       console.error('🔴 SIGNOUT ERROR: Logout failed:', error);
