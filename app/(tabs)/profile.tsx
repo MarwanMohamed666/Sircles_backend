@@ -384,21 +384,35 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     console.log('🔴 LOGOUT: handleLogout function called - button was pressed!');
-    Alert.alert(
-      texts.logout || 'Logout',
-      texts.logoutConfirm || 'Are you sure you want to logout?',
-      [
-        { text: texts.cancel || 'Cancel', style: 'cancel' },
-        { 
-          text: texts.logout || 'Logout', 
-          style: 'destructive',
-          onPress: () => {
-            console.log('🔴 LOGOUT: User confirmed logout in alert');
-            handleSignOut();
-          }
-        },
-      ]
-    );
+    console.log('🔴 LOGOUT: About to show Alert.alert');
+    
+    try {
+      Alert.alert(
+        texts.logout || 'Logout',
+        texts.logoutConfirm || 'Are you sure you want to logout?',
+        [
+          { 
+            text: texts.cancel || 'Cancel', 
+            style: 'cancel',
+            onPress: () => console.log('🔴 LOGOUT: User cancelled logout')
+          },
+          { 
+            text: texts.logout || 'Logout', 
+            style: 'destructive',
+            onPress: () => {
+              console.log('🔴 LOGOUT: User confirmed logout in alert');
+              handleSignOut();
+            }
+          },
+        ],
+        { cancelable: false }
+      );
+      console.log('🔴 LOGOUT: Alert.alert called successfully');
+    } catch (error) {
+      console.error('🔴 LOGOUT ERROR: Failed to show alert:', error);
+      // If alert fails, logout directly
+      handleSignOut();
+    }
   };
 
   const handleSignOut = async () => {
@@ -701,6 +715,20 @@ export default function ProfileScreen() {
             <IconSymbol name="power" size={20} color="#fff" />
             <ThemedText style={styles.actionButtonText}>
               {texts.logout || 'Logout'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          {/* Direct logout for testing */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#FF9800' }]}
+            onPress={() => {
+              console.log('🔴 DIRECT LOGOUT: Direct logout button pressed');
+              handleSignOut();
+            }}
+          >
+            <IconSymbol name="power" size={20} color="#fff" />
+            <ThemedText style={styles.actionButtonText}>
+              Direct Logout (Test)
             </ThemedText>
           </TouchableOpacity>
         </View>
