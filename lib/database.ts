@@ -198,6 +198,7 @@ export const DatabaseService = {
       id: circleId,
       ...circle,
       creator: userId,
+      createdby: userId, // Also set createdby for consistency
       creationdate: new Date().toISOString(),
     };
 
@@ -797,6 +798,7 @@ export const DatabaseService = {
         }
       }
 
+      console.log('Attempting to insert admin:', { circleId, userId });
       const { data, error } = await supabase
         .from('circle_admins')
         .insert({
@@ -806,6 +808,12 @@ export const DatabaseService = {
 
       if (error) {
         console.error('Error inserting circle admin:', error);
+        console.error('Error details:', { 
+          code: error.code, 
+          message: error.message, 
+          details: error.details,
+          hint: error.hint 
+        });
         return { data: null, error: new Error(`Failed to add admin: ${error.message}`) };
       }
 
@@ -858,6 +866,7 @@ export const DatabaseService = {
         }
       }
 
+      console.log('Attempting to remove admin:', { circleId, userId });
       const { data, error } = await supabase
         .from('circle_admins')
         .delete()
@@ -866,6 +875,12 @@ export const DatabaseService = {
 
       if (error) {
         console.error('Error removing circle admin:', error);
+        console.error('Error details:', { 
+          code: error.code, 
+          message: error.message, 
+          details: error.details,
+          hint: error.hint 
+        });
         return { data: null, error: new Error(`Failed to remove admin: ${error.message}`) };
       }
 

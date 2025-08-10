@@ -145,7 +145,7 @@ export default function CircleScreen() {
         isMainAdmin,
         memberCount: currentCircle.member_count || 0,
         interests,
-        creator: currentCircle.createdby // Assign creator
+        creator: currentCircle.creator || currentCircle.createdby // Use creator first, fallback to createdby
       });
 
       // Load posts if user is member or circle is public
@@ -392,7 +392,11 @@ export default function CircleScreen() {
 
               console.log('Admin status toggled successfully');
               Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
+              
+              // Force refresh the data
+              setLoading(true);
               await loadCircleData();
+              setLoading(false);
             } catch (error) {
               console.error('Unexpected error in handleToggleAdmin:', error);
               Alert.alert(
