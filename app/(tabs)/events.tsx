@@ -66,7 +66,12 @@ export default function EventsScreen() {
       if (error) {
         console.error('Error fetching events:', error);
       } else {
-        setEvents(data || []);
+        // Ensure all events have default attendees structure
+        const eventsWithDefaults = (data || []).map(event => ({
+          ...event,
+          attendees: event.attendees || { yes: 0, maybe: 0, no: 0 }
+        }));
+        setEvents(eventsWithDefaults);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -114,7 +119,12 @@ export default function EventsScreen() {
       // Update local state immediately for better UX
       setEvents(events.map(event => {
         if (event.id === eventId) {
-          const updatedAttendees = { ...event.attendees };
+          const updatedAttendees = { 
+            yes: 0, 
+            maybe: 0, 
+            no: 0, 
+            ...(event.attendees || {}) 
+          };
 
           // Remove from previous RSVP if exists
           if (event.rsvp) {
@@ -122,7 +132,7 @@ export default function EventsScreen() {
           }
 
           // Add to new RSVP
-          updatedAttendees[response] = updatedAttendees[response] + 1;
+          updatedAttendees[response] = (updatedAttendees[response] || 0) + 1;
 
           return {
             ...event,
@@ -283,11 +293,11 @@ export default function EventsScreen() {
             <View style={[styles.attendeesInfo, isRTL && styles.attendeesInfoRTL]}>
               <View style={styles.attendeeCount}>
                 <View style={[styles.attendeeDot, { backgroundColor: successColor }]} />
-                <ThemedText style={styles.attendeeText}>{event.attendees.yes} {texts.going || 'Going'}</ThemedText>
+                <ThemedText style={styles.attendeeText}>{event.attendees?.yes || 0} {texts.going || 'Going'}</ThemedText>
               </View>
               <View style={styles.attendeeCount}>
                 <View style={[styles.attendeeDot, { backgroundColor: '#FFB74D' }]} />
-                <ThemedText style={styles.attendeeText}>{event.attendees.maybe} {texts.maybe || 'Maybe'}</ThemedText>
+                <ThemedText style={styles.attendeeText}>{event.attendees?.maybe || 0} {texts.maybe || 'Maybe'}</ThemedText>
               </View>
             </View>
           </TouchableOpacity>
