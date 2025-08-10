@@ -821,6 +821,8 @@ export const DatabaseService = {
       }
 
       console.log('Attempting to insert admin:', { circleId, userId });
+      console.log('Insert payload:', { circleid: circleId, userid: userId });
+      
       const { data, error } = await supabase
         .from('circle_admins')
         .insert({
@@ -829,7 +831,14 @@ export const DatabaseService = {
         })
         .select();
 
-      console.log('Insert result:', { data, error });
+      console.log('Insert result:', { 
+        data, 
+        error,
+        hasData: !!data,
+        dataLength: data?.length || 0,
+        errorCode: error?.code,
+        errorMessage: error?.message
+      });
 
       if (error) {
         console.error('Error inserting circle admin:', error);
@@ -892,11 +901,21 @@ export const DatabaseService = {
       }
 
       console.log('Attempting to remove admin:', { circleId, userId });
+      console.log('Delete conditions:', { circleid: circleId, userid: userId });
+      
       const { data, error } = await supabase
         .from('circle_admins')
         .delete()
         .eq('circleid', circleId)
         .eq('userid', userId);
+
+      console.log('Delete result:', { 
+        data, 
+        error,
+        hasData: !!data,
+        errorCode: error?.code,
+        errorMessage: error?.message
+      });
 
       if (error) {
         console.error('Error removing circle admin:', error);

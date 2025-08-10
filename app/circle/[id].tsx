@@ -378,12 +378,14 @@ export default function CircleScreen() {
               if (isCurrentlyAdmin) {
                 console.log('=== Removing admin privileges ===');
                 result = await DatabaseService.removeCircleAdmin(id as string, memberId, user!.id);
+                console.log('Remove admin result:', result);
               } else {
                 console.log('=== Adding admin privileges ===');
                 result = await DatabaseService.addCircleAdmin(id as string, memberId, user!.id);
+                console.log('Add admin result:', result);
               }
 
-              console.log('Database operation result:', result);
+              console.log('Database operation completed with result:', result);
 
               if (result.error) {
                 console.error('Admin toggle error:', result.error);
@@ -1077,6 +1079,7 @@ export default function CircleScreen() {
       {/* Content */}
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         {activeTab === 'feed' && (
@@ -1370,6 +1373,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   feedContainer: {
     gap: 16,
