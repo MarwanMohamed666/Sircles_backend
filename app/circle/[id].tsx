@@ -262,90 +262,65 @@ export default function CircleScreen() {
     );
   };
 
-  const handleRemoveMember = (memberId: string, memberName: string) => {
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
     if (!circle?.isAdmin) return;
 
-    Alert.alert(
-      'Remove Member',
-      `Are you sure you want to remove ${memberName} from this circle?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await DatabaseService.removeMemberFromCircle(
-                id as string,
-                memberId,
-                user!.id
-              );
-              if (error) {
-                Alert.alert('Error', 'Failed to remove member');
-                return;
-              }
-              await loadCircleData();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove member');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      const { error } = await DatabaseService.removeMemberFromCircle(
+        id as string,
+        memberId,
+        user!.id
+      );
+      if (error) {
+        Alert.alert('Error', 'Failed to remove member');
+        return;
+      }
+      Alert.alert('Success', `${memberName} has been removed from the circle`);
+      await loadCircleData();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove member');
+    }
   };
 
-  const handleRemoveMemberAsAdmin = (memberId: string, memberName: string) => {
+  const handleRemoveMemberAsAdmin = async (memberId: string, memberName: string) => {
     if (!circle?.isAdmin) {
       console.log('User is not admin, cannot remove members');
       return;
     }
 
-    Alert.alert(
-      'Remove Member',
-      `Are you sure you want to remove ${memberName} from this circle? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Starting remove member process...', {
-                circleId: id,
-                memberId,
-                memberName,
-                adminId: user?.id
-              });
+    try {
+      console.log('Starting remove member process...', {
+        circleId: id,
+        memberId,
+        memberName,
+        adminId: user?.id
+      });
 
-              const { error } = await DatabaseService.removeMemberFromCircle(
-                id as string,
-                memberId,
-                user!.id
-              );
+      const { error } = await DatabaseService.removeMemberFromCircle(
+        id as string,
+        memberId,
+        user!.id
+      );
 
-              if (error) {
-                console.error('Remove member error:', error);
-                Alert.alert(
-                  'Error',
-                  `Failed to remove member: ${error.message || 'Unknown error occurred'}`
-                );
-                return;
-              }
+      if (error) {
+        console.error('Remove member error:', error);
+        Alert.alert(
+          'Error',
+          `Failed to remove member: ${error.message || 'Unknown error occurred'}`
+        );
+        return;
+      }
 
-              console.log('Member removed successfully');
-              Alert.alert('Success', `${memberName} has been removed from the circle`);
-              await loadCircleData();
-            } catch (error) {
-              console.error('Unexpected error in handleRemoveMemberAsAdmin:', error);
-              Alert.alert(
-                'Error',
-                `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
-              );
-            }
-          }
-        }
-      ]
-    );
+      console.log('Member removed successfully');
+      Alert.alert('Success', `${memberName} has been removed from the circle`);
+      await loadCircleData();
+    } catch (error) {
+      console.error('Unexpected error in handleRemoveMemberAsAdmin:', error);
+      Alert.alert(
+        'Error',
+        `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   };
 
   const handleToggleAdmin = async (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
