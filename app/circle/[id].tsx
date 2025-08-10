@@ -691,6 +691,38 @@ export default function CircleScreen() {
     }
   };
 
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim()) {
+      Alert.alert('Error', 'Please enter post content');
+      return;
+    }
+
+    if (!user?.id || !id) {
+      Alert.alert('Error', 'Unable to create post');
+      return;
+    }
+
+    try {
+      const { error } = await DatabaseService.createPost({
+        userid: user.id,
+        content: newPostContent.trim(),
+        circleid: id as string
+      });
+
+      if (error) {
+        Alert.alert('Error', 'Failed to create post');
+        return;
+      }
+
+      Alert.alert('Success', 'Post created successfully!');
+      setNewPostContent('');
+      setShowPostModal(false);
+      await loadCircleData();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create post');
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!user?.id || !id || !circle) {
       Alert.alert('Error', 'Unable to save changes. Please try again.');
@@ -823,7 +855,9 @@ export default function CircleScreen() {
           </TouchableOpacity>
         )}
       </View>
-      <ThemedText style={styles.postContent}>{post.content}</ThemedText>
+      <View style={styles.postContentContainer}>
+        <ThemedText style={styles.postContent}>{post.content}</ThemedText>
+      </View>
       {post.image && (
         <Image source={{ uri: post.image }} style={styles.postImage} />
       )}
@@ -1140,6 +1174,9 @@ export default function CircleScreen() {
               ) : (
                 <View style={styles.emptyContainer}>
                   <ThemedText>No posts yet</ThemedText>
+                  {circle.isJoined && (
+                    <ThemedText style={styles.emptySubtext}>Be the first to share something!</ThemedText>
+                  )}
                 </View>
               )
             ) : (
@@ -1228,6 +1265,71 @@ export default function CircleScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Floating Action Button for Posts */}
+      {circle.isJoined && activeTab === 'feed' && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: tintColor }]}
+          onPress={() => setShowPostModal(true)}
+        >
+          <IconSymbol name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Create Post Modal */}
+      <Modal
+        visible={showPostModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPostModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.createPostModalContent, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
+              <TouchableOpacity onPress={() => setShowPostModal(false)}>
+                <IconSymbol name="xmark" size={20} color={textColor} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.circleInfo}>
+                <ThemedText style={styles.postingInLabel}>Posting in:</ThemedText>
+                <ThemedText style={[styles.circleName, { color: tintColor }]}>{circle.name}</ThemedText>
+              </View>
+
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>What's on your mind?</ThemedText>
+                <TextInput
+                  style={[styles.postInput, { backgroundColor: backgroundColor, color: textColor }]}
+                  value={newPostContent}
+                  onChangeText={setNewPostContent}
+                  placeholder="Share your thoughts with the circle..."
+                  placeholderTextColor={textColor + '60'}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor }]}
+                onPress={() => setShowPostModal(false)}
+              >
+                <ThemedText>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleCreatePost}
+              >
+                <ThemedText style={{ color: '#fff' }}>Post</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Edit Circle Modal */}
       <Modal
@@ -1506,10 +1608,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.5,
   },
+  postContentContainer: {
+    marginBottom: 12,
+  },
   postContent: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 12,
   },
   postImage: {
     width: '100%',
@@ -1953,6 +2057,56 @@ const styles = StyleSheet.create({
   debugText: {
     fontSize: 12,
     fontFamily: 'monospace',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  createPostModalContent: {
+    width: '95%',
+    maxWidth: 400,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  postingInLabel: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  circleInfo: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  postInput: {
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    minHeight: 100,
+    maxHeight: 200,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    opacity: 0.5,
+    textAlign: 'center',
+    marginTop: 8,
   },
   searchContainer: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -39,6 +39,10 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [selectedCircle, setSelectedCircle] = useState<string>('');
+  const [userCircles, setUserCircles] = useState<any[]>([]);
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -69,6 +73,30 @@ export default function HomeScreen() {
     }
   };
 
+  const loadUserCircles = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await DatabaseService.getUserJoinedCircles(user.id);
+      if (error) {
+        console.error('Error loading user circles:', error);
+        return;
+      }
+
+      const circleDetails = await Promise.all(
+        (data || []).map(async (uc) => {
+          const { data: circles } = await DatabaseService.getCircles();
+          const circle = circles?.find(c => c.id === uc.circleid);
+          return circle;
+        })
+      );
+
+      setUserCircles(circleDetails.filter(Boolean));
+    } catch (error) {
+      console.error('Error loading user circles:', error);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadPosts();
@@ -89,8 +117,42 @@ export default function HomeScreen() {
     return date.toLocaleDateString();
   };
 
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() || !selectedCircle) {
+      Alert.alert('Error', 'Please enter post content and select a circle');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to create posts');
+      return;
+    }
+
+    try {
+      const { error } = await DatabaseService.createPost({
+        userid: user.id,
+        content: newPostContent.trim(),
+        circleid: selectedCircle
+      });
+
+      if (error) {
+        Alert.alert('Error', 'Failed to create post');
+        return;
+      }
+
+      Alert.alert('Success', 'Post created successfully!');
+      setNewPostContent('');
+      setSelectedCircle('');
+      setShowPostModal(false);
+      await loadPosts();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create post');
+    }
+  };
+
   useEffect(() => {
     loadPosts();
+    loadUserCircles();
   }, [user]);
 
   const renderPost = (post: Post) => (
@@ -122,9 +184,11 @@ export default function HomeScreen() {
       </View>
 
       {/* Post Content */}
-      <ThemedText style={[styles.postContent, isRTL && styles.rtlText]}>
-        {post.content}
-      </ThemedText>
+      <View style={styles.postContentContainer}>
+        <ThemedText style={[styles.postContent, isRTL && styles.rtlText]}>
+          {post.content}
+        </ThemedText>
+      </View>
 
       {/* Post Image */}
       {post.image && (
@@ -244,6 +308,94 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Floating Action Button */}
+      {user && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: tintColor }]}
+          onPress={() => setShowPostModal(true)}
+        >
+          <IconSymbol name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Create Post Modal */}
+      <Modal
+        visible={showPostModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPostModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
+              <TouchableOpacity onPress={() => setShowPostModal(false)}>
+                <IconSymbol name="xmark" size={20} color={textColor} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {/* Circle Selection */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>Select Circle:</ThemedText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.circleSelector}>
+                  {userCircles.map((circle) => (
+                    <TouchableOpacity
+                      key={circle.id}
+                      style={[
+                        styles.circleOption,
+                        { 
+                          backgroundColor: selectedCircle === circle.id ? tintColor : backgroundColor,
+                          borderColor: tintColor 
+                        }
+                      ]}
+                      onPress={() => setSelectedCircle(circle.id)}
+                    >
+                      <ThemedText style={[
+                        styles.circleOptionText,
+                        { color: selectedCircle === circle.id ? '#fff' : textColor }
+                      ]}>
+                        {circle.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Post Content Input */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>What's on your mind?</ThemedText>
+                <TextInput
+                  style={[styles.postInput, { backgroundColor: backgroundColor, color: textColor }]}
+                  value={newPostContent}
+                  onChangeText={setNewPostContent}
+                  placeholder="Share your thoughts..."
+                  placeholderTextColor={textColor + '60'}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor }]}
+                onPress={() => setShowPostModal(false)}
+              >
+                <ThemedText>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleCreatePost}
+              >
+                <ThemedText style={{ color: '#fff' }}>Post</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -334,10 +486,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     marginLeft: 4,
   },
+  postContentContainer: {
+    marginBottom: 12,
+  },
   postContent: {
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 12,
   },
   postImage: {
     width: '100%',
@@ -417,5 +571,95 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: 'right',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  inputSection: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  circleSelector: {
+    flexDirection: 'row',
+  },
+  circleOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 10,
+  },
+  circleOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  postInput: {
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    minHeight: 100,
+    maxHeight: 200,
   },
 });
