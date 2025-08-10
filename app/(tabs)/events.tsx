@@ -54,7 +54,8 @@ export default function EventsScreen() {
   useEffect(() => {
     fetchEvents();
     fetchInterests();
-  }, []);
+    fetchUserCircles();
+  }, [user]);
 
   const fetchEvents = async () => {
     if (!user) return;
@@ -87,8 +88,26 @@ export default function EventsScreen() {
     }
   };
 
+  const fetchUserCircles = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await DatabaseService.getUserCircles(user.id);
+      if (error) {
+        console.error('Error fetching user circles:', error);
+      } else if (data) {
+        setCircles(data.map(uc => ({
+          id: uc.circleid,
+          name: uc.circles?.name || 'Unknown Circle'
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching user circles:', error);
+    }
+  };
+
   const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
-  const circles = ['Tech Enthusiasts', 'Book Club', 'Photography Club', 'Fitness Group'];
+  const [circles, setCircles] = useState<{id: string, name: string}[]>([]);
 
   const handleRSVP = async (eventId: string, response: 'yes' | 'maybe' | 'no') => {
     try {
@@ -476,6 +495,77 @@ export default function EventsScreen() {
                 />
               </View>
 
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>{texts.tag || 'Tag'}</ThemedText>
+                <View style={styles.pickerContainer}>
+                  {eventTags.map((tag) => (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[
+                        styles.tagButton,
+                        {
+                          backgroundColor: newEvent.tag === tag ? tintColor : backgroundColor,
+                          borderColor: tintColor,
+                        }
+                      ]}
+                      onPress={() => setNewEvent({ ...newEvent, tag })}
+                    >
+                      <ThemedText style={[
+                        styles.tagButtonText,
+                        { color: newEvent.tag === tag ? '#fff' : textColor }
+                      ]}>
+                        {tag}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {circles.length > 0 && (
+                <View style={styles.formField}>
+                  <ThemedText style={styles.fieldLabel}>{texts.circle || 'Circle'} (Optional)</ThemedText>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.tagButton,
+                        {
+                          backgroundColor: newEvent.circleId === '' ? tintColor : backgroundColor,
+                          borderColor: tintColor,
+                        }
+                      ]}
+                      onPress={() => setNewEvent({ ...newEvent, circleId: '' })}
+                    >
+                      <ThemedText style={[
+                        styles.tagButtonText,
+                        { color: newEvent.circleId === '' ? '#fff' : textColor }
+                      ]}>
+                        {texts.general || 'General'}
+                      </ThemedText>
+                    </TouchableOpacity>
+                    {circles.map((circle) => (
+                      <TouchableOpacity
+                        key={circle.id}
+                        style={[
+                          styles.tagButton,
+                          {
+                            backgroundColor: newEvent.circleId === circle.id ? tintColor : backgroundColor,
+                            borderColor: tintColor,
+                          }
+                        ]}
+                        onPress={() => setNewEvent({ ...newEvent, circleId: circle.id })}
+                      >
+                        <ThemedText style={[
+                          styles.tagButtonText,
+                          { color: newEvent.circleId === circle.id ? '#fff' : textColor }
+                        ]}>
+                          {circle.name}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={[styles.modalActionButton, styles.cancelButton, { backgroundColor }]}
@@ -751,5 +841,20 @@ const styles = StyleSheet.create({
   emptyText: {
     opacity: 0.6,
     textAlign: 'center',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  tagButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
