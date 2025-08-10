@@ -987,6 +987,19 @@ export default function CircleScreen() {
           {circle.name}
         </ThemedText>
         <View style={styles.headerActions}>
+          {/* Message button - show if user is joined */}
+          {circle?.isJoined && (
+            <TouchableOpacity
+              style={[styles.messageButton, { backgroundColor: '#2196F3' }]}
+              onPress={() => router.push(`/(tabs)/messages?circleId=${circle.id}`)}
+            >
+              <IconSymbol name="message" size={16} color="#fff" />
+              <ThemedText style={styles.messageButtonText}>
+                Messages
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
           {/* Only show edit button if user is admin or creator */}
           {circle?.isAdmin && (
             <TouchableOpacity
@@ -1974,6 +1987,19 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  messageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  messageButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   editButton: {
     flexDirection: 'row',

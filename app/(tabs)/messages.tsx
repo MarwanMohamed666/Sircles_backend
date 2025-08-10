@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -31,6 +31,7 @@ interface CircleConversation {
 }
 
 export default function MessagesScreen() {
+  const { circleId } = useLocalSearchParams();
   const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
@@ -159,6 +160,16 @@ export default function MessagesScreen() {
       loadMessages(selectedCircle);
     }
   }, [selectedCircle]);
+
+  useEffect(() => {
+    // Auto-select circle if circleId parameter is provided
+    if (circleId && typeof circleId === 'string' && conversations.length > 0) {
+      const targetCircle = conversations.find(c => c.id === circleId);
+      if (targetCircle) {
+        setSelectedCircle(circleId);
+      }
+    }
+  }, [circleId, conversations]);
 
   const formatMessageTime = (timestamp: string) => {
     const date = new Date(timestamp);
