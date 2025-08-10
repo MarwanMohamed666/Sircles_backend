@@ -383,6 +383,7 @@ export default function ProfileScreen() {
   const { signOut: authSignOut } = useAuth();
 
   const handleLogout = () => {
+    console.log('🔴 LOGOUT: handleLogout function called - button was pressed!');
     Alert.alert(
       texts.logout || 'Logout',
       texts.logoutConfirm || 'Are you sure you want to logout?',
@@ -391,7 +392,10 @@ export default function ProfileScreen() {
         { 
           text: texts.logout || 'Logout', 
           style: 'destructive',
-          onPress: handleSignOut
+          onPress: () => {
+            console.log('🔴 LOGOUT: User confirmed logout in alert');
+            handleSignOut();
+          }
         },
       ]
     );
