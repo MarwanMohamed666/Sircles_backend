@@ -346,7 +346,7 @@ export default function CircleScreen() {
     );
   };
 
-  const handleToggleAdmin = (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
+  const handleToggleAdmin = async (memberId: string, memberName: string, isCurrentlyAdmin: boolean) => {
     console.log('=== handleToggleAdmin called ===');
     console.log('Function parameters:', { memberId, memberName, isCurrentlyAdmin });
     console.log('Circle admin status:', circle?.isAdmin);
@@ -371,110 +371,90 @@ export default function CircleScreen() {
     const action = isCurrentlyAdmin ? 'remove admin privileges from' : 'make admin';
     console.log('Action to perform:', action);
 
-    Alert.alert(
-      isCurrentlyAdmin ? 'Remove Admin' : 'Make Admin',
-      `Are you sure you want to ${action} ${memberName}?`,
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => console.log('Admin toggle cancelled by user')
-        },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            console.log('=== ALERT CONFIRM BUTTON PRESSED ===');
-            console.log('=== User confirmed admin toggle ===');
-            console.log('About to start async operation...');
-            
-            try {
-              console.log('=== ENTERING TRY BLOCK ===');
-              console.log('=== Starting admin toggle process ===');
-              console.log('Pre-operation validation:');
-              console.log('- Circle ID:', id);
-              console.log('- Member ID:', memberId);
-              console.log('- Current user ID:', user?.id);
-              console.log('- Is currently admin:', isCurrentlyAdmin);
-              console.log('- Action:', action);
-              console.log('- Circle creator:', circle?.creator);
+    // Execute directly without confirmation
+    console.log('=== Executing admin toggle directly ===');
+    console.log('=== Starting admin toggle process ===');
+    console.log('Pre-operation validation:');
+    console.log('- Circle ID:', id);
+    console.log('- Member ID:', memberId);
+    console.log('- Current user ID:', user?.id);
+    console.log('- Is currently admin:', isCurrentlyAdmin);
+    console.log('- Action:', action);
+    console.log('- Circle creator:', circle?.creator);
 
-              console.log('=== About to call database function ===');
-              let result;
-              
-              if (isCurrentlyAdmin) {
-                console.log('=== BRANCH: Calling removeCircleAdmin ===');
-                console.log('Parameters for removeCircleAdmin:', {
-                  circleId: id,
-                  userId: memberId,
-                  requestingAdminId: user.id
-                });
-                
-                console.log('=== CALLING DatabaseService.removeCircleAdmin ===');
-                result = await DatabaseService.removeCircleAdmin(id as string, memberId, user.id);
-                console.log('=== removeCircleAdmin RETURNED ===');
-                console.log('removeCircleAdmin completed, result:', result);
-              } else {
-                console.log('=== BRANCH: Calling addCircleAdmin ===');
-                console.log('Parameters for addCircleAdmin:', {
-                  circleId: id,
-                  userId: memberId,
-                  requestingAdminId: user.id
-                });
-                
-                console.log('=== CALLING DatabaseService.addCircleAdmin ===');
-                result = await DatabaseService.addCircleAdmin(id as string, memberId, user.id);
-                console.log('=== addCircleAdmin RETURNED ===');
-                console.log('addCircleAdmin completed, result:', result);
-              }
+    try {
+      console.log('=== ENTERING TRY BLOCK ===');
+      console.log('=== About to call database function ===');
+      let result;
+      
+      if (isCurrentlyAdmin) {
+        console.log('=== BRANCH: Calling removeCircleAdmin ===');
+        console.log('Parameters for removeCircleAdmin:', {
+          circleId: id,
+          userId: memberId,
+          requestingAdminId: user.id
+        });
+        
+        console.log('=== CALLING DatabaseService.removeCircleAdmin ===');
+        result = await DatabaseService.removeCircleAdmin(id as string, memberId, user.id);
+        console.log('=== removeCircleAdmin RETURNED ===');
+        console.log('removeCircleAdmin completed, result:', result);
+      } else {
+        console.log('=== BRANCH: Calling addCircleAdmin ===');
+        console.log('Parameters for addCircleAdmin:', {
+          circleId: id,
+          userId: memberId,
+          requestingAdminId: user.id
+        });
+        
+        console.log('=== CALLING DatabaseService.addCircleAdmin ===');
+        result = await DatabaseService.addCircleAdmin(id as string, memberId, user.id);
+        console.log('=== addCircleAdmin RETURNED ===');
+        console.log('addCircleAdmin completed, result:', result);
+      }
 
-              console.log('=== Database operation completed ===');
-              console.log('Result type:', typeof result);
-              console.log('Result keys:', result ? Object.keys(result) : 'null');
-              console.log('Has error:', !!result?.error);
-              console.log('Has data:', !!result?.data);
+      console.log('=== Database operation completed ===');
+      console.log('Result type:', typeof result);
+      console.log('Result keys:', result ? Object.keys(result) : 'null');
+      console.log('Has error:', !!result?.error);
+      console.log('Has data:', !!result?.data);
 
-              if (result?.error) {
-                console.error('=== Database operation failed ===');
-                console.error('Error object:', result.error);
-                console.error('Error message:', result.error.message);
-                console.error('Error type:', typeof result.error);
-                
-                Alert.alert(
-                  'Error',
-                  `Failed to ${action} ${memberName}: ${result.error.message || 'Unknown error occurred'}`
-                );
-                return;
-              }
+      if (result?.error) {
+        console.error('=== Database operation failed ===');
+        console.error('Error object:', result.error);
+        console.error('Error message:', result.error.message);
+        console.error('Error type:', typeof result.error);
+        
+        Alert.alert(
+          'Error',
+          `Failed to ${action} ${memberName}: ${result.error.message || 'Unknown error occurred'}`
+        );
+        return;
+      }
 
-              console.log('=== Database operation succeeded ===');
-              console.log('Success! Admin status toggled successfully');
-              
-              Alert.alert('Success', `${memberName} ${isCurrentlyAdmin ? 'is no longer an admin' : 'is now an admin'}`);
-              
-              // Force refresh the data
-              console.log('=== Starting data refresh ===');
-              setLoading(true);
-              await loadCircleData();
-              setLoading(false);
-              console.log('=== Data refresh completed ===');
-              
-            } catch (error) {
-              console.error('=== UNEXPECTED ERROR in handleToggleAdmin ===');
-              console.error('Error object:', error);
-              console.error('Error message:', error instanceof Error ? error.message : String(error));
-              console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
-              console.error('Error type:', typeof error);
-              console.error('Error constructor:', error?.constructor?.name);
-              
-              Alert.alert(
-                'Error',
-                `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
-              );
-            }
-          }
-        }
-      ]
-    );
+      console.log('=== Database operation succeeded ===');
+      console.log('Success! Admin status toggled successfully');
+      
+      // Force refresh the data
+      console.log('=== Starting data refresh ===');
+      setLoading(true);
+      await loadCircleData();
+      setLoading(false);
+      console.log('=== Data refresh completed ===');
+      
+    } catch (error) {
+      console.error('=== UNEXPECTED ERROR in handleToggleAdmin ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error?.constructor?.name);
+      
+      Alert.alert(
+        'Error',
+        `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   };
 
   const handleLeaveCircle = async () => {
