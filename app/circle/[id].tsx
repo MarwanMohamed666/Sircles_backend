@@ -383,10 +383,12 @@ export default function CircleScreen() {
         {
           text: 'Confirm',
           onPress: async () => {
+            console.log('=== ALERT CONFIRM BUTTON PRESSED ===');
             console.log('=== User confirmed admin toggle ===');
             console.log('About to start async operation...');
             
             try {
+              console.log('=== ENTERING TRY BLOCK ===');
               console.log('=== Starting admin toggle process ===');
               console.log('Pre-operation validation:');
               console.log('- Circle ID:', id);
@@ -400,24 +402,28 @@ export default function CircleScreen() {
               let result;
               
               if (isCurrentlyAdmin) {
-                console.log('=== Calling removeCircleAdmin ===');
+                console.log('=== BRANCH: Calling removeCircleAdmin ===');
                 console.log('Parameters for removeCircleAdmin:', {
                   circleId: id,
                   userId: memberId,
                   requestingAdminId: user.id
                 });
                 
+                console.log('=== CALLING DatabaseService.removeCircleAdmin ===');
                 result = await DatabaseService.removeCircleAdmin(id as string, memberId, user.id);
+                console.log('=== removeCircleAdmin RETURNED ===');
                 console.log('removeCircleAdmin completed, result:', result);
               } else {
-                console.log('=== Calling addCircleAdmin ===');
+                console.log('=== BRANCH: Calling addCircleAdmin ===');
                 console.log('Parameters for addCircleAdmin:', {
                   circleId: id,
                   userId: memberId,
                   requestingAdminId: user.id
                 });
                 
+                console.log('=== CALLING DatabaseService.addCircleAdmin ===');
                 result = await DatabaseService.addCircleAdmin(id as string, memberId, user.id);
+                console.log('=== addCircleAdmin RETURNED ===');
                 console.log('addCircleAdmin completed, result:', result);
               }
 

@@ -764,6 +764,8 @@ export const DatabaseService = {
   },
 
   async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
+    console.log('🔵 DATABASE FUNCTION ENTRY: addCircleAdmin called');
+    console.log('🔵 IMMEDIATE ENTRY LOG - Function definitely started');
     try {
       console.log('=== DATABASE: addCircleAdmin function started ===');
       console.log('INPUT Parameters:', { 
@@ -918,6 +920,8 @@ export const DatabaseService = {
   },
 
   async removeCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
+    console.log('🔴 DATABASE FUNCTION ENTRY: removeCircleAdmin called');
+    console.log('🔴 IMMEDIATE ENTRY LOG - Function definitely started');
     try {
       console.log('=== DATABASE: removeCircleAdmin function started ===');
       console.log('INPUT Parameters:', { 
