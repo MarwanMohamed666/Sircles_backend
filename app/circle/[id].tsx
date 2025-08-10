@@ -80,6 +80,8 @@ export default function CircleScreen() {
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [imageUploading, setImageUploading] = useState(false); // State to track image upload
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [requestSearchQuery, setRequestSearchQuery] = useState('');
 
   const [newPostContent, setNewPostContent] = useState('');
   const [editedCircle, setEditedCircle] = useState({
@@ -956,6 +958,15 @@ export default function CircleScreen() {
     );
   };
 
+  // Filter functions for admin search
+  const filteredMembers = members.filter(member => 
+    member.name.toLowerCase().includes(memberSearchQuery.toLowerCase())
+  );
+
+  const filteredJoinRequests = joinRequests.filter(request => 
+    request.users.name.toLowerCase().includes(requestSearchQuery.toLowerCase())
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header */}
@@ -1151,8 +1162,28 @@ export default function CircleScreen() {
             <ThemedText type="subtitle" style={styles.sectionTitle}>
               Join Requests ({joinRequests.length})
             </ThemedText>
-            {joinRequests.length > 0 ? (
-              joinRequests.map(renderJoinRequest)
+            
+            {/* Join Requests Search */}
+            <View style={[styles.searchContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
+              <IconSymbol name="magnifyingglass" size={16} color={textColor + '60'} />
+              <TextInput
+                style={[styles.searchInput, { color: textColor }]}
+                placeholder="Search join requests by name..."
+                placeholderTextColor={textColor + '60'}
+                value={requestSearchQuery}
+                onChangeText={setRequestSearchQuery}
+              />
+              {requestSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setRequestSearchQuery('')}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={textColor + '40'} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {filteredJoinRequests.length > 0 ? (
+              filteredJoinRequests.map(renderJoinRequest)
+            ) : joinRequests.length > 0 ? (
+              <ThemedText style={styles.emptyText}>No join requests found matching "{requestSearchQuery}"</ThemedText>
             ) : (
               <ThemedText style={styles.emptyText}>No pending join requests</ThemedText>
             )}
@@ -1160,9 +1191,29 @@ export default function CircleScreen() {
             <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
               Circle Members ({members.length})
             </ThemedText>
+            
+            {/* Members Search */}
+            <View style={[styles.searchContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
+              <IconSymbol name="magnifyingglass" size={16} color={textColor + '60'} />
+              <TextInput
+                style={[styles.searchInput, { color: textColor }]}
+                placeholder="Search members by name..."
+                placeholderTextColor={textColor + '60'}
+                value={memberSearchQuery}
+                onChangeText={setMemberSearchQuery}
+              />
+              {memberSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setMemberSearchQuery('')}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={textColor + '40'} />
+                </TouchableOpacity>
+              )}
+            </View>
+
             <View style={styles.adminMembersContainer}>
-              {members.length > 0 ? (
-                members.map(renderAdminMember)
+              {filteredMembers.length > 0 ? (
+                filteredMembers.map(renderAdminMember)
+              ) : members.length > 0 ? (
+                <ThemedText style={styles.emptyText}>No members found matching "{memberSearchQuery}"</ThemedText>
               ) : (
                 <ThemedText style={styles.emptyText}>No members found</ThemedText>
               )}
@@ -1902,5 +1953,20 @@ const styles = StyleSheet.create({
   debugText: {
     fontSize: 12,
     fontFamily: 'monospace',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    minHeight: 24,
   },
 });
