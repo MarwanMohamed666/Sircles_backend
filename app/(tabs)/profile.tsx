@@ -243,7 +243,7 @@ export default function ProfileScreen() {
     console.log('=== UPLOAD AVATAR START ===');
     console.log('User exists:', !!user);
     console.log('User ID:', user?.id);
-    
+
     if (!user?.id) {
       console.error('No user ID found');
       Alert.alert('Error', 'You must be logged in to upload an avatar');
@@ -254,13 +254,13 @@ export default function ProfileScreen() {
     console.log('Checking session...');
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     console.log('Session check result:', { hasSession: !!session, sessionError });
-    
+
     if (sessionError) {
       console.error('Session error:', sessionError);
       Alert.alert('Error', `Session error: ${sessionError.message}`);
       return;
     }
-    
+
     if (!session) {
       console.error('No active session found');
       Alert.alert('Error', 'Your session has expired. Please log in again.');
@@ -273,7 +273,7 @@ export default function ProfileScreen() {
     try {
       // Get file extension from URI - handle base64 data URIs
       let fileExtension: string;
-      
+
       if (asset.uri.startsWith('data:image/')) {
         // Extract extension from data URI MIME type
         const mimeMatch = asset.uri.match(/data:image\/([^;]+)/);
@@ -290,7 +290,7 @@ export default function ProfileScreen() {
         Alert.alert('Error', 'Please select a PNG or JPG image');
         return;
       }
-      
+
       console.log('File extension validation passed:', fileExtension);
 
       // Normalize extension
@@ -313,14 +313,14 @@ export default function ProfileScreen() {
         hasStorageService: !!StorageService,
         hasUploadMethod: !!StorageService.uploadAvatar
       });
-      
+
       console.log('Calling StorageService.uploadAvatar NOW...');
       const { data, error } = await StorageService.uploadAvatar(
         user.id, 
         asset, 
         normalizedExtension
       );
-      
+
       console.log('StorageService.uploadAvatar returned:', { 
         hasData: !!data, 
         hasError: !!error,
@@ -398,15 +398,28 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
+    console.log('🔴 SIGNOUT: handleSignOut function started');
+
     try {
-      await signOut();
-      // Force navigation to login screen
+      console.log('🔴 SIGNOUT: About to call authSignOut()');
+      await authSignOut();
+      console.log('🔴 SIGNOUT: authSignOut() completed successfully');
+
+      console.log('🔴 SIGNOUT: About to show success alert');
+      Alert.alert(texts.success || 'Success', texts.loggedOut || 'Logged out successfully!');
+
+      console.log('🔴 SIGNOUT: About to navigate to login screen');
       router.replace('/login');
+      console.log('🔴 SIGNOUT: Navigation to login initiated');
+
     } catch (error) {
-      console.error('Error during logout:', error);
-      // Even if logout fails, navigate to login screen to be safe
-      router.replace('/login');
-      Alert.alert('Warning', 'Logout may not have completed properly. You have been redirected to login.');
+      console.error('🔴 SIGNOUT ERROR: Logout failed:', error);
+      console.error('🔴 SIGNOUT ERROR: Error details:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack
+      });
+      Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
 

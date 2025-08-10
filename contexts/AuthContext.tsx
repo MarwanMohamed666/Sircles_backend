@@ -160,14 +160,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    console.log('🔴 AUTH CONTEXT: signOut function called');
+    
     try {
+      console.log('🔴 AUTH CONTEXT: About to call supabase.auth.signOut()');
       const { error } = await supabase.auth.signOut();
+      
+      console.log('🔴 AUTH CONTEXT: supabase.auth.signOut() completed');
+      console.log('🔴 AUTH CONTEXT: signOut result:', { error });
+      
       if (error) {
-        console.error('Error signing out:', error);
+        console.error('🔴 AUTH CONTEXT ERROR: Supabase signOut error:', error);
         throw error;
       }
+      
+      console.log('🔴 AUTH CONTEXT: signOut successful, clearing state');
+      
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('🔴 AUTH CONTEXT CATCH: Error signing out:', error);
+      console.log('🔴 AUTH CONTEXT: Setting user/profile/session to null due to error');
       setUser(null);
       setUserProfile(null);
       setSession(null);
