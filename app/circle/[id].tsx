@@ -516,7 +516,7 @@ export default function CircleScreen() {
                   currentCircleHasPendingRequest: circle?.hasPendingRequest
                 });
                 
-                // Immediately update both UI states to show pending
+                // Immediately update both UI states to show pending (this handles the immediate UI response)
                 setHasPendingRequest(true);
                 setCircle(prev => {
                   const updated = prev ? { ...prev, hasPendingRequest: true } : null;
@@ -529,6 +529,12 @@ export default function CircleScreen() {
                 
                 console.log('🚀 === JOIN REQUEST COMPLETED ===');
                 console.log('🚀 Final expected state: hasPendingRequest=true, circleHasPendingRequest=true');
+                
+                // Optional: Add a small delay before refreshing data to allow database consistency
+                setTimeout(async () => {
+                  console.log('🚀 Refreshing data after join request to ensure consistency');
+                  await loadCircleData();
+                }, 1000);
               } catch (error) {
                 console.log('🚀 Join request caught error:', error);
                 Alert.alert('Error', 'Failed to send join request');

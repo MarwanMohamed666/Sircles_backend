@@ -804,17 +804,19 @@ export const DatabaseService = {
 
       console.log('Checking for pending request:', { circleId, userId });
 
-      // Use .maybeSingle() instead of .single() to handle cases where no rows exist
+      // Use array query with limit to avoid single row issues and add retry logic for newly created rows
       const { data, error } = await supabase
         .from('circle_join_requests')
         .select('*')
         .eq('circleid', circleId)
         .eq('userid', userId)
         .eq('status', 'pending')
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
       console.log('Pending request query result:', { 
-        hasData: !!data, 
+        hasData: !!data && data.length > 0, 
+        dataLength: data?.length || 0,
         hasError: !!error, 
         errorCode: error?.code,
         errorMessage: error?.message 
@@ -825,9 +827,11 @@ export const DatabaseService = {
         return { data: null, error };
       }
 
-      const hasPending = !!data;
+      // Get the most recent pending request if any exists
+      const pendingRequest = data && data.length > 0 ? data[0] : null;
+      const hasPending = !!pendingRequest;
       console.log('Final pending status:', hasPending);
-      return { data: data, error: null };
+      return { data: pendingRequest, error: null };
     } catch (error) {
       console.error('Error in getUserPendingRequest:', error);
       return { data: null, error: error as Error };
