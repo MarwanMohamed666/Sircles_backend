@@ -111,6 +111,21 @@ export default function AdminScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Join Requests Review */}
+        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            {texts.joinRequests || 'Join Requests'}
+          </ThemedText>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
+            onPress={() => router.push('/join-requests')}
+          >
+            <ThemedText style={[styles.actionButtonText, { color: '#fff' }]}>
+              Manage Join Requests
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
         {/* Reports Review */}
         <View style={[styles.section, { backgroundColor: surfaceColor }]}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>

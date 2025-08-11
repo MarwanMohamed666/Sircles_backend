@@ -620,23 +620,67 @@ export const DatabaseService = {
 
   async requestToJoinCircle(userId: string, circleId: string, message?: string) {
     try {
-      // For now, since we don't have circle_join_requests table, we'll create a notification
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('user_circles')
+        .select('userid')
+        .eq('userid', userId)
+        .eq('circleid', circleId)
+        .single();
+
+      if (existingMember) {
+        return { data: null, error: new Error('You are already a member of this circle') };
+      }
+
+      // Check if user already has a pending request
+      const { data: existingRequest } = await supabase
+        .from('circle_join_requests')
+        .select('id, status')
+        .eq('userid', userId)
+        .eq('circleid', circleId)
+        .single();
+
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          return { data: null, error: new Error('You already have a pending request for this circle') };
+        } else if (existingRequest.status === 'rejected') {
+          // Update the existing rejected request to pending with new message
+          const { data, error } = await supabase
+            .from('circle_join_requests')
+            .update({
+              message: message || '',
+              status: 'pending',
+              created_at: new Date().toISOString()
+            })
+            .eq('id', existingRequest.id)
+            .select()
+            .single();
+
+          return { data, error };
+        }
+      }
+
+      // Create new join request
       const { data, error } = await supabase
-        .from('notifications')
+        .from('circle_join_requests')
         .insert({
           id: crypto.randomUUID(),
-          userid: circleId, // We'll need the circle admin's ID here
-          type: 'join_request',
-          content: `User wants to join circle: ${message || 'No message'}`,
-          read: false,
-          timestamp: new Date().toISOString(),
-          linkeditemid: circleId,
-          linkeditemtype: 'circle',
-          creationdate: new Date().toISOString()
-        });
+          userid: userId,
+          circleid: circleId,
+          message: message || '',
+          status: 'pending'
+        })
+        .select()
+        .single();
 
       if (error) {
-        console.error('Error creating join request notification:', error);
+        console.error('Error creating join request:', error);
         return { data: null, error };
       }
 
@@ -649,9 +693,32 @@ export const DatabaseService = {
 
   async getCircleJoinRequests(circleId: string) {
     try {
-      // For now, return empty array since we don't have a proper join requests table
-      // This prevents the delete function from failing
-      return { data: [], error: null };
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: [], error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('circle_join_requests')
+        .select(`
+          *,
+          users!circle_join_requests_userid_fkey(
+            id,
+            name,
+            avatar_url
+          )
+        `)
+        .eq('circleid', circleId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching join requests:', error);
+        return { data: [], error };
+      }
+
+      return { data: data || [], error: null };
     } catch (error) {
       console.error('Error in getCircleJoinRequests:', error);
       return { data: [], error: error as Error };
@@ -660,19 +727,54 @@ export const DatabaseService = {
 
   async handleJoinRequest(requestId: string, action: 'accept' | 'reject') {
     try {
-      // Mark notification as read
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Get the join request details
+      const { data: request, error: requestError } = await supabase
+        .from('circle_join_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (requestError || !request) {
+        return { data: null, error: new Error('Join request not found') };
+      }
+
+      // Update request status
       const { error: updateError } = await supabase
-        .from('notifications')
-        .update({ read: true })
+        .from('circle_join_requests')
+        .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
         .eq('id', requestId);
 
-      if (updateError) return { data: null, error: updateError };
+      if (updateError) {
+        return { data: null, error: updateError };
+      }
 
-      // For now, we'll just mark it as read since we don't have the user-circle connection
-      // In a full implementation, you'd extract user ID from the notification content
-      // and add them to the circle if accepted
+      // If accepted, add user to circle
+      if (action === 'accept') {
+        const { error: joinError } = await supabase
+          .from('user_circles')
+          .insert({
+            userid: request.userid,
+            circleid: request.circleid
+          });
 
-      return { data: { success: true }, error: null };
+        if (joinError) {
+          // Rollback request status update
+          await supabase
+            .from('circle_join_requests')
+            .update({ status: 'pending' })
+            .eq('id', requestId);
+          
+          return { data: null, error: new Error('Failed to add user to circle') };
+        }
+      }
+
+      return { data: { success: true, action }, error: null };
     } catch (error) {
       console.error('Error in handleJoinRequest:', error);
       return { data: null, error: error as Error };

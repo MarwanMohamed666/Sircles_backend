@@ -198,11 +198,13 @@ export default function CircleScreen() {
     try {
       const { error } = await DatabaseService.handleJoinRequest(requestId, action);
       if (error) {
-        Alert.alert('Error', `Failed to ${action} request`);
+        Alert.alert('Error', `Failed to ${action} request: ${error.message}`);
         return;
       }
 
       Alert.alert('Success', `Request ${action}ed successfully`);
+
+      // Refresh both join requests and members (if accepted)
       await loadCircleData();
     } catch (error) {
       Alert.alert('Error', `Failed to ${action} request`);
@@ -363,7 +365,7 @@ export default function CircleScreen() {
       console.log('=== ENTERING TRY BLOCK ===');
       console.log('=== About to call database function ===');
       let result;
-      
+
       if (isCurrentlyAdmin) {
         console.log('=== BRANCH: Calling removeCircleAdmin ===');
         console.log('Parameters for removeCircleAdmin:', {
@@ -371,7 +373,7 @@ export default function CircleScreen() {
           userId: memberId,
           requestingAdminId: user.id
         });
-        
+
         console.log('=== CALLING DatabaseService.removeCircleAdmin ===');
         result = await DatabaseService.removeCircleAdmin(id as string, memberId, user.id);
         console.log('=== removeCircleAdmin RETURNED ===');
@@ -383,7 +385,7 @@ export default function CircleScreen() {
           userId: memberId,
           requestingAdminId: user.id
         });
-        
+
         console.log('=== CALLING DatabaseService.addCircleAdmin ===');
         result = await DatabaseService.addCircleAdmin(id as string, memberId, user.id);
         console.log('=== addCircleAdmin RETURNED ===');
@@ -401,7 +403,7 @@ export default function CircleScreen() {
         console.error('Error object:', result.error);
         console.error('Error message:', result.error.message);
         console.error('Error type:', typeof result.error);
-        
+
         Alert.alert(
           'Error',
           `Failed to ${action} ${memberName}: ${result.error.message || 'Unknown error occurred'}`
@@ -411,14 +413,14 @@ export default function CircleScreen() {
 
       console.log('=== Database operation succeeded ===');
       console.log('Success! Admin status toggled successfully');
-      
+
       // Force refresh the data
       console.log('=== Starting data refresh ===');
       setLoading(true);
       await loadCircleData();
       setLoading(false);
       console.log('=== Data refresh completed ===');
-      
+
     } catch (error) {
       console.error('=== UNEXPECTED ERROR in handleToggleAdmin ===');
       console.error('Error object:', error);
@@ -426,7 +428,7 @@ export default function CircleScreen() {
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       console.error('Error type:', typeof error);
       console.error('Error constructor:', error?.constructor?.name);
-      
+
       Alert.alert(
         'Error',
         `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -864,39 +866,41 @@ export default function CircleScreen() {
     </View>
   );
 
-  const renderJoinRequest = (request: JoinRequest) => (
-    <View key={request.id} style={[styles.requestCard, { backgroundColor: surfaceColor }]}>
-      <View style={[styles.requestInfo, isRTL && styles.requestInfoRTL]}>
-        <Image
-          source={{ uri: request.users.avatar || 'https://via.placeholder.com/40' }}
-          style={styles.requestAvatar}
-        />
-        <View style={styles.requestDetails}>
-          <ThemedText type="defaultSemiBold">{request.users.name}</ThemedText>
-          {request.message && (
-            <ThemedText style={styles.requestMessage}>{request.message}</ThemedText>
-          )}
-          <ThemedText style={styles.requestTime}>
-            {new Date(request.creationdate).toLocaleDateString()}
-          </ThemedText>
+  const renderJoinRequest = (request: JoinRequest) => {
+    return (
+      <View key={request.id} style={[styles.requestCard, { backgroundColor: surfaceColor }]}>
+        <View style={[styles.requestInfo, isRTL && styles.requestInfoRTL]}>
+          <Image
+            source={{ uri: request.users.avatar || 'https://via.placeholder.com/40' }}
+            style={styles.requestAvatar}
+          />
+          <View style={styles.requestDetails}>
+            <ThemedText type="defaultSemiBold">{request.users.name}</ThemedText>
+            {request.message && (
+              <ThemedText style={styles.requestMessage}>"{request.message}"</ThemedText>
+            )}
+            <ThemedText style={styles.requestTime}>
+              {new Date(request.creationdate).toLocaleDateString()}
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.requestActions}>
+          <TouchableOpacity
+            style={[styles.requestButton, { backgroundColor: tintColor }]}
+            onPress={() => handleJoinRequest(request.id, 'accept')}
+          >
+            <ThemedText style={styles.requestButtonText}>Accept</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.requestButton, { backgroundColor: '#EF5350' }]}
+            onPress={() => handleJoinRequest(request.id, 'reject')}
+          >
+            <ThemedText style={styles.requestButtonText}>Reject</ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.requestActions}>
-        <TouchableOpacity
-          style={[styles.requestButton, { backgroundColor: tintColor }]}
-          onPress={() => handleJoinRequest(request.id, 'accept')}
-        >
-          <ThemedText style={styles.requestButtonText}>Accept</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.requestButton, { backgroundColor: '#EF5350' }]}
-          onPress={() => handleJoinRequest(request.id, 'reject')}
-        >
-          <ThemedText style={styles.requestButtonText}>Reject</ThemedText>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderAdminMember = (member: Member) => {
     console.log('Rendering admin member:', {
@@ -1187,7 +1191,7 @@ export default function CircleScreen() {
             <ThemedText type="subtitle" style={styles.sectionTitle}>
               Join Requests ({joinRequests.length})
             </ThemedText>
-            
+
             {/* Join Requests Search */}
             <View style={[styles.searchContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
               <IconSymbol name="magnifyingglass" size={16} color={textColor + '60'} />
@@ -1216,7 +1220,7 @@ export default function CircleScreen() {
             <ThemedText type="subtitle" style={[styles.sectionTitle, { marginTop: 24 }]}>
               Circle Members ({members.length})
             </ThemedText>
-            
+
             {/* Members Search */}
             <View style={[styles.searchContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
               <IconSymbol name="magnifyingglass" size={16} color={textColor + '60'} />
@@ -1738,12 +1742,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requestMessage: {
-    fontSize: 14,
+    fontSize: 12,
+    fontStyle: 'italic',
     opacity: 0.7,
     marginTop: 2,
   },
   requestTime: {
-    fontSize: 12,
+    fontSize: 11,
     opacity: 0.5,
     marginTop: 2,
   },
@@ -1755,11 +1760,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   requestButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+  },
+  acceptButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  rejectButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   centeredContainer: {
     flex: 1,
