@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedCircle, setSelectedCircle] = useState<string>('');
   const [userCircles, setUserCircles] = useState<any[]>([]);
+  const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -117,6 +119,25 @@ export default function HomeScreen() {
     return date.toLocaleDateString();
   };
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setSelectedPostImage(result.assets[0]);
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!newPostContent.trim() || !selectedCircle) {
       Alert.alert('Error', 'Please enter post content and select a circle');
@@ -129,10 +150,21 @@ export default function HomeScreen() {
     }
 
     try {
+      let imageUrl = undefined;
+      if (selectedPostImage) {
+        const uploadResponse = await DatabaseService.uploadImage(selectedPostImage);
+        if (uploadResponse.error) {
+          Alert.alert('Error', 'Failed to upload image');
+          return;
+        }
+        imageUrl = uploadResponse.url;
+      }
+
       const { error } = await DatabaseService.createPost({
         userid: user.id,
         content: newPostContent.trim(),
-        circleid: selectedCircle
+        circleid: selectedCircle,
+        image: imageUrl,
       });
 
       if (error) {
@@ -143,6 +175,7 @@ export default function HomeScreen() {
       Alert.alert('Success', 'Post created successfully!');
       setNewPostContent('');
       setSelectedCircle('');
+      setSelectedPostImage(null);
       setShowPostModal(false);
       await loadPosts();
     } catch (error) {
@@ -377,12 +410,36 @@ export default function HomeScreen() {
                   textAlignVertical="top"
                 />
               </View>
+
+              {/* Image Picker */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>Add Photo:</ThemedText>
+                <TouchableOpacity onPress={pickImage} style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}>
+                  {selectedPostImage ? (
+                    <View style={styles.selectedImageContainer}>
+                      <Image source={{ uri: selectedPostImage.uri }} style={styles.selectedPostImage} />
+                      <View style={styles.imageOverlay}>
+                        <IconSymbol name="photo" size={24} color="#fff" />
+                        <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <IconSymbol name="photo" size={32} color={tintColor} />
+                      <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>Tap to select a photo</ThemedText>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor }]}
-                onPress={() => setShowPostModal(false)}
+                onPress={() => {
+                  setShowPostModal(false);
+                  setSelectedPostImage(null);
+                }}
               >
                 <ThemedText>Cancel</ThemedText>
               </TouchableOpacity>
@@ -630,7 +687,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#ccc',
   },
   inputSection: {
     marginBottom: 20,
@@ -661,5 +718,47 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     minHeight: 100,
     maxHeight: 200,
+  },
+  imagePickerButton: {
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+  },
+  selectedImageContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  selectedPostImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changeImageText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -81,6 +81,8 @@ export default function CircleScreen() {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imageUploading, setImageUploading] = useState(false); // State to track image upload
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [requestSearchQuery, setRequestSearchQuery] = useState('');
@@ -490,7 +492,7 @@ export default function CircleScreen() {
               try {
                 console.log('🚀 === JOIN REQUEST STARTING ===');
                 console.log('🚀 Request parameters:', { userId: user.id, circleId: id, message: message || 'No message' });
-                
+
                 const { error } = await DatabaseService.requestToJoinCircle(user.id, id as string, message || '');
                 if (error) {
                   console.log('🚀 Join request error:', error.message);
@@ -506,16 +508,16 @@ export default function CircleScreen() {
                   }
                   return;
                 }
-                
+
                 console.log('🚀 Join request successful! Updating UI states...');
                 Alert.alert('Success', 'Join request sent! The admin will review your request.');
-                
+
                 // Log current state before update
                 console.log('🚀 State before update:', {
                   currentHasPendingRequest: hasPendingRequest,
                   currentCircleHasPendingRequest: circle?.hasPendingRequest
                 });
-                
+
                 // Immediately update both UI states to show pending (this handles the immediate UI response)
                 setHasPendingRequest(true);
                 setCircle(prev => {
@@ -526,10 +528,10 @@ export default function CircleScreen() {
                   });
                   return updated;
                 });
-                
+
                 console.log('🚀 === JOIN REQUEST COMPLETED ===');
                 console.log('🚀 Final expected state: hasPendingRequest=true, circleHasPendingRequest=true');
-                
+
                 // Optional: Add a small delay before refreshing data to allow database consistency
                 setTimeout(async () => {
                   console.log('🚀 Refreshing data after join request to ensure consistency');
@@ -796,14 +798,29 @@ export default function CircleScreen() {
     }
   };
 
+  // This function should be renamed to loadCirclePosts
+  const loadCirclePosts = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const { data: postsData } = await DatabaseService.getPosts(id as string);
+      setPosts(postsData || []);
+    } catch (error) {
+      console.error("Error loading posts:", error);
+      Alert.alert("Error", "Failed to load posts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) {
       Alert.alert('Error', 'Please enter post content');
       return;
     }
 
-    if (!user?.id || !id) {
-      Alert.alert('Error', 'Unable to create post');
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to create posts');
       return;
     }
 
@@ -811,8 +828,8 @@ export default function CircleScreen() {
       const { error } = await DatabaseService.createPost({
         userid: user.id,
         content: newPostContent.trim(),
-        circleid: id as string
-      });
+        circleid: id
+      }, selectedPostImage);
 
       if (error) {
         Alert.alert('Error', 'Failed to create post');
@@ -821,8 +838,9 @@ export default function CircleScreen() {
 
       Alert.alert('Success', 'Post created successfully!');
       setNewPostContent('');
+      setSelectedPostImage(null);
       setShowPostModal(false);
-      await loadCircleData();
+      await loadCirclePosts();
     } catch (error) {
       Alert.alert('Error', 'Failed to create post');
     }
@@ -1125,7 +1143,7 @@ export default function CircleScreen() {
           {(() => {
             const showJoinButton = !circle?.isJoined && !hasPendingRequest && !circle?.hasPendingRequest;
             const showPendingButton = !circle?.isJoined && (hasPendingRequest || circle?.hasPendingRequest);
-            
+
             console.log('🎨 BUTTON RENDER CHECK:', {
               circleIsJoined: circle?.isJoined,
               localHasPendingRequest: hasPendingRequest,
@@ -1134,10 +1152,10 @@ export default function CircleScreen() {
               showPendingButton,
               circlePrivacy: circle?.privacy
             });
-            
+
             return null;
           })()}
-          
+
           {!circle?.isJoined && !hasPendingRequest && !circle?.hasPendingRequest && (
             <TouchableOpacity
               style={[styles.joinButton, { backgroundColor: tintColor }]}
@@ -1490,12 +1508,50 @@ export default function CircleScreen() {
                   textAlignVertical="top"
                 />
               </View>
+
+              {/* Image Picker for Post */}
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>Add Photo</ThemedText>
+                <TouchableOpacity
+                  onPress={pickPostImage}
+                  style={[
+                    styles.imagePickerButton,
+                    { backgroundColor: backgroundColor, borderColor: tintColor },
+                    selectedPostImage && styles.selectedImageContainer
+                  ]}
+                >
+                  {selectedPostImage ? (
+                    <>
+                      <Image source={{ uri: selectedPostImage.uri }} style={styles.selectedPostImage} />
+                      <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                        <IconSymbol name="camera" size={16} color="#fff" />
+                        <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <IconSymbol name="camera" size={32} color={tintColor} />
+                      <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>
+                        Tap to select photo
+                      </ThemedText>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {selectedPostImage && (
+                  <ThemedText style={{ fontSize: 12, color: textColor + '80', marginTop: 4 }}>
+                    File size: {(selectedPostImage.fileSize / 1024 / 1024).toFixed(2)} MB
+                  </ThemedText>
+                )}
+              </View>
             </View>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor }]}
-                onPress={() => setShowPostModal(false)}
+                onPress={() => {
+                  setShowPostModal(false);
+                  setSelectedPostImage(null); // Clear selected image when closing
+                }}
               >
                 <ThemedText>Cancel</ThemedText>
               </TouchableOpacity>
@@ -2376,5 +2432,52 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     minHeight: 24,
+  },
+  // Added styles for image picker functionality
+  imagePickerButton: {
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedImageContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  selectedPostImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8, // Match the button's border radius
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 8, // Match the button's border radius
+  },
+  changeImageText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
