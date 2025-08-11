@@ -659,7 +659,7 @@ export default function CircleScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.Images],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -1550,7 +1550,7 @@ export default function CircleScreen() {
             </View>
 
             <View style={styles.modalBody}>
-              <View style={styles.circleInfo}>
+              <View style={styles.inputSection}>
                 <ThemedText style={styles.postingInLabel}>Posting in:</ThemedText>
                 <ThemedText style={[styles.circleName, { color: tintColor }]}>{circle.name}</ThemedText>
               </View>
@@ -2453,11 +2453,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.7,
   },
-  circleInfo: {
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
+  circleName: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   inputLabel: {
     fontSize: 14,
