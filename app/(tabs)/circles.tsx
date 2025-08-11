@@ -26,6 +26,7 @@ interface Circle {
   member_count?: number; // Added to match backend
   circle_profile_url?: string;
   creator?: string; // Added to match backend for creator check
+  hasPendingRequest?: boolean; // Added to track pending join requests
 }
 
 export default function CirclesScreen() {
@@ -71,6 +72,8 @@ export default function CirclesScreen() {
 
       // Load user's joined circles if user is logged in
       let joinedCircleIds = new Set<string>();
+      let pendingRequestCircleIds = new Set<string>();
+
       if (userProfile?.id) {
         const { data: userCirclesResult, error: joinedError } = await getCirclesByUser(userProfile.id);
         if (joinedError) {
@@ -79,12 +82,25 @@ export default function CirclesScreen() {
         } else {
           joinedCircleIds = new Set(userCirclesResult?.map(uc => uc.circleId) || []);
         }
+
+        // Check for pending requests for private circles
+        if (allCircles) {
+          for (const circle of allCircles) {
+            if (circle.privacy === 'private' && !joinedCircleIds.has(circle.id)) {
+              const { data: pendingRequest } = await DatabaseService.getUserPendingRequest(circle.id, userProfile.id);
+              if (pendingRequest) {
+                pendingRequestCircleIds.add(circle.id);
+              }
+            }
+          }
+        }
       }
 
       // Format circles
       const circlesWithCount = allCircles?.map(circle => ({
         ...circle,
         isJoined: joinedCircleIds.has(circle.id),
+        hasPendingRequest: pendingRequestCircleIds.has(circle.id),
         memberCount: circle.member_count || 0 // Use member_count from the table
       })) || [];
 
@@ -467,16 +483,25 @@ export default function CirclesScreen() {
         <TouchableOpacity
           style={[
             styles.joinButton,
-            { backgroundColor: circle.isJoined ? '#EF5350' : tintColor }
+            { 
+              backgroundColor: circle.isJoined 
+                ? '#EF5350' 
+                : circle.hasPendingRequest 
+                  ? '#FF9800' 
+                  : tintColor 
+            }
           ]}
           onPress={() => handleJoinLeave(circle.id, circle.isJoined || false, circle.name, circle.privacy)}
+          disabled={circle.hasPendingRequest}
         >
           <ThemedText style={styles.joinButtonText}>
             {circle.isJoined 
               ? texts.leave || 'Leave' 
-              : circle.privacy === 'private' 
-                ? 'Request to Join'
-                : texts.join || 'Join'
+              : circle.hasPendingRequest
+                ? 'Pending'
+                : circle.privacy === 'private' 
+                  ? 'Request to Join'
+                  : texts.join || 'Join'
             }
           </ThemedText>
         </TouchableOpacity>
