@@ -804,13 +804,14 @@ export const DatabaseService = {
 
       console.log('Checking for pending request:', { circleId, userId });
 
+      // Use .maybeSingle() instead of .single() to handle cases where no rows exist
       const { data, error } = await supabase
         .from('circle_join_requests')
         .select('*')
         .eq('circleid', circleId)
         .eq('userid', userId)
         .eq('status', 'pending')
-        .single();
+        .maybeSingle();
 
       console.log('Pending request query result:', { 
         hasData: !!data, 
@@ -819,14 +820,14 @@ export const DatabaseService = {
         errorMessage: error?.message 
       });
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error) {
         console.error('Error checking pending request:', error);
         return { data: null, error };
       }
 
       const hasPending = !!data;
       console.log('Final pending status:', hasPending);
-      return { data: data || null, error: null };
+      return { data: data, error: null };
     } catch (error) {
       console.error('Error in getUserPendingRequest:', error);
       return { data: null, error: error as Error };
