@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { StorageService } from './storage';
 import type { User, Circle, Event, Post, Interest } from '@/types/database';
 
 // Export individual functions for easier importing
@@ -10,7 +11,7 @@ export const createCircle = (circle: Omit<Circle, 'id' | 'creationdate'>) => Dat
 export const getEvents = () => DatabaseService.getEvents();
 export const createEvent = (event: Omit<Event, 'id' | 'creationdate'>) => DatabaseService.createEvent(event);
 export const getPosts = (circleId?: string) => DatabaseService.getPosts(circleId);
-export const createPost = (post: Omit<Post, 'id' | 'creationdate'>) => DatabaseService.createPost(post);
+export const createPost = (post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) => DatabaseService.createPost(post, photoAsset);
 export const getInterests = () => DatabaseService.getInterests();
 export const getUserInterests = (userId: string) => DatabaseService.getUserInterests(userId);
 export const getInterestsByCategory = () => DatabaseService.getInterestsByCategory();
@@ -465,25 +466,71 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createPost(post: Omit<Post, 'id' | 'creationdate'>) {
+  async createPost(post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
       return { data: null, error: new Error('Authentication required') };
     }
 
-    const newPost = {
-      id: crypto.randomUUID(),
-      ...post,
-      creationdate: new Date().toISOString(),
-    };
+    const postId = crypto.randomUUID();
+    
+    try {
+      let imageUrl = null;
 
-    const { data, error } = await supabase
-      .from('posts')
-      .insert(newPost)
-      .select()
-      .single();
-    return { data, error };
+      // Upload photo if provided
+      if (photoAsset) {
+        console.log('Uploading post photo...');
+        const { data: uploadData, error: uploadError } = await StorageService.uploadPostPhoto(
+          postId, 
+          photoAsset, 
+          currentUser.user.id
+        );
+
+        if (uploadError) {
+          console.error('Error uploading post photo:', uploadError);
+          return { data: null, error: uploadError };
+        }
+
+        if (uploadData?.publicUrl) {
+          imageUrl = uploadData.publicUrl;
+          console.log('Post photo uploaded successfully:', imageUrl);
+        }
+      }
+
+      const newPost = {
+        id: postId,
+        ...post,
+        image: imageUrl, // Set the image URL
+        creationdate: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from('posts')
+        .insert(newPost)
+        .select()
+        .single();
+
+      if (error) {
+        // If post creation fails and we uploaded a photo, clean it up
+        if (imageUrl && photoAsset) {
+          try {
+            // Extract filename from URL for cleanup
+            const urlParts = imageUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            await StorageService.deletePostPhoto(postId, fileName);
+          } catch (cleanupError) {
+            console.error('Error cleaning up uploaded photo after post creation failure:', cleanupError);
+          }
+        }
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in createPost:', error);
+      return { data: null, error: error as Error };
+    }
   },
 
   // Interest operations
