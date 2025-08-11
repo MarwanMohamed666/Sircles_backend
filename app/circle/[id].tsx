@@ -109,6 +109,9 @@ export default function CircleScreen() {
   const loadCircleData = async () => {
     if (!id) return;
 
+    console.log('🔄 === LOAD_CIRCLE_DATA STARTED ===');
+    console.log('🔄 Function called with:', { id, userId: user?.id });
+
     try {
       // Load circle details
       const { data: circleDataFromDb, error: circleError } = await DatabaseService.getCircles();
@@ -119,6 +122,8 @@ export default function CircleScreen() {
         router.back();
         return;
       }
+
+      console.log('🔄 Circle found:', { circleId: currentCircle.id, name: currentCircle.name });
 
       // Check membership and admin status
       let isJoined = false;
@@ -131,22 +136,24 @@ export default function CircleScreen() {
         const { data: joinedCircles } = await DatabaseService.getUserJoinedCircles(user.id);
         isJoined = joinedCircles?.some(jc => jc.circleid === id) || false;
 
-        console.log('Membership check result:', { userId: user.id, circleId: id, isJoined });
+        console.log('🔄 Membership check result:', { userId: user.id, circleId: id, isJoined });
 
         if (isJoined) {
           const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
           isAdmin = adminData?.isAdmin || false;
           isMainAdmin = adminData?.isMainAdmin || false;
+          console.log('🔄 Admin check (member):', { isAdmin, isMainAdmin });
         } else {
           // Check for pending request if not a member
-          console.log('Checking for pending request since user is not a member');
+          console.log('🔄 Checking for pending request since user is not a member');
           const { data: pendingRequest, error: pendingError } = await DatabaseService.getUserPendingRequest(id as string, user.id);
-          console.log('Pending request check result:', { 
+          console.log('🔄 Pending request check result:', { 
             hasPendingData: !!pendingRequest, 
+            pendingRequestData: pendingRequest,
             pendingError: pendingError?.message 
           });
           hasPendingRequest = !!pendingRequest;
-          console.log('Setting hasPendingRequest to:', hasPendingRequest);
+          console.log('🔄 Setting hasPendingRequest to:', hasPendingRequest);
         }
       }
 
@@ -164,9 +171,19 @@ export default function CircleScreen() {
         hasPendingRequest
       };
 
+      console.log('🔄 About to update states with:', {
+        hasPendingRequest,
+        isJoined,
+        circleHasPendingRequest: updatedCircle.hasPendingRequest
+      });
+
       setCircle(updatedCircle);
       setHasPendingRequest(hasPendingRequest);
-      console.log('Circle state updated with pending request status:', hasPendingRequest);
+      console.log('🔄 === LOAD_CIRCLE_DATA COMPLETED ===');
+      console.log('🔄 Final state should be:', { 
+        localHasPendingRequest: hasPendingRequest,
+        circleHasPendingRequest: updatedCircle.hasPendingRequest
+      });
 
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
@@ -471,25 +488,49 @@ export default function CircleScreen() {
             text: 'Send Request',
             onPress: async (message) => {
               try {
+                console.log('🚀 === JOIN REQUEST STARTING ===');
+                console.log('🚀 Request parameters:', { userId: user.id, circleId: id, message: message || 'No message' });
+                
                 const { error } = await DatabaseService.requestToJoinCircle(user.id, id as string, message || '');
                 if (error) {
+                  console.log('🚀 Join request error:', error.message);
                   if (error.message.includes('already requested') || error.message.includes('already have a pending request')) {
                     Alert.alert('Info', 'You have already requested to join this circle.');
                     // Update the local state to show pending
+                    console.log('🚀 Setting state for already requested scenario');
                     setHasPendingRequest(true);
                     setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
+                    console.log('🚀 State updated for already requested');
                   } else {
                     Alert.alert('Error', 'Failed to send join request');
                   }
                   return;
                 }
+                
+                console.log('🚀 Join request successful! Updating UI states...');
                 Alert.alert('Success', 'Join request sent! The admin will review your request.');
+                
+                // Log current state before update
+                console.log('🚀 State before update:', {
+                  currentHasPendingRequest: hasPendingRequest,
+                  currentCircleHasPendingRequest: circle?.hasPendingRequest
+                });
+                
                 // Immediately update both UI states to show pending
                 setHasPendingRequest(true);
-                setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
-                // Don't refresh data immediately to prevent UI flicker
-                console.log('Join request sent, UI updated to show pending status');
+                setCircle(prev => {
+                  const updated = prev ? { ...prev, hasPendingRequest: true } : null;
+                  console.log('🚀 Circle state updated to:', {
+                    hasPendingRequest: updated?.hasPendingRequest,
+                    isJoined: updated?.isJoined
+                  });
+                  return updated;
+                });
+                
+                console.log('🚀 === JOIN REQUEST COMPLETED ===');
+                console.log('🚀 Final expected state: hasPendingRequest=true, circleHasPendingRequest=true');
               } catch (error) {
+                console.log('🚀 Join request caught error:', error);
                 Alert.alert('Error', 'Failed to send join request');
               }
             }
@@ -869,6 +910,8 @@ export default function CircleScreen() {
   };
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered - about to call loadCircleData');
+    console.log('🔄 useEffect dependencies:', { id, userId: user?.id });
     loadCircleData();
   }, [id, user]);
 
@@ -1073,6 +1116,22 @@ export default function CircleScreen() {
         </ThemedText>
         <View style={styles.headerActions}>
           {/* Join/Pending/Leave button */}
+          {(() => {
+            const showJoinButton = !circle?.isJoined && !hasPendingRequest && !circle?.hasPendingRequest;
+            const showPendingButton = !circle?.isJoined && (hasPendingRequest || circle?.hasPendingRequest);
+            
+            console.log('🎨 BUTTON RENDER CHECK:', {
+              circleIsJoined: circle?.isJoined,
+              localHasPendingRequest: hasPendingRequest,
+              circleHasPendingRequest: circle?.hasPendingRequest,
+              showJoinButton,
+              showPendingButton,
+              circlePrivacy: circle?.privacy
+            });
+            
+            return null;
+          })()}
+          
           {!circle?.isJoined && !hasPendingRequest && !circle?.hasPendingRequest && (
             <TouchableOpacity
               style={[styles.joinButton, { backgroundColor: tintColor }]}
