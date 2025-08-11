@@ -24,6 +24,14 @@ CREATE POLICY "Users can view own join requests" ON circle_join_requests
     auth.role() = 'authenticated' AND userid = auth.uid()
   );
 
+-- Ensure users can also view their own pending requests specifically
+CREATE POLICY "Users can view own pending requests" ON circle_join_requests
+  FOR SELECT USING (
+    auth.role() = 'authenticated' AND 
+    userid = auth.uid() AND 
+    status = 'pending'
+  );
+
 -- Circle admins and creators can view requests for their circles
 CREATE POLICY "Circle admins can view join requests" ON circle_join_requests
   FOR SELECT USING (

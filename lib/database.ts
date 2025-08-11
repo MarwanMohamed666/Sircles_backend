@@ -802,6 +802,8 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication required') };
       }
 
+      console.log('Checking for pending request:', { circleId, userId });
+
       const { data, error } = await supabase
         .from('circle_join_requests')
         .select('*')
@@ -810,11 +812,20 @@ export const DatabaseService = {
         .eq('status', 'pending')
         .single();
 
+      console.log('Pending request query result:', { 
+        hasData: !!data, 
+        hasError: !!error, 
+        errorCode: error?.code,
+        errorMessage: error?.message 
+      });
+
       if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
         console.error('Error checking pending request:', error);
         return { data: null, error };
       }
 
+      const hasPending = !!data;
+      console.log('Final pending status:', hasPending);
       return { data: data || null, error: null };
     } catch (error) {
       console.error('Error in getUserPendingRequest:', error);

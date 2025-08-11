@@ -139,8 +139,14 @@ export default function CircleScreen() {
           isMainAdmin = adminData?.isMainAdmin || false;
         } else {
           // Check for pending request if not a member
-          const { data: pendingRequest } = await DatabaseService.getUserPendingRequest(id as string, user.id);
+          console.log('Checking for pending request since user is not a member');
+          const { data: pendingRequest, error: pendingError } = await DatabaseService.getUserPendingRequest(id as string, user.id);
+          console.log('Pending request check result:', { 
+            hasPendingData: !!pendingRequest, 
+            pendingError: pendingError?.message 
+          });
           hasPendingRequest = !!pendingRequest;
+          console.log('Setting hasPendingRequest to:', hasPendingRequest);
         }
       }
 
@@ -464,15 +470,22 @@ export default function CircleScreen() {
               try {
                 const { error } = await DatabaseService.requestToJoinCircle(user.id, id as string, message || '');
                 if (error) {
-                  if (error.message.includes('already requested')) {
+                  if (error.message.includes('already requested') || error.message.includes('already have a pending request')) {
                     Alert.alert('Info', 'You have already requested to join this circle.');
+                    // Update the local state to show pending
+                    setHasPendingRequest(true);
+                    setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
                   } else {
                     Alert.alert('Error', 'Failed to send join request');
                   }
                   return;
                 }
                 Alert.alert('Success', 'Join request sent! The admin will review your request.');
-                await loadCircleData(); // Refresh to show pending state
+                // Immediately update the UI state to show pending
+                setHasPendingRequest(true);
+                setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
+                // Also refresh the data from server
+                await loadCircleData();
               } catch (error) {
                 Alert.alert('Error', 'Failed to send join request');
               }
