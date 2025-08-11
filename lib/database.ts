@@ -24,6 +24,7 @@ export const sendMessage = (message: any) => DatabaseService.sendMessage(message
 export const requestToJoinCircle = (userId: string, circleId: string, message?: string) => DatabaseService.requestToJoinCircle(userId, circleId, message);
 export const getCircleJoinRequests = (circleId: string) => DatabaseService.getCircleJoinRequests(circleId);
 export const handleJoinRequest = (requestId: string, action: 'accept' | 'reject') => DatabaseService.handleJoinRequest(requestId, action);
+export const getUserPendingRequest = (circleId: string, userId: string) => DatabaseService.getUserPendingRequest(circleId, userId);
 export const deleteCircle = (circleId: string, adminUserId: string) => DatabaseService.deleteCircle(circleId, adminUserId);
 export const getCircleMembers = (circleId: string) => DatabaseService.getCircleMembers(circleId);
 export const addCircleAdmin = (circleId: string, userId: string, requestingAdminId: string) => DatabaseService.addCircleAdmin(circleId, userId, requestingAdminId);
@@ -790,6 +791,34 @@ export const DatabaseService = {
     } catch (error) {
       console.error('Error in getCircleJoinRequests:', error);
       return { data: [], error: error as Error };
+    }
+  },
+
+  async getUserPendingRequest(circleId: string, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('circle_join_requests')
+        .select('*')
+        .eq('circleid', circleId)
+        .eq('userid', userId)
+        .eq('status', 'pending')
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('Error checking pending request:', error);
+        return { data: null, error };
+      }
+
+      return { data: data || null, error: null };
+    } catch (error) {
+      console.error('Error in getUserPendingRequest:', error);
+      return { data: null, error: error as Error };
     }
   },
 

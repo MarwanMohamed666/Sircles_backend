@@ -29,6 +29,7 @@ interface Circle {
   interests?: string[];
   creator?: string; // Added creator field
   circle_profile_url?: string;
+  hasPendingRequest?: boolean; // Add pending request state
 }
 
 interface Post {
@@ -77,6 +78,7 @@ export default function CircleScreen() {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [imageUploading, setImageUploading] = useState(false); // State to track image upload
@@ -122,6 +124,7 @@ export default function CircleScreen() {
       let isJoined = false;
       let isAdmin = false;
       let isMainAdmin = false;
+      let hasPendingRequest = false;
 
       if (user?.id) {
         // Check if user is in user_circles table using getUserJoinedCircles function
@@ -134,6 +137,10 @@ export default function CircleScreen() {
           const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
           isAdmin = adminData?.isAdmin || false;
           isMainAdmin = adminData?.isMainAdmin || false;
+        } else {
+          // Check for pending request if not a member
+          const { data: pendingRequest } = await DatabaseService.getUserPendingRequest(id as string, user.id);
+          hasPendingRequest = !!pendingRequest;
         }
       }
 
@@ -147,8 +154,10 @@ export default function CircleScreen() {
         isMainAdmin,
         memberCount: currentCircle.member_count || 0,
         interests,
-        creator: currentCircle.creator || currentCircle.createdby // Use creator first, fallback to createdby
+        creator: currentCircle.creator || currentCircle.createdby, // Use creator first, fallback to createdby
+        hasPendingRequest
       });
+      setHasPendingRequest(hasPendingRequest);
 
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
@@ -433,6 +442,62 @@ export default function CircleScreen() {
         'Error',
         `Unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    }
+  };
+
+  const handleJoinCircle = async () => {
+    if (!user?.id || !id || !circle) return;
+
+    if (circle.privacy === 'private') {
+      // Show join request dialog
+      Alert.prompt(
+        'Request to Join',
+        `Send a request to join "${circle.name}". You can include an optional message:`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Send Request',
+            onPress: async (message) => {
+              try {
+                const { error } = await DatabaseService.requestToJoinCircle(user.id, id as string, message || '');
+                if (error) {
+                  if (error.message.includes('already requested')) {
+                    Alert.alert('Info', 'You have already requested to join this circle.');
+                  } else {
+                    Alert.alert('Error', 'Failed to send join request');
+                  }
+                  return;
+                }
+                Alert.alert('Success', 'Join request sent! The admin will review your request.');
+                await loadCircleData(); // Refresh to show pending state
+              } catch (error) {
+                Alert.alert('Error', 'Failed to send join request');
+              }
+            }
+          }
+        ],
+        'plain-text'
+      );
+    } else {
+      // Public circle - join directly
+      try {
+        const { error } = await DatabaseService.joinCircle(user.id, id as string);
+        if (error) {
+          if (error.message.includes('already a member')) {
+            Alert.alert('Info', 'You are already a member of this circle.');
+          } else {
+            Alert.alert('Error', 'Failed to join circle');
+          }
+          return;
+        }
+        Alert.alert('Success', 'You have joined the circle!');
+        await loadCircleData();
+      } catch (error) {
+        Alert.alert('Error', 'Failed to join circle');
+      }
     }
   };
 
@@ -991,6 +1056,47 @@ export default function CircleScreen() {
           {circle.name}
         </ThemedText>
         <View style={styles.headerActions}>
+          {/* Join/Pending/Leave button */}
+          {!circle?.isJoined && !hasPendingRequest && (
+            <TouchableOpacity
+              style={[styles.joinButton, { backgroundColor: tintColor }]}
+              onPress={handleJoinCircle}
+              disabled={loading}
+            >
+              <IconSymbol name="plus" size={16} color="#fff" />
+              <ThemedText style={styles.joinButtonText}>
+                {circle?.privacy === 'private' ? 'Request to Join' : 'Join'}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
+          {/* Pending request button */}
+          {!circle?.isJoined && hasPendingRequest && (
+            <TouchableOpacity
+              style={[styles.pendingButton, { backgroundColor: '#FF9800' }]}
+              disabled={true}
+            >
+              <IconSymbol name="clock" size={16} color="#fff" />
+              <ThemedText style={styles.pendingButtonText}>
+                Pending
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
+          {/* Leave button for members */}
+          {circle?.isJoined && circle?.creator !== user?.id && (
+            <TouchableOpacity
+              style={[styles.leaveButton, { backgroundColor: '#EF5350' }]}
+              onPress={handleLeaveCircle}
+              disabled={loading}
+            >
+              <IconSymbol name="minus" size={16} color="#fff" />
+              <ThemedText style={styles.leaveButtonText}>
+                Leave
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
           {/* Message button - show if user is joined */}
           {circle?.isJoined && (
             <TouchableOpacity
@@ -2012,6 +2118,47 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
+  },
+  joinButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pendingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+    opacity: 0.8,
+  },
+  pendingButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  leaveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  leaveButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   messageButton: {
     flexDirection: 'row',
