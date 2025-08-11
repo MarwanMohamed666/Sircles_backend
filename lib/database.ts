@@ -586,6 +586,22 @@ export const DatabaseService = {
   // Circle Management Functions
   async joinCircle(userId: string, circleId: string) {
     try {
+      // First check if the circle is private
+      const { data: circle, error: circleError } = await supabase
+        .from('circles')
+        .select('privacy')
+        .eq('id', circleId)
+        .single();
+
+      if (circleError) {
+        return { data: null, error: new Error('Circle not found') };
+      }
+
+      // If circle is private, user should request to join instead
+      if (circle.privacy === 'private') {
+        return { data: null, error: new Error('This is a private circle. Please request to join instead.') };
+      }
+
       const { data, error } = await supabase
         .from('user_circles')
         .insert({ userid: userId, circleid: circleId });
@@ -682,6 +698,58 @@ export const DatabaseService = {
       if (error) {
         console.error('Error creating join request:', error);
         return { data: null, error };
+      }
+
+      // Try to create notification for circle admins (don't fail if this fails)
+      try {
+        // Get circle admins and creator
+        const { data: circle } = await supabase
+          .from('circles')
+          .select('creator, name')
+          .eq('id', circleId)
+          .single();
+
+        if (circle) {
+          const { data: admins } = await supabase
+            .from('circle_admins')
+            .select('userid')
+            .eq('circleid', circleId);
+
+          // Create notification for creator
+          await supabase
+            .from('notifications')
+            .insert({
+              id: crypto.randomUUID(),
+              userid: circle.creator,
+              type: 'join_request',
+              title: 'New Join Request',
+              message: `Someone requested to join "${circle.name}"`,
+              read: false,
+              timestamp: new Date().toISOString()
+            });
+
+          // Create notifications for admins (excluding creator)
+          if (admins) {
+            for (const admin of admins) {
+              if (admin.userid !== circle.creator) {
+                await supabase
+                  .from('notifications')
+                  .insert({
+                    id: crypto.randomUUID(),
+                    userid: admin.userid,
+                    type: 'join_request',
+                    title: 'New Join Request',
+                    message: `Someone requested to join "${circle.name}"`,
+                    read: false,
+                    timestamp: new Date().toISOString()
+                  });
+              }
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error creating join request notification:', notificationError);
+        // Don't fail the join request if notification creation fails
       }
 
       return { data, error: null };
