@@ -813,6 +813,66 @@ export default function CircleScreen() {
     }
   };
 
+  const pickPostImage = async () => {
+    try {
+      console.log('Starting image picker for post...');
+
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to select images.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: [ImagePicker.MediaType.Images],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: false,
+      });
+
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        console.log('Selected asset for post:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
+
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
+          return;
+        }
+
+        // Check file size (3MB limit)
+        if (asset.fileSize && asset.fileSize > 3145728) {
+          Alert.alert('Error', 'Image size must be less than 3MB');
+          return;
+        }
+
+        setSelectedPostImage(asset);
+        console.log('Post image updated in UI preview');
+      } else {
+        console.log('Image selection was canceled or no asset selected');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error with image picker - full details:', {
+        error: error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) {
       Alert.alert('Error', 'Please enter post content');
