@@ -153,7 +153,7 @@ export default function CircleScreen() {
       // Get circle interests
       const interests = currentCircle.circle_interests?.map((ci: any) => ci.interests?.title).filter(Boolean) || [];
 
-      setCircle({
+      const updatedCircle = {
         ...currentCircle,
         isJoined,
         isAdmin,
@@ -162,8 +162,11 @@ export default function CircleScreen() {
         interests,
         creator: currentCircle.creator || currentCircle.createdby, // Use creator first, fallback to createdby
         hasPendingRequest
-      });
+      };
+
+      setCircle(updatedCircle);
       setHasPendingRequest(hasPendingRequest);
+      console.log('Circle state updated with pending request status:', hasPendingRequest);
 
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
@@ -481,11 +484,11 @@ export default function CircleScreen() {
                   return;
                 }
                 Alert.alert('Success', 'Join request sent! The admin will review your request.');
-                // Immediately update the UI state to show pending
+                // Immediately update both UI states to show pending
                 setHasPendingRequest(true);
                 setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
-                // Also refresh the data from server
-                await loadCircleData();
+                // Don't refresh data immediately to prevent UI flicker
+                console.log('Join request sent, UI updated to show pending status');
               } catch (error) {
                 Alert.alert('Error', 'Failed to send join request');
               }
@@ -1070,7 +1073,7 @@ export default function CircleScreen() {
         </ThemedText>
         <View style={styles.headerActions}>
           {/* Join/Pending/Leave button */}
-          {!circle?.isJoined && !hasPendingRequest && (
+          {!circle?.isJoined && !hasPendingRequest && !circle?.hasPendingRequest && (
             <TouchableOpacity
               style={[styles.joinButton, { backgroundColor: tintColor }]}
               onPress={handleJoinCircle}
@@ -1084,7 +1087,7 @@ export default function CircleScreen() {
           )}
 
           {/* Pending request button */}
-          {!circle?.isJoined && hasPendingRequest && (
+          {!circle?.isJoined && (hasPendingRequest || circle?.hasPendingRequest) && (
             <TouchableOpacity
               style={[styles.pendingButton, { backgroundColor: '#FF9800' }]}
               disabled={true}
