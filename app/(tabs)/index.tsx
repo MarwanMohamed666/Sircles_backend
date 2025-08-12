@@ -142,9 +142,15 @@ export default function HomeScreen() {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadPosts(), loadEvents(), loadUserCircles()]);
+    setRefreshing(false);
+  }, [user]);
+
   useEffect(() => {
     if (user) {
-      Promise.all([loadPosts(), loadEvents()]);
+      Promise.all([loadPosts(), loadEvents(), loadUserCircles()]);
     }
   }, [user]);
 
