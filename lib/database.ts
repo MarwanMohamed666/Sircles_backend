@@ -563,20 +563,6 @@ export const DatabaseService = {
     }
   },
 
-    const newEvent = {
-      id: crypto.randomUUID(),
-      ...event,
-      creationdate: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('events')
-      .insert(newEvent)
-      .select()
-      .single();
-    return { data, error };
-  },
-
   // Post operations
   async getPosts(circleId?: string) {
     // Verify user is authenticated
