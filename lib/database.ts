@@ -467,24 +467,31 @@ export const DatabaseService = {
     }
 
     try {
-      // Create the event
+      const eventId = crypto.randomUUID();
+      
+      // Extract interests from event object and create clean event data
+      const { interests, ...eventDataClean } = event;
+      
+      // Create the event without interests field
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
-          ...event,
+          ...eventDataClean,
+          id: eventId,
           createdby: currentUser.user.id,
-          id: crypto.randomUUID()
+          creationdate: new Date().toISOString()
         })
         .select()
         .single();
 
       if (eventError) {
+        console.error('Error creating event:', eventError);
         return { data: null, error: eventError };
       }
 
       // Add event interests if provided
-      if (event.interests && event.interests.length > 0) {
-        const eventInterests = event.interests.map(interestId => ({
+      if (interests && interests.length > 0) {
+        const eventInterests = interests.map(interestId => ({
           eventid: eventData.id,
           interestid: interestId
         }));
