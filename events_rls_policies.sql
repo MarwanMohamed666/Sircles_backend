@@ -100,39 +100,52 @@ CREATE POLICY "Circle admins can delete events" ON events
 
 -- EVENT_INTERESTS TABLE POLICIES
 
--- Circle members can view event interests
+-- Circle members can view event interests (including general events)
 CREATE POLICY "Circle members can view event interests" ON event_interests
   FOR SELECT USING (
     auth.role() = 'authenticated' AND
     EXISTS (
       SELECT 1 FROM events e
-      JOIN user_circles uc ON uc.circleid = e.circleid
       WHERE e.id = event_interests.eventid
-      AND uc.userid = auth.uid()
+      AND (
+        -- General events (circleid is null) are visible to all authenticated users
+        e.circleid IS NULL
+        OR
+        -- Circle-specific events are visible to circle members
+        EXISTS (
+          SELECT 1 FROM user_circles uc
+          WHERE uc.circleid = e.circleid
+          AND uc.userid = auth.uid()
+        )
+      )
     )
   );
 
--- Circle admins can manage event interests
+-- Circle admins can manage event interests (including general events)
 CREATE POLICY "Circle admins can manage event interests" ON event_interests
   FOR ALL USING (
     auth.role() = 'authenticated' AND
     EXISTS (
       SELECT 1 FROM events e
-      JOIN circles c ON c.id = e.circleid
       WHERE e.id = event_interests.eventid
       AND (
-        -- Event creator
+        -- Event creator can manage
         e.createdby = auth.uid()
         OR
-        -- Circle creator
-        c.creator = auth.uid()
-        OR
-        -- Circle admin
-        EXISTS (
-          SELECT 1 FROM circle_admins ca
-          WHERE ca.circleid = c.id
-          AND ca.userid = auth.uid()
-        )
+        -- For circle events, circle creator and admins can manage
+        (e.circleid IS NOT NULL AND EXISTS (
+          SELECT 1 FROM circles c
+          WHERE c.id = e.circleid
+          AND (
+            c.creator = auth.uid()
+            OR
+            EXISTS (
+              SELECT 1 FROM circle_admins ca
+              WHERE ca.circleid = c.id
+              AND ca.userid = auth.uid()
+            )
+          )
+        ))
       )
     )
   );

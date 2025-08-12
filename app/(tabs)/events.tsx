@@ -167,6 +167,56 @@ export default function EventsScreen() {
     }));
   };
 
+  const handleDeleteEvent = async (eventId: string, eventCreatedBy: string) => {
+    if (!user) return;
+    
+    // Check if user can delete (must be creator or circle admin for circle events)
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+    
+    const canDelete = event.createdby === user.id || 
+      (event.circleid && await checkIfCircleAdmin(event.circleid, user.id));
+    
+    if (!canDelete) {
+      Alert.alert(texts.error || 'Error', 'You do not have permission to delete this event.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      [
+        { text: texts.cancel || 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.deleteEvent(eventId);
+              if (error) {
+                Alert.alert(texts.error || 'Error', `Failed to delete event: ${error.message}`);
+              } else {
+                Alert.alert(texts.success || 'Success', 'Event deleted successfully');
+                await fetchEvents(); // Refresh events
+              }
+            } catch (error) {
+              Alert.alert(texts.error || 'Error', 'Failed to delete event.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const checkIfCircleAdmin = async (circleId: string, userId: string) => {
+    try {
+      const { data } = await DatabaseService.isCircleAdmin(circleId, userId);
+      return data?.isAdmin || false;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const getInterestColor = (category: string) => {
     const colors = {
       'Technology': tintColor,
@@ -245,6 +295,14 @@ export default function EventsScreen() {
                   <ThemedText style={styles.generalTag}>• General</ThemedText>
                 )}
               </View>
+              {(event.createdby === user?.id) && (
+                <TouchableOpacity
+                  style={styles.deleteEventButton}
+                  onPress={() => handleDeleteEvent(event.id, event.createdby)}
+                >
+                  <IconSymbol name="trash" size={18} color="#ff4444" />
+                </TouchableOpacity>
+              )}
             </View>
 
             <ThemedText type="defaultSemiBold" style={[styles.eventTitle, isRTL && styles.rtlText]}>
@@ -757,6 +815,12 @@ const styles = StyleSheet.create({
   emptyText: {
     opacity: 0.6,
     textAlign: 'center',
+  },
+  deleteEventButton: {
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pickerContainer: {
     flexDirection: 'row',
