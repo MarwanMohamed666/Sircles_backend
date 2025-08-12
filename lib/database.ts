@@ -407,6 +407,7 @@ export const DatabaseService = {
       return { data: null, error: new Error('Authentication required') };
     }
 
+    // Get events that are either general (circleid is null) or from circles the user is a member of
     const { data, error } = await supabase
       .from('events')
       .select(`
@@ -417,8 +418,23 @@ export const DatabaseService = {
           interests(id, title, category)
         )
       `)
+      .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
       .order('date', { ascending: true });
     return { data, error };
+  },
+
+  async getUserCircleIds(userId: string) {
+    try {
+      const { data } = await supabase
+        .from('user_circles')
+        .select('circleid')
+        .eq('userid', userId);
+      
+      const circleIds = data?.map(uc => uc.circleid) || [];
+      return circleIds.length > 0 ? circleIds.join(',') : '00000000-0000-0000-0000-000000000000'; // dummy ID if no circles
+    } catch (error) {
+      return '00000000-0000-0000-0000-000000000000'; // dummy ID on error
+    }
   },
 
   async getEventsByCircle(circleId: string) {
@@ -1561,13 +1577,9 @@ export const DatabaseService = {
         return { data: [], error: circlesError };
       }
 
-      if (!userCircles || userCircles.length === 0) {
-        return { data: [], error: null };
-      }
+      const circleIds = userCircles?.map(uc => uc.circleid) || [];
 
-      const circleIds = userCircles.map(uc => uc.circleid);
-
-      // Then get posts from those circles
+      // Get posts from user's circles or general posts (where circleid is null)
       const { data, error } = await supabase
         .from('posts')
         .select(`
@@ -1577,7 +1589,7 @@ export const DatabaseService = {
           likes:post_likes(userid),
           comments(count)
         `)
-        .in('circleid', circleIds)
+        .or(circleIds.length > 0 ? `circleid.is.null,circleid.in.(${circleIds.join(',')})` : 'circleid.is.null')
         .order('creationdate', { ascending: false });
 
       return { data: data || [], error };

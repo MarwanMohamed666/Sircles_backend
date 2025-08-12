@@ -15,26 +15,38 @@ DROP POLICY IF EXISTS "Circle admins can manage event interests" ON event_intere
 
 -- EVENTS TABLE POLICIES
 
--- Circle members can view events in their circles
+-- Circle members can view events in their circles, and all users can view general events
 CREATE POLICY "Circle members can view events" ON events
   FOR SELECT USING (
     auth.role() = 'authenticated' AND
-    EXISTS (
-      SELECT 1 FROM user_circles uc
-      WHERE uc.circleid = events.circleid
-      AND uc.userid = auth.uid()
+    (
+      -- General events (circleid is null) are visible to all authenticated users
+      events.circleid IS NULL
+      OR
+      -- Circle-specific events are visible to circle members
+      EXISTS (
+        SELECT 1 FROM user_circles uc
+        WHERE uc.circleid = events.circleid
+        AND uc.userid = auth.uid()
+      )
     )
   );
 
--- Circle members can create events
+-- Circle members can create events in their circles, and all users can create general events
 CREATE POLICY "Circle members can create events" ON events
   FOR INSERT WITH CHECK (
     auth.role() = 'authenticated' AND
     createdby = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM user_circles uc
-      WHERE uc.circleid = events.circleid
-      AND uc.userid = auth.uid()
+    (
+      -- Allow creating general events (circleid is null)
+      events.circleid IS NULL
+      OR
+      -- Allow creating circle-specific events if user is a member
+      EXISTS (
+        SELECT 1 FROM user_circles uc
+        WHERE uc.circleid = events.circleid
+        AND uc.userid = auth.uid()
+      )
     )
   );
 

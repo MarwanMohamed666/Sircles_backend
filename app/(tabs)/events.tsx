@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,13 +17,17 @@ interface Event {
   date: string;
   time: string;
   location: string;
-  tag: string;
   description: string;
-  circleId?: string;
+  circleid?: string;
   circleName?: string;
-  createdBy: string;
-  rsvp?: 'yes' | 'maybe' | 'no';
-  attendees: { yes: number; maybe: number; no: number };
+  createdby: string;
+  event_interests?: Array<{
+    interests: {
+      id: string;
+      title: string;
+      category: string;
+    }
+  }>;
 }
 
 export default function EventsScreen() {
@@ -43,18 +48,21 @@ export default function EventsScreen() {
     time: '',
     location: '',
     description: '',
-    tag: 'Social',
     circleId: '',
+    interests: [] as string[]
   });
 
   const [events, setEvents] = useState<Event[]>([]);
   const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [loading, setLoading] = useState(true);
+  const [circles, setCircles] = useState<{id: string, name: string}[]>([]);
 
   useEffect(() => {
-    fetchEvents();
-    fetchInterests();
-    fetchUserCircles();
+    if (user) {
+      fetchEvents();
+      fetchInterests();
+      fetchUserCircles();
+    }
   }, [user]);
 
   const fetchEvents = async () => {
@@ -66,12 +74,7 @@ export default function EventsScreen() {
       if (error) {
         console.error('Error fetching events:', error);
       } else {
-        // Ensure all events have default attendees structure
-        const eventsWithDefaults = (data || []).map(event => ({
-          ...event,
-          attendees: event.attendees || { yes: 0, maybe: 0, no: 0 }
-        }));
-        setEvents(eventsWithDefaults);
+        setEvents(data || []);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -111,55 +114,6 @@ export default function EventsScreen() {
     }
   };
 
-  const eventTags = ['Social', 'Education', 'Workshop', 'Fitness', 'Entertainment', 'Community'];
-  const [circles, setCircles] = useState<{id: string, name: string}[]>([]);
-
-  const handleRSVP = async (eventId: string, response: 'yes' | 'maybe' | 'no') => {
-    try {
-      // Update local state immediately for better UX
-      setEvents(events.map(event => {
-        if (event.id === eventId) {
-          const updatedAttendees = { 
-            yes: 0, 
-            maybe: 0, 
-            no: 0, 
-            ...(event.attendees || {}) 
-          };
-
-          // Remove from previous RSVP if exists
-          if (event.rsvp) {
-            updatedAttendees[event.rsvp] = Math.max(0, updatedAttendees[event.rsvp] - 1);
-          }
-
-          // Add to new RSVP
-          updatedAttendees[response] = (updatedAttendees[response] || 0) + 1;
-
-          return {
-            ...event,
-            rsvp: response,
-            attendees: updatedAttendees,
-          };
-        }
-        return event;
-      }));
-
-      if (selectedEvent && selectedEvent.id === eventId) {
-        const updatedEvent = events.find(e => e.id === eventId);
-        if (updatedEvent) {
-          setSelectedEvent({ ...updatedEvent, rsvp: response });
-        }
-      }
-
-      // Here you could add database call to save RSVP
-      // await DatabaseService.updateEventRSVP(eventId, user?.id, response);
-      
-    } catch (error) {
-      console.error('Error updating RSVP:', error);
-      // Revert changes on error
-      await fetchEvents();
-    }
-  };
-
   const handleCreateEvent = async () => {
     if (newEvent.title.trim() && newEvent.date && newEvent.time && newEvent.location.trim()) {
       try {
@@ -169,9 +123,8 @@ export default function EventsScreen() {
           time: newEvent.time,
           location: newEvent.location.trim(),
           description: newEvent.description.trim(),
-          tag: newEvent.tag,
-          circleId: newEvent.circleId || null,
-          createdBy: user?.id || '',
+          circleid: newEvent.circleId || null, // Set to null for general events
+          interests: newEvent.interests
         };
 
         const { data, error } = await DatabaseService.createEvent(eventData);
@@ -191,8 +144,8 @@ export default function EventsScreen() {
           time: '',
           location: '',
           description: '',
-          tag: 'Social',
           circleId: '',
+          interests: []
         });
         setShowCreateModal(false);
         Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
@@ -205,16 +158,29 @@ export default function EventsScreen() {
     }
   };
 
-  const getTagColor = (tag: string) => {
+  const toggleInterest = (interestId: string) => {
+    setNewEvent(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interestId)
+        ? prev.interests.filter(id => id !== interestId)
+        : [...prev.interests, interestId]
+    }));
+  };
+
+  const getInterestColor = (category: string) => {
     const colors = {
-      Social: tintColor,
-      Education: '#9C27B0',
-      Workshop: '#FF9800',
-      Fitness: successColor,
-      Entertainment: '#E91E63',
-      Community: accentColor,
+      'Technology': tintColor,
+      'Sports': '#4CAF50',
+      'Arts': '#9C27B0',
+      'Food': '#FF9800',
+      'Music': '#E91E63',
+      'Travel': accentColor,
+      'Education': '#2196F3',
+      'Health': '#009688',
+      'Business': '#795548',
+      'Entertainment': '#FF5722'
     };
-    return colors[tag as keyof typeof colors] || tintColor;
+    return colors[category as keyof typeof colors] || tintColor;
   };
 
   return (
@@ -251,20 +217,32 @@ export default function EventsScreen() {
           >
             <View style={[styles.eventHeader, isRTL && styles.eventHeaderRTL]}>
               <View style={styles.eventInfo}>
-                <View style={[styles.eventTag, { backgroundColor: getTagColor(event.tag) }]}>
-                  <ThemedText style={styles.eventTagText}>{event.tag}</ThemedText>
+                <View style={styles.eventInterests}>
+                  {event.event_interests?.slice(0, 2).map((ei, index) => (
+                    <View 
+                      key={index}
+                      style={[
+                        styles.interestTag, 
+                        { backgroundColor: getInterestColor(ei.interests.category) }
+                      ]}
+                    >
+                      <ThemedText style={styles.interestTagText}>
+                        {ei.interests.title}
+                      </ThemedText>
+                    </View>
+                  ))}
+                  {(event.event_interests?.length || 0) > 2 && (
+                    <ThemedText style={styles.moreInterests}>
+                      +{(event.event_interests?.length || 0) - 2} more
+                    </ThemedText>
+                  )}
                 </View>
-                {event.circleName && (
-                  <ThemedText style={styles.circleTag}>• {event.circleName}</ThemedText>
-                )}
-              </View>
-              <View style={[styles.rsvpStatus, event.rsvp && styles.rsvpSelected]}>
-                {event.rsvp && (
-                  <IconSymbol
-                    name={event.rsvp === 'yes' ? 'checkmark' : event.rsvp === 'maybe' ? 'questionmark' : 'xmark'}
-                    size={16}
-                    color={event.rsvp === 'yes' ? successColor : event.rsvp === 'maybe' ? '#FFB74D' : '#EF5350'}
-                  />
+                {event.circleid ? (
+                  event.circleName && (
+                    <ThemedText style={styles.circleTag}>• {event.circleName}</ThemedText>
+                  )
+                ) : (
+                  <ThemedText style={styles.generalTag}>• General</ThemedText>
                 )}
               </View>
             </View>
@@ -287,17 +265,6 @@ export default function EventsScreen() {
               <View style={styles.detailRow}>
                 <IconSymbol name="location" size={16} color={textColor} />
                 <ThemedText style={styles.detailText}>{event.location}</ThemedText>
-              </View>
-            </View>
-
-            <View style={[styles.attendeesInfo, isRTL && styles.attendeesInfoRTL]}>
-              <View style={styles.attendeeCount}>
-                <View style={[styles.attendeeDot, { backgroundColor: successColor }]} />
-                <ThemedText style={styles.attendeeText}>{event.attendees?.yes || 0} {texts.going || 'Going'}</ThemedText>
-              </View>
-              <View style={styles.attendeeCount}>
-                <View style={[styles.attendeeDot, { backgroundColor: '#FFB74D' }]} />
-                <ThemedText style={styles.attendeeText}>{event.attendees?.maybe || 0} {texts.maybe || 'Maybe'}</ThemedText>
               </View>
             </View>
           </TouchableOpacity>
@@ -328,8 +295,20 @@ export default function EventsScreen() {
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={[styles.eventTag, { backgroundColor: getTagColor(selectedEvent.tag) }]}>
-                  <ThemedText style={styles.eventTagText}>{selectedEvent.tag}</ThemedText>
+                <View style={styles.eventInterestsModal}>
+                  {selectedEvent.event_interests?.map((ei, index) => (
+                    <View 
+                      key={index}
+                      style={[
+                        styles.interestTag, 
+                        { backgroundColor: getInterestColor(ei.interests.category) }
+                      ]}
+                    >
+                      <ThemedText style={styles.interestTagText}>
+                        {ei.interests.title}
+                      </ThemedText>
+                    </View>
+                  ))}
                 </View>
 
                 <ThemedText style={[styles.eventDescription, isRTL && styles.rtlText]}>
@@ -350,61 +329,24 @@ export default function EventsScreen() {
                   <View style={styles.metaRow}>
                     <IconSymbol name="person" size={20} color={textColor} />
                     <ThemedText style={styles.metaText}>
-                      {texts.organizedBy || 'Organized by'} {selectedEvent.createdBy}
+                      {texts.organizedBy || 'Organized by'} {selectedEvent.createdby}
                     </ThemedText>
                   </View>
-                </View>
-
-                <View style={styles.attendeesSection}>
-                  <ThemedText type="defaultSemiBold" style={styles.attendeesTitle}>
-                    {texts.attendees || 'Attendees'}
-                  </ThemedText>
-                  <View style={styles.attendeesStats}>
-                    <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.yes || 0}</ThemedText>
-                      <ThemedText style={styles.statLabel}>{texts.going || 'Going'}</ThemedText>
-                    </View>
-                    <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.maybe || 0}</ThemedText>
-                      <ThemedText style={styles.statLabel}>{texts.maybe || 'Maybe'}</ThemedText>
-                    </View>
-                    <View style={styles.statItem}>
-                      <ThemedText style={styles.statNumber}>{selectedEvent.attendees?.no || 0}</ThemedText>
-                      <ThemedText style={styles.statLabel}>{texts.cantGo || "Can't Go"}</ThemedText>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.rsvpSection}>
-                  <ThemedText type="defaultSemiBold" style={styles.rsvpTitle}>
-                    {texts.yourResponse || 'Your Response'}
-                  </ThemedText>
-                  <View style={[styles.rsvpButtons, isRTL && styles.rsvpButtonsRTL]}>
-                    {(['yes', 'maybe', 'no'] as const).map((response) => (
-                      <TouchableOpacity
-                        key={response}
-                        style={[
-                          styles.rsvpButton,
-                          {
-                            backgroundColor: selectedEvent.rsvp === response ? 
-                              (response === 'yes' ? successColor : response === 'maybe' ? '#FFB74D' : '#EF5350') : 
-                              backgroundColor,
-                            borderColor: response === 'yes' ? successColor : response === 'maybe' ? '#FFB74D' : '#EF5350',
-                          }
-                        ]}
-                        onPress={() => handleRSVP(selectedEvent.id, response)}
-                      >
-                        <ThemedText style={[
-                          styles.rsvpButtonText,
-                          { color: selectedEvent.rsvp === response ? '#fff' : textColor }
-                        ]}>
-                          {response === 'yes' ? texts.going || 'Going' : 
-                           response === 'maybe' ? texts.maybe || 'Maybe' : 
-                           texts.cantGo || "Can't Go"}
+                  {selectedEvent.circleid ? (
+                    selectedEvent.circleName && (
+                      <View style={styles.metaRow}>
+                        <IconSymbol name="people" size={20} color={textColor} />
+                        <ThemedText style={styles.metaText}>
+                          Circle: {selectedEvent.circleName}
                         </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                      </View>
+                    )
+                  ) : (
+                    <View style={styles.metaRow}>
+                      <IconSymbol name="globe" size={20} color={textColor} />
+                      <ThemedText style={styles.metaText}>General Event</ThemedText>
+                    </View>
+                  )}
                 </View>
               </ScrollView>
             </View>
@@ -506,75 +448,88 @@ export default function EventsScreen() {
               </View>
 
               <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.tag || 'Tag'}</ThemedText>
+                <ThemedText style={styles.fieldLabel}>{texts.circle || 'Circle'} (Optional)</ThemedText>
                 <View style={styles.pickerContainer}>
-                  {eventTags.map((tag) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.tagButton,
+                      {
+                        backgroundColor: newEvent.circleId === '' ? tintColor : backgroundColor,
+                        borderColor: tintColor,
+                      }
+                    ]}
+                    onPress={() => setNewEvent({ ...newEvent, circleId: '' })}
+                  >
+                    <ThemedText style={[
+                      styles.tagButtonText,
+                      { color: newEvent.circleId === '' ? '#fff' : textColor }
+                    ]}>
+                      {texts.general || 'General'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                  {circles.map((circle) => (
                     <TouchableOpacity
-                      key={tag}
+                      key={circle.id}
                       style={[
                         styles.tagButton,
                         {
-                          backgroundColor: newEvent.tag === tag ? tintColor : backgroundColor,
+                          backgroundColor: newEvent.circleId === circle.id ? tintColor : backgroundColor,
                           borderColor: tintColor,
                         }
                       ]}
-                      onPress={() => setNewEvent({ ...newEvent, tag })}
+                      onPress={() => setNewEvent({ ...newEvent, circleId: circle.id })}
                     >
                       <ThemedText style={[
                         styles.tagButtonText,
-                        { color: newEvent.tag === tag ? '#fff' : textColor }
+                        { color: newEvent.circleId === circle.id ? '#fff' : textColor }
                       ]}>
-                        {tag}
+                        {circle.name}
                       </ThemedText>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
-              {circles.length > 0 && (
-                <View style={styles.formField}>
-                  <ThemedText style={styles.fieldLabel}>{texts.circle || 'Circle'} (Optional)</ThemedText>
-                  <View style={styles.pickerContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.tagButton,
-                        {
-                          backgroundColor: newEvent.circleId === '' ? tintColor : backgroundColor,
-                          borderColor: tintColor,
-                        }
-                      ]}
-                      onPress={() => setNewEvent({ ...newEvent, circleId: '' })}
-                    >
-                      <ThemedText style={[
-                        styles.tagButtonText,
-                        { color: newEvent.circleId === '' ? '#fff' : textColor }
-                      ]}>
-                        {texts.general || 'General'}
-                      </ThemedText>
-                    </TouchableOpacity>
-                    {circles.map((circle) => (
-                      <TouchableOpacity
-                        key={circle.id}
-                        style={[
-                          styles.tagButton,
-                          {
-                            backgroundColor: newEvent.circleId === circle.id ? tintColor : backgroundColor,
-                            borderColor: tintColor,
-                          }
-                        ]}
-                        onPress={() => setNewEvent({ ...newEvent, circleId: circle.id })}
-                      >
-                        <ThemedText style={[
-                          styles.tagButtonText,
-                          { color: newEvent.circleId === circle.id ? '#fff' : textColor }
-                        ]}>
-                          {circle.name}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
+              <View style={styles.formField}>
+                <ThemedText style={styles.fieldLabel}>
+                  {texts.interests || 'Interests'} (Optional)
+                </ThemedText>
+                <ScrollView style={styles.interestsScrollView} showsVerticalScrollIndicator={false}>
+                  {Object.entries(interests).map(([category, categoryInterests]) => (
+                    <View key={category} style={styles.interestCategory}>
+                      <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                      <View style={styles.pickerContainer}>
+                        {categoryInterests.map((interest) => (
+                          <TouchableOpacity
+                            key={interest.id}
+                            style={[
+                              styles.interestChip,
+                              {
+                                backgroundColor: newEvent.interests.includes(interest.id) 
+                                  ? getInterestColor(category) 
+                                  : backgroundColor,
+                                borderColor: getInterestColor(category),
+                              }
+                            ]}
+                            onPress={() => toggleInterest(interest.id)}
+                          >
+                            <ThemedText style={[
+                              styles.interestChipText,
+                              { 
+                                color: newEvent.interests.includes(interest.id) 
+                                  ? '#fff' 
+                                  : textColor 
+                              }
+                            ]}>
+                              {interest.title}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
 
               <View style={styles.modalActions}>
                 <TouchableOpacity
@@ -634,41 +589,51 @@ const styles = StyleSheet.create({
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   eventHeaderRTL: {
     flexDirection: 'row-reverse',
   },
   eventInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex: 1,
   },
-  eventTag: {
+  eventInterests: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 4,
+  },
+  eventInterestsModal: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  interestTag: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
-  eventTagText: {
+  interestTagText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
-  circleTag: {
-    marginLeft: 8,
+  moreInterests: {
     fontSize: 12,
     opacity: 0.7,
   },
-  rsvpStatus: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  circleTag: {
+    fontSize: 12,
+    opacity: 0.7,
   },
-  rsvpSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  generalTag: {
+    fontSize: 12,
+    opacity: 0.7,
+    fontStyle: 'italic',
   },
   eventTitle: {
     fontSize: 16,
@@ -676,7 +641,6 @@ const styles = StyleSheet.create({
   },
   eventDetails: {
     gap: 4,
-    marginBottom: 12,
   },
   eventDetailsRTL: {
     alignItems: 'flex-end',
@@ -692,27 +656,6 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    opacity: 0.8,
-  },
-  attendeesInfo: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  attendeesInfoRTL: {
-    flexDirection: 'row-reverse',
-  },
-  attendeeCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  attendeeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  attendeeText: {
-    fontSize: 12,
     opacity: 0.8,
   },
   modalOverlay: {
@@ -758,48 +701,6 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
   },
-  attendeesSection: {
-    marginBottom: 16,
-  },
-  attendeesTitle: {
-    marginBottom: 8,
-  },
-  attendeesStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  rsvpSection: {
-    marginBottom: 16,
-  },
-  rsvpTitle: {
-    marginBottom: 12,
-  },
-  rsvpButtons: {
-    gap: 8,
-  },
-  rsvpButtonsRTL: {
-    flexDirection: 'column-reverse',
-  },
-  rsvpButton: {
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  rsvpButtonText: {
-    fontWeight: '600',
-  },
   formField: {
     marginBottom: 16,
   },
@@ -811,6 +712,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   textArea: {
     borderRadius: 8,
@@ -818,10 +721,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 80,
     textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 20,
   },
   modalActionButton: {
     flex: 1,
@@ -865,6 +771,28 @@ const styles = StyleSheet.create({
   },
   tagButtonText: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  interestsScrollView: {
+    maxHeight: 200,
+  },
+  interestCategory: {
+    marginBottom: 16,
+  },
+  categoryTitle: {
+    fontWeight: '600',
+    marginBottom: 8,
+    fontSize: 16,
+  },
+  interestChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    margin: 2,
+  },
+  interestChipText: {
+    fontSize: 12,
     fontWeight: '500',
   },
 });
