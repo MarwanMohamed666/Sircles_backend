@@ -106,7 +106,42 @@ export default function CircleScreen() {
     interests: [] as string[]
   });
   const [interests, setInterests] = useState<{[category: string]: any[]}>({}); // State for interests to be used in event creation
+  const [uploading, setUploading] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [circle, setCircle] = useState<Circle | null>(null);
 
+  const loadEvents = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await DatabaseService.getEvents();
+      if (error) {
+        console.error('Error loading events:', error);
+        return;
+      }
+      
+      // Filter events for this specific circle
+      const circleEvents = data?.filter(event => event.circleid === id) || [];
+      setEvents(circleEvents);
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+
+  const loadInterests = async () => {
+    try {
+      const { data, error } = await DatabaseService.getInterestsByCategory();
+      if (error) {
+        console.error('Error loading interests:', error);
+        return;
+      }
+      setInterests(data || {});
+    } catch (error) {
+      console.error('Error loading interests:', error);
+    }
+  };
 
   // Placeholder for handleSaveEdit, assuming it's defined elsewhere or needs to be implemented.
   // For now, we'll use a dummy function to avoid errors.
