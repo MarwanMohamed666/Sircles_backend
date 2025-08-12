@@ -412,18 +412,156 @@ export const DatabaseService = {
       .select(`
         *,
         creator:users!events_createdby_fkey(name),
-        circle:circles!events_circleid_fkey(name)
+        circle:circles!events_circleid_fkey(name),
+        event_interests(
+          interests(id, title, category)
+        )
       `)
       .order('date', { ascending: true });
     return { data, error };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationdate'>) {
+  async getEventsByCircle(circleId: string) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
       return { data: null, error: new Error('Authentication required') };
     }
+
+    const { data, error } = await supabase
+      .from('events')
+      .select(`
+        *,
+        creator:users!events_createdby_fkey(name),
+        circle:circles!events_circleid_fkey(name),
+        event_interests(
+          interests(id, title, category)
+        )
+      `)
+      .eq('circleid', circleId)
+      .order('date', { ascending: true });
+    return { data, error };
+  },
+
+  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: string[] }) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
+    try {
+      // Create the event
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .insert({
+          ...event,
+          createdby: currentUser.user.id,
+          id: crypto.randomUUID()
+        })
+        .select()
+        .single();
+
+      if (eventError) {
+        return { data: null, error: eventError };
+      }
+
+      // Add event interests if provided
+      if (event.interests && event.interests.length > 0) {
+        const eventInterests = event.interests.map(interestId => ({
+          eventid: eventData.id,
+          interestid: interestId
+        }));
+
+        const { error: interestsError } = await supabase
+          .from('event_interests')
+          .insert(eventInterests);
+
+        if (interestsError) {
+          console.error('Error adding event interests:', interestsError);
+          // Don't fail the event creation if interests fail
+        }
+      }
+
+      return { data: eventData, error: null };
+    } catch (error) {
+      console.error('Error creating event:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async deleteEvent(eventId: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
+    const { data, error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+    
+    return { data, error };
+  },
+
+  async updateEventInterests(eventId: string, newInterests: string[]) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
+    try {
+      // Get current interests
+      const { data: currentInterests } = await supabase
+        .from('event_interests')
+        .select('interestid')
+        .eq('eventid', eventId);
+
+      const currentInterestIds = currentInterests?.map(ci => ci.interestid) || [];
+
+      // Find interests to add and remove
+      const interestsToAdd = newInterests.filter(id => !currentInterestIds.includes(id));
+      const interestsToRemove = currentInterestIds.filter(id => !newInterests.includes(id));
+
+      // Remove old interests
+      if (interestsToRemove.length > 0) {
+        const { error: removeError } = await supabase
+          .from('event_interests')
+          .delete()
+          .eq('eventid', eventId)
+          .in('interestid', interestsToRemove);
+
+        if (removeError) {
+          console.error('Error removing interests:', removeError);
+          return { data: null, error: removeError };
+        }
+      }
+
+      // Add new interests
+      if (interestsToAdd.length > 0) {
+        const newEventInterests = interestsToAdd.map(interestId => ({
+          eventid: eventId,
+          interestid: interestId
+        }));
+
+        const { error: addError } = await supabase
+          .from('event_interests')
+          .insert(newEventInterests);
+
+        if (addError) {
+          console.error('Error adding interests:', addError);
+          return { data: null, error: addError };
+        }
+      }
+
+      return { data: { success: true }, error: null };
+    } catch (error) {
+      console.error('Error in updateEventInterests:', error);
+      return { data: null, error: error as Error };
+    }
+  },
 
     const newEvent = {
       id: crypto.randomUUID(),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, RefreshControl, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -71,17 +71,14 @@ export default function CircleScreen() {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'admin'>('feed');
-  const [circle, setCircle] = useState<Circle | null>(null);
+  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'admin' | 'events'>('feed');
   const [posts, setPosts] = useState<Post[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
   const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imageUploading, setImageUploading] = useState(false); // State to track image upload
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
@@ -96,8 +93,20 @@ export default function CircleScreen() {
     circle_profile_url: undefined as string | undefined,
     _selectedImageAsset: undefined as any
   });
-  const [allInterests, setAllInterests] = useState<any[]>([]);
-  const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({});
+  const [allInterests, setAllInterests] = useState<any[]>([]); // This state is not used in the provided code, consider removing or implementing
+  const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({}); // This state seems to be used for editing interests
+
+  // State for creating a new event
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    location: '',
+    interests: [] as string[]
+  });
+  const [interests, setInterests] = useState<{[category: string]: any[]}>({}); // State for interests to be used in event creation
+
 
   // Placeholder for handleSaveEdit, assuming it's defined elsewhere or needs to be implemented.
   // For now, we'll use a dummy function to avoid errors.
@@ -107,6 +116,77 @@ export default function CircleScreen() {
     await handleSaveChanges();
   };
 
+  // Function to delete an event
+  const deleteEvent = async (eventId: string) => {
+    if (!circle || (!circle.isAdmin && !circle.isMainAdmin && circle.creator !== user?.id)) return;
+
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await DatabaseService.deleteEvent(eventId);
+              if (error) {
+                Alert.alert('Error', `Failed to delete event: ${error.message}`);
+              } else {
+                Alert.alert('Success', 'Event deleted successfully');
+                await loadEvents(); // Refresh events
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete event.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Function to create a new event
+  const createEvent = async () => {
+    if (!user?.id || !id) return;
+
+    setUploading(true);
+    try {
+      const eventData = {
+        ...newEvent,
+        circleid: id,
+        createdby: user.id,
+        interests: newEvent.interests.map(interestid => ({ interestid, circleid: id })) // Format for supabase
+      };
+
+      const { error } = await DatabaseService.createEvent(eventData);
+
+      if (error) {
+        console.error('Error creating event:', error);
+        Alert.alert('Error', error.message || 'Failed to create event.');
+      } else {
+        Alert.alert('Success', 'Event created successfully!');
+        setShowEventModal(false);
+        setNewEvent({ title: '', description: '', date: '', time: '', location: '', interests: [] });
+        await loadEvents(); // Refresh events
+      }
+    } catch (error) {
+      console.error('Error creating event:', error);
+      Alert.alert('Error', 'Failed to create event.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Function to toggle event interests
+  const toggleEventInterest = (interestId: string) => {
+    setNewEvent(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interestId)
+        ? prev.interests.filter(id => id !== interestId)
+        : [...prev.interests, interestId]
+    }));
+  };
 
   const loadCircleData = async () => {
     if (!id) return;
@@ -228,6 +308,7 @@ export default function CircleScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadCircleData();
+    await loadEvents(); // Ensure events are also refreshed
     setRefreshing(false);
   };
 
@@ -600,7 +681,7 @@ export default function CircleScreen() {
     );
   };
 
-  const loadInterests = async () => {
+  const loadCircleInterests = async () => { // This function seems to be duplicated with loadInterests, check usage
     try {
       const { data: interestsData, error } = await DatabaseService.getInterestsByCategory();
       if (error) {
@@ -631,7 +712,7 @@ export default function CircleScreen() {
       interests: currentInterestIds
     });
 
-    await loadInterests();
+    await loadCircleInterests(); // Load interests for editing
     setShowEditModal(true);
   };
 
@@ -993,10 +1074,13 @@ export default function CircleScreen() {
     }
   };
 
+  // Load initial data on component mount
   useEffect(() => {
     console.log('🔄 useEffect triggered - about to call loadCircleData');
     console.log('🔄 useEffect dependencies:', { id, userId: user?.id });
     loadCircleData();
+    loadEvents(); // Load events on mount
+    loadInterests(); // Load interests on mount
   }, [id, user]);
 
   if (loading) {
@@ -1388,7 +1472,10 @@ export default function CircleScreen() {
       {/* Tabs */}
       <View style={[styles.tabContainer, { backgroundColor: surfaceColor }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'feed' && { backgroundColor: tintColor }]}
+          style={[
+            styles.tab,
+            activeTab === 'feed' && { backgroundColor: tintColor }
+          ]}
           onPress={() => setActiveTab('feed')}
         >
           <ThemedText style={[styles.tabText, activeTab === 'feed' && { color: '#fff' }]}>
@@ -1397,7 +1484,23 @@ export default function CircleScreen() {
         </TouchableOpacity>
         {circle.isJoined && (
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'members' && { backgroundColor: tintColor }]}
+            style={[
+              styles.tab,
+              activeTab === 'events' && { backgroundColor: tintColor }
+            ]}
+            onPress={() => setActiveTab('events')}
+          >
+            <ThemedText style={[styles.tabText, activeTab === 'events' && { color: '#fff' }]}>
+              Events
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+        {circle.isJoined && (
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'members' && { backgroundColor: tintColor }
+            ]}
             onPress={() => setActiveTab('members')}
           >
             <ThemedText style={[styles.tabText, activeTab === 'members' && { color: '#fff' }]}>
@@ -1407,7 +1510,10 @@ export default function CircleScreen() {
         )}
         {circle.isAdmin && (
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'admin' && { backgroundColor: tintColor }]}
+            style={[
+              styles.tab,
+              activeTab === 'admin' && { backgroundColor: tintColor }
+            ]}
             onPress={() => setActiveTab('admin')}
           >
             <ThemedText style={[styles.tabText, activeTab === 'admin' && { color: '#fff' }]}>
@@ -1442,6 +1548,80 @@ export default function CircleScreen() {
                 <ThemedText>This is a private circle. Join to view posts.</ThemedText>
               </View>
             )}
+          </View>
+        )}
+
+        {activeTab === 'events' && (
+          <View style={styles.eventsContainer}>
+            {/* Create Event Button */}
+            {(circle?.creator === user?.id || circle.isAdmin) && ( // Check if user is creator or admin
+              <TouchableOpacity
+                style={[styles.createPostButton, { backgroundColor: tintColor }]}
+                onPress={() => setShowEventModal(true)}
+              >
+                <IconSymbol name="plus" size={20} color="#fff" />
+                <ThemedText style={styles.createPostButtonText}>Create Event</ThemedText>
+              </TouchableOpacity>
+            )}
+
+            {/* Events List */}
+            <FlatList
+              data={events}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <View style={[styles.eventCard, { backgroundColor: surfaceColor }]}>
+                  <View style={styles.eventHeader}>
+                    <View style={styles.eventInfo}>
+                      <ThemedText style={styles.eventTitle}>{item.title}</ThemedText>
+                      <ThemedText style={styles.eventDate}>
+                        {new Date(item.date).toLocaleDateString()} at {item.time}
+                      </ThemedText>
+                      {item.location && (
+                        <ThemedText style={styles.eventLocation}>📍 {item.location}</ThemedText>
+                      )}
+                    </View>
+                    {(circle?.creator === user?.id || circle.isAdmin || item.createdby === user?.id) && ( // Check if user is creator, admin, or event creator
+                      <TouchableOpacity
+                        style={styles.deleteEventButton}
+                        onPress={() => deleteEvent(item.id)}
+                      >
+                        <IconSymbol name="trash" size={20} color="#EF5350" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {item.description && (
+                    <ThemedText style={styles.eventDescription}>{item.description}</ThemedText>
+                  )}
+
+                  {/* Event Interests */}
+                  {item.event_interests && item.event_interests.length > 0 && (
+                    <View style={styles.eventInterests}>
+                      {item.event_interests.map((ei: any) => (
+                        <View
+                          key={ei.interests.id}
+                          style={[styles.eventInterestChip, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
+                        >
+                          <ThemedText style={[styles.eventInterestText, { color: tintColor }]}>
+                            {ei.interests.title}
+                          </ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <ThemedText style={styles.eventCreator}>
+                    Created by {item.creator?.name || 'Unknown'}
+                  </ThemedText>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyState}>
+                  <ThemedText style={styles.emptyStateText}>No events yet</ThemedText>
+                </View>
+              }
+            />
           </View>
         )}
 
@@ -1623,6 +1803,147 @@ export default function CircleScreen() {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Create Event Modal */}
+      <Modal
+        visible={showEventModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor }]}>
+          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={() => setShowEventModal(false)}>
+              <IconSymbol name="xmark" size={24} color={textColor} />
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Create Event</ThemedText>
+            <TouchableOpacity
+              onPress={createEvent}
+              disabled={uploading || !newEvent.title || !newEvent.date || !newEvent.time}
+              style={[
+                styles.postButton,
+                { 
+                  backgroundColor: (!newEvent.title || !newEvent.date || !newEvent.time || uploading) 
+                    ? '#ccc' 
+                    : tintColor 
+                }
+              ]}
+            >
+              <ThemedText style={styles.postButtonText}>
+                {uploading ? 'Creating...' : 'Create'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.postingInLabel}>Creating event in:</ThemedText>
+              <ThemedText style={[styles.circleName, { color: tintColor }]}>{circle?.name}</ThemedText>
+            </View>
+
+            {/* Event Title */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>Event Title *</ThemedText>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
+                value={newEvent.title}
+                onChangeText={(text) => setNewEvent(prev => ({ ...prev, title: text }))}
+                placeholder="Enter event title"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            {/* Event Description */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>Description</ThemedText>
+              <TextInput
+                style={[styles.textAreaInput, { backgroundColor: surfaceColor, color: textColor }]}
+                value={newEvent.description}
+                onChangeText={(text) => setNewEvent(prev => ({ ...prev, description: text }))}
+                placeholder="Event description"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            {/* Date and Time */}
+            <View style={styles.dateTimeRow}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <ThemedText style={styles.inputLabel}>Date *</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
+                  value={newEvent.date}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, date: text }))}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#999"
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <ThemedText style={styles.inputLabel}>Time *</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
+                  value={newEvent.time}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, time: text }))}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            {/* Location */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>Location</ThemedText>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
+                value={newEvent.location}
+                onChangeText={(text) => setNewEvent(prev => ({ ...prev, location: text }))}
+                placeholder="Event location"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            {/* Interests */}
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.inputLabel}>Event Interests</ThemedText>
+              <ScrollView style={styles.interestsScrollView}>
+                {Object.entries(interests).map(([category, categoryInterests]) => (
+                  <View key={category} style={styles.interestCategory}>
+                    <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                    <View style={styles.interestChips}>
+                      {categoryInterests.map((interest) => (
+                        <TouchableOpacity
+                          key={interest.id}
+                          style={[
+                            styles.interestChip,
+                            {
+                              backgroundColor: newEvent.interests.includes(interest.id) 
+                                ? tintColor 
+                                : surfaceColor,
+                              borderColor: tintColor,
+                            }
+                          ]}
+                          onPress={() => toggleEventInterest(interest.id)}
+                        >
+                          <ThemedText style={[
+                            styles.interestChipText,
+                            { 
+                              color: newEvent.interests.includes(interest.id) 
+                                ? '#fff' 
+                                : textColor 
+                            }
+                          ]}>
+                            {interest.title}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
 
@@ -2256,16 +2577,6 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     minHeight: 44,
   },
-  textAreaInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
   privacyOptions: {
     flexDirection: 'row',
     gap: 12,
@@ -2528,14 +2839,153 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  imagePlaceholder: {
+  // Modal styles for Create Event
+  modalContainer: {
     flex: 1,
-    justifyContent: 'center',
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  postButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  postButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  interestsScrollView: {
+    maxHeight: 200,
+  },
+  interestCategory: {
+    marginBottom: 16,
+  },
+  interestChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  imagePickerText: {
-    fontSize: 14,
-    fontWeight: '600',
+  interestChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
   },
+  interestChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Added styles for events
+  eventsContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  eventCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  eventDate: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  eventLocation: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  eventDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  eventInterests: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    gap: 6,
+  },
+  eventInterestChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  eventInterestText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  eventCreator: {
+    fontSize: 12,
+    opacity: 0.6,
+    fontStyle: 'italic',
+  },
+  deleteEventButton: {
+    padding: 8,
+  },
+  // Reusing dateTimeRow and interest styles from create event modal
+  // interestsScrollView: {
+  //   maxHeight: 200,
+  // },
+  // interestCategory: {
+  //   marginBottom: 16,
+  // },
+  // interestChips: {
+  //   flexDirection: 'row',
+  //   flexWrap: 'wrap',
+  //   gap: 8,
+  // },
+  // textAreaInput: { // Reusing from above
+  //   borderWidth: 1,
+  //   borderColor: '#ddd',
+  //   borderRadius: 8,
+  //   padding: 12,
+  //   fontSize: 16,
+  //   minHeight: 100,
+  //   textAlignVertical: 'top',
+  // },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    opacity: 0.6,
+  },
+  // Reusing placeholder and image styles from post creation
+  // imagePickerButton: { ... },
+  // selectedImageContainer: { ... },
+  // selectedPostImage: { ... },
+  // imageOverlay: { ... },
+  // changeImageText: { ... },
+  // imagePlaceholder: { ... },
+  // imagePickerText: { ... },
 });

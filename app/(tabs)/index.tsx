@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, TextInput } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -34,9 +34,11 @@ export default function HomeScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
+  const textColor = useThemeColor({}, 'textColor');
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [feedItems, setFeedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,47 @@ export default function HomeScreen() {
     }
   };
 
+  const loadEvents = async () => {
+    try {
+      console.log('Loading events for home feed...');
+      const { data, error } = await DatabaseService.getEvents();
+      if (error) {
+        console.error('Error loading events:', error);
+      } else {
+        console.log('Events loaded successfully:', data?.length);
+        setEvents(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  };
+
+  const combineFeedItems = () => {
+    const combined = [
+      ...posts.map(post => ({ ...post, type: 'post', sortDate: new Date(post.createdat || post.creationdate) })),
+      ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.date) }))
+    ];
+
+    // Sort by date (newest first for posts, upcoming first for events)
+    combined.sort((a, b) => {
+      if (a.type === 'event' && b.type === 'post') {
+        // Show upcoming events before posts
+        if (new Date(a.date) > new Date()) return -1;
+        return 1;
+      }
+      if (a.type === 'post' && b.type === 'event') {
+        // Show upcoming events before posts
+        if (new Date(b.date) > new Date()) return 1;
+        return -1;
+      }
+      // Same type sorting
+      return b.sortDate.getTime() - a.sortDate.getTime();
+    });
+
+    setFeedItems(combined);
+    setLoading(false);
+  };
+
   const loadUserCircles = async () => {
     if (!user?.id) return;
 
@@ -99,11 +142,15 @@ export default function HomeScreen() {
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadPosts();
-    setRefreshing(false);
-  };
+  useEffect(() => {
+    if (user) {
+      Promise.all([loadPosts(), loadEvents()]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    combineFeedItems();
+  }, [posts, events]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -183,30 +230,73 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    loadPosts();
-    loadUserCircles();
-  }, [user]);
+  const renderEvent = ({ item }: { item: any }) => (
+    <View style={[styles.postCard, { backgroundColor: surfaceColor }]}>
+      <View style={styles.postHeader}>
+        <View style={styles.userInfo}>
+          <View style={[styles.avatar, { backgroundColor: tintColor }]}>
+            <ThemedText style={styles.avatarText}>
+              📅
+            </ThemedText>
+          </View>
+          <View style={styles.userDetails}>
+            <ThemedText style={styles.userName}>
+              {item.circle?.name || 'Unknown Circle'}
+            </ThemedText>
+            <ThemedText style={styles.postTime}>
+              Event • {new Date(item.date).toLocaleDateString()} at {item.time}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
 
-  const renderPost = (post: Post) => (
-    <View key={post.id} style={[styles.postCard, { backgroundColor: surfaceColor }]}>
+      <View style={styles.postContent}>
+        <ThemedText style={styles.eventTitle}>{item.title}</ThemedText>
+        {item.description && (
+          <ThemedText style={styles.postText}>{item.description}</ThemedText>
+        )}
+        {item.location && (
+          <ThemedText style={styles.eventLocation}>📍 {item.location}</ThemedText>
+        )}
+
+        {/* Event Interests */}
+        {item.event_interests && item.event_interests.length > 0 && (
+          <View style={styles.eventInterests}>
+            {item.event_interests.map((ei: any) => (
+              <View
+                key={ei.interests.id}
+                style={[styles.eventInterestChip, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
+              >
+                <ThemedText style={[styles.eventInterestText, { color: tintColor }]}>
+                  {ei.interests.title}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderPost = ({ item }: { item: Post }) => (
+    <View key={item.id} style={[styles.postCard, { backgroundColor: surfaceColor }]}>
       {/* Post Header */}
       <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
         <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
           <Image
-            source={{ uri: post.author?.avatar_url || 'https://via.placeholder.com/40' }}
+            source={{ uri: item.author?.avatar_url || 'https://via.placeholder.com/40' }}
             style={styles.authorAvatar}
           />
           <View style={styles.authorDetails}>
             <ThemedText type="defaultSemiBold" style={styles.authorName}>
-              {post.author?.name || 'Unknown User'}
+              {item.author?.name || 'Unknown User'}
             </ThemedText>
             <View style={[styles.postMeta, isRTL && styles.postMetaRTL]}>
               <ThemedText style={styles.circleName}>
-                in {post.circle?.name || 'Unknown Circle'}
+                in {item.circle?.name || 'Unknown Circle'}
               </ThemedText>
               <ThemedText style={styles.postTime}>
-                • {formatTimeAgo(post.creationdate)}
+                • {formatTimeAgo(item.creationdate)}
               </ThemedText>
             </View>
           </View>
@@ -219,13 +309,13 @@ export default function HomeScreen() {
       {/* Post Content */}
       <View style={styles.postContentContainer}>
         <ThemedText style={[styles.postContent, isRTL && styles.rtlText]}>
-          {post.content}
+          {item.content}
         </ThemedText>
       </View>
 
       {/* Post Image */}
-      {post.image && (
-        <Image source={{ uri: post.image }} style={styles.postImage} />
+      {item.image && (
+        <Image source={{ uri: item.image }} style={styles.postImage} />
       )}
 
       {/* Post Actions */}
@@ -233,13 +323,13 @@ export default function HomeScreen() {
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
           <IconSymbol name="heart" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.likes?.length || 0}
+            {item.likes?.length || 0}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
           <IconSymbol name="message" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.comments?.length || 0}
+            {item.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
@@ -297,7 +387,7 @@ export default function HomeScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {loading ? (
@@ -317,14 +407,14 @@ export default function HomeScreen() {
               </ThemedText>
             </TouchableOpacity>
           </View>
-        ) : posts.length === 0 ? (
+        ) : feedItems.length === 0 ? (
           <View style={styles.centeredContainer}>
             <IconSymbol name="doc.text" size={64} color={textColor + '40'} />
             <ThemedText style={styles.emptyText}>
-              No posts from your circles yet
+              No posts or events yet
             </ThemedText>
             <ThemedText style={styles.emptySubtext}>
-              Join some circles to see posts here!
+              Join some circles or check for events!
             </ThemedText>
             <TouchableOpacity
               style={[styles.exploreButton, { backgroundColor: tintColor }]}
@@ -336,9 +426,26 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.postsList}>
-            {posts.map(renderPost)}
-          </View>
+          <FlatList
+            data={feedItems}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            renderItem={({ item }) => {
+              if (item.type === 'post') {
+                return renderPost({ item });
+              } else {
+                return renderEvent({ item });
+              }
+            }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <ThemedText style={styles.emptyStateText}>No posts or events yet</ThemedText>
+              </View>
+            }
+            showsVerticalScrollIndicator={false}
+          />
         )}
       </ScrollView>
 
@@ -378,9 +485,9 @@ export default function HomeScreen() {
                       key={circle.id}
                       style={[
                         styles.circleOption,
-                        { 
+                        {
                           backgroundColor: selectedCircle === circle.id ? tintColor : backgroundColor,
-                          borderColor: tintColor 
+                          borderColor: tintColor
                         }
                       ]}
                       onPress={() => setSelectedCircle(circle.id)}
@@ -495,6 +602,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     elevation: 2,
+    marginBottom: 16,
   },
   postHeader: {
     flexDirection: 'row',
@@ -519,11 +627,32 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
   },
-  authorDetails: {
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+  },
+  userDetails: {
     flex: 1,
   },
   authorName: {
     fontSize: 16,
+    marginBottom: 2,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 2,
   },
   postMeta: {
@@ -549,6 +678,37 @@ const styles = StyleSheet.create({
   postContent: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  postText: {
+    fontSize: 14,
+    lineHeight: 22,
+    opacity: 0.8,
+  },
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  eventLocation: {
+    fontSize: 14,
+    opacity: 0.8,
+    marginTop: 8,
+  },
+  eventInterests: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 6,
+  },
+  eventInterestChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  eventInterestText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   postImage: {
     width: '100%',
@@ -760,5 +920,15 @@ const styles = StyleSheet.create({
   imagePickerText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    opacity: 0.5,
   },
 });
