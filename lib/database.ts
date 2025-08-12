@@ -36,6 +36,7 @@ export const getHomePagePosts = (userId: string) => DatabaseService.getHomePageP
 export const getCircleInterests = (circleId: string) => DatabaseService.getCircleInterests(circleId);
 export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
 export const updateCircleInterests = (circleId: string, interestIds: string[], userId: string) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
+export const deleteEvent = (eventId: string) => DatabaseService.deleteEvent(eventId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
