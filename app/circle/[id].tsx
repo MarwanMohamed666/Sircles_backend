@@ -154,43 +154,41 @@ export default function CircleScreen() {
   // Function to delete an event
   const deleteEvent = async (eventId: string) => {
     console.log('🗑️ CIRCLE PAGE: Delete event button pressed for eventId:', eventId);
-    Alert.alert(
-      texts.delete_event || 'Delete Event',
-      texts.delete_event_confirmation || 'Are you sure you want to delete this event?',
-      [
-        {
-          text: texts.cancel || 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            console.log('🗑️ CIRCLE PAGE: Delete cancelled by user');
-          }
-        },
-        {
-          text: texts.delete || 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('🗑️ CIRCLE PAGE: Delete confirmed, calling DatabaseService.deleteEvent...');
-            try {
-              const result = await DatabaseService.deleteEvent(eventId);
-              console.log('🗑️ CIRCLE PAGE: Delete result:', result);
 
-              if (result.error) {
-                console.error('🗑️ CIRCLE PAGE: Delete failed with error:', result.error);
-                Alert.alert(texts.error || 'Error', result.error.message);
-              } else {
-                console.log('🗑️ CIRCLE PAGE: Delete successful, showing success message');
-                Alert.alert(texts.success || 'Success', texts.event_deleted || 'Event deleted successfully');
-                console.log('🗑️ CIRCLE PAGE: Reloading events...');
-                loadEvents(); // Refresh the events list
-              }
-            } catch (error) {
-              console.error('🗑️ CIRCLE PAGE: Unexpected error during delete:', error);
-              Alert.alert(texts.error || 'Error', 'An unexpected error occurred');
-            }
-          },
-        },
-      ]
-    );
+    if (!eventId) {
+      console.error('🗑️ CIRCLE PAGE: No eventId provided');
+      Alert.alert('Error', 'Invalid event ID');
+      return;
+    }
+
+    try {
+      console.log('🗑️ CIRCLE PAGE: About to call DatabaseService.deleteEvent');
+      const { data, error } = await DatabaseService.deleteEvent(eventId);
+
+      console.log('🗑️ CIRCLE PAGE: Delete event result:', { 
+        hasData: !!data, 
+        hasError: !!error,
+        errorMessage: error?.message,
+        data 
+      });
+
+      if (error) {
+        console.error('🗑️ CIRCLE PAGE: Error deleting event:', error);
+        Alert.alert('Error', 'Failed to delete event: ' + error.message);
+        return;
+      }
+
+      console.log('🗑️ CIRCLE PAGE: Event deleted successfully, reloading events...');
+      Alert.alert('Success', 'Event deleted successfully');
+
+      // Reload events
+      await loadEvents();
+      console.log('🗑️ CIRCLE PAGE: Events reloaded');
+
+    } catch (error) {
+      console.error('🗑️ CIRCLE PAGE: Unexpected error deleting event:', error);
+      Alert.alert('Error', 'An unexpected error occurred: ' + (error instanceof Error ? error.message : String(error)));
+    }
   };
 
   // Function to create a new event
