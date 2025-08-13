@@ -74,26 +74,35 @@ CREATE POLICY "Circle admins can update events" ON events
     )
   );
 
--- Circle admins can delete events
+-- Drop existing policy first
+DROP POLICY IF EXISTS "Circle admins can delete events" ON events;
+
+-- Circle admins can delete events (updated with better logic)
 CREATE POLICY "Circle admins can delete events" ON events
   FOR DELETE USING (
     auth.role() = 'authenticated' AND
     (
-      -- Event creator can delete
+      -- Event creator can always delete their own events
       createdby = auth.uid()
       OR
-      -- Circle creator can delete
-      EXISTS (
-        SELECT 1 FROM circles c
-        WHERE c.id = events.circleid
-        AND c.creator = auth.uid()
+      -- For circle events, circle creator can delete
+      (
+        circleid IS NOT NULL AND
+        EXISTS (
+          SELECT 1 FROM circles c
+          WHERE c.id = events.circleid
+          AND c.creator = auth.uid()
+        )
       )
       OR
-      -- Circle admin can delete
-      EXISTS (
-        SELECT 1 FROM circle_admins ca
-        WHERE ca.circleid = events.circleid
-        AND ca.userid = auth.uid()
+      -- For circle events, circle admin can delete
+      (
+        circleid IS NOT NULL AND
+        EXISTS (
+          SELECT 1 FROM circle_admins ca
+          WHERE ca.circleid = events.circleid
+          AND ca.userid = auth.uid()
+        )
       )
     )
   );
