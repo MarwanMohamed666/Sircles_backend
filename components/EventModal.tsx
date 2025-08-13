@@ -68,14 +68,16 @@ export default function EventModal({
 
   const loadInterests = async () => {
     try {
+      console.log('EventModal: Loading interests from database...');
       const { data, error } = await DatabaseService.getInterestsByCategory();
       if (error) {
-        console.error('Error loading interests:', error);
+        console.error('EventModal: Error loading interests:', error);
         return;
       }
+      console.log('EventModal: Interests loaded successfully:', data);
       setInterests(data || {});
     } catch (error) {
-      console.error('Error loading interests:', error);
+      console.error('EventModal: Error loading interests:', error);
     }
   };
 
@@ -103,6 +105,9 @@ export default function EventModal({
         }))
       };
 
+      console.log('EventModal: Creating event with data:', eventData);
+      console.log('EventModal: Interest IDs being used:', newEvent.interests);
+
       const { error } = await DatabaseService.createEvent(eventData);
 
       if (error) {
@@ -122,6 +127,7 @@ export default function EventModal({
   };
 
   const toggleEventInterest = (interestId: string) => {
+    console.log('EventModal: Toggling interest:', interestId);
     setNewEvent(prev => ({
       ...prev,
       interests: prev.interests.includes(interestId)
