@@ -14,6 +14,7 @@ import { DatabaseService } from '@/lib/database';
 import { uploadCircleProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { StorageService } from '@/lib/storage';
+import EventModal from '@/components/EventModal';
 
 
 interface Circle {
@@ -96,15 +97,7 @@ export default function CircleScreen() {
   const [allInterests, setAllInterests] = useState<any[]>([]); // This state is not used in the provided code, consider removing or implementing
   const [interestsByCategory, setInterestsByCategory] = useState<{[key: string]: any[]}>({}); // This state seems to be used for editing interests
 
-  // State for creating a new event
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    date: '',
-    time: '',
-    location: '',
-    interests: [] as string[]
-  });
+  // State for event modal
   const [interests, setInterests] = useState<{[category: string]: any[]}>({}); // State for interests to be used in event creation
   const [uploading, setUploading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -191,47 +184,7 @@ export default function CircleScreen() {
     }
   };
 
-  // Function to create a new event
-  const createEvent = async () => {
-    if (!user?.id || !id) return;
-
-    setUploading(true);
-    try {
-      const eventData = {
-        ...newEvent,
-        circleid: id,
-        createdby: user.id,
-        interests: newEvent.interests.map(interestid => ({ interestid, circleid: id })) // Format for supabase
-      };
-
-      const { error } = await DatabaseService.createEvent(eventData);
-
-      if (error) {
-        console.error('Error creating event:', error);
-        Alert.alert('Error', error.message || 'Failed to create event.');
-      } else {
-        Alert.alert('Success', 'Event created successfully!');
-        setShowEventModal(false);
-        setNewEvent({ title: '', description: '', date: '', time: '', location: '', interests: [] });
-        await loadEvents(); // Refresh events
-      }
-    } catch (error) {
-      console.error('Error creating event:', error);
-      Alert.alert('Error', 'Failed to create event.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Function to toggle event interests
-  const toggleEventInterest = (interestId: string) => {
-    setNewEvent(prev => ({
-      ...prev,
-      interests: prev.interests.includes(interestId)
-        ? prev.interests.filter(id => id !== interestId)
-        : [...prev.interests, interestId]
-    }));
-  };
+  
 
   const loadCircleData = async () => {
     if (!id) return;
@@ -1852,145 +1805,13 @@ export default function CircleScreen() {
       </Modal>
 
       {/* Create Event Modal */}
-      <Modal
+      <EventModal
         visible={showEventModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modalContainer, { backgroundColor }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
-            <TouchableOpacity onPress={() => setShowEventModal(false)}>
-              <IconSymbol name="xmark" size={24} color={textColor} />
-            </TouchableOpacity>
-            <ThemedText style={styles.modalTitle}>Create Event</ThemedText>
-            <TouchableOpacity
-              onPress={createEvent}
-              disabled={uploading || !newEvent.title || !newEvent.date || !newEvent.time}
-              style={[
-                styles.postButton,
-                {
-                  backgroundColor: (!newEvent.title || !newEvent.date || !newEvent.time || uploading)
-                    ? '#ccc'
-                    : tintColor
-                }
-              ]}
-            >
-              <ThemedText style={styles.postButtonText}>
-                {uploading ? 'Creating...' : 'Create'}
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalBody}>
-            <View style={styles.inputSection}>
-              <ThemedText style={styles.postingInLabel}>Creating event in:</ThemedText>
-              <ThemedText style={[styles.circleName, { color: tintColor }]}>{circle?.name}</ThemedText>
-            </View>
-
-            {/* Event Title */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Event Title *</ThemedText>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
-                value={newEvent.title}
-                onChangeText={(text) => setNewEvent(prev => ({ ...prev, title: text }))}
-                placeholder="Enter event title"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            {/* Event Description */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Description</ThemedText>
-              <TextInput
-                style={[styles.textAreaInput, { backgroundColor: surfaceColor, color: textColor }]}
-                value={newEvent.description}
-                onChangeText={(text) => setNewEvent(prev => ({ ...prev, description: text }))}
-                placeholder="Event description"
-                placeholderTextColor="#999"
-                multiline
-                numberOfLines={4}
-              />
-            </View>
-
-            {/* Date and Time */}
-            <View style={styles.dateTimeRow}>
-              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                <ThemedText style={styles.inputLabel}>Date *</ThemedText>
-                <TextInput
-                  style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
-                  value={newEvent.date}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, date: text }))}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#999"
-                />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                <ThemedText style={styles.inputLabel}>Time *</ThemedText>
-                <TextInput
-                  style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
-                  value={newEvent.time}
-                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, time: text }))}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#999"
-                />
-              </View>
-            </View>
-
-            {/* Location */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Location</ThemedText>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
-                value={newEvent.location}
-                onChangeText={(text) => setNewEvent(prev => ({ ...prev, location: text }))}
-                placeholder="Event location"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            {/* Interests */}
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Event Interests</ThemedText>
-              <ScrollView style={styles.interestsScrollView}>
-                {Object.entries(interests).map(([category, categoryInterests]) => (
-                  <View key={category} style={styles.interestCategory}>
-                    <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-                    <View style={styles.interestChips}>
-                      {categoryInterests.map((interest) => (
-                        <TouchableOpacity
-                          key={interest.id}
-                          style={[
-                            styles.interestChip,
-                            {
-                              backgroundColor: newEvent.interests.includes(interest.id)
-                                ? tintColor
-                                : surfaceColor,
-                              borderColor: tintColor,
-                            }
-                          ]}
-                          onPress={() => toggleEventInterest(interest.id)}
-                        >
-                          <ThemedText style={[
-                            styles.interestChipText,
-                            {
-                              color: newEvent.interests.includes(interest.id)
-                                ? '#fff'
-                                : textColor
-                            }
-                          ]}>
-                            {interest.title}
-                          </ThemedText>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
+        onClose={() => setShowEventModal(false)}
+        onEventCreated={loadEvents}
+        preSelectedCircleId={id as string}
+        circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
+      />
 
       {/* Edit Circle Modal */}
       <Modal

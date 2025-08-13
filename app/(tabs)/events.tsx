@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -9,6 +9,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
+import EventModal from '@/components/EventModal';
 
 interface Event {
   id: string;
@@ -41,18 +42,8 @@ export default function EventsScreen() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    date: '',
-    time: '',
-    location: '',
-    description: '',
-    circleId: '',
-    interests: [] as string[]
-  });
 
   const [events, setEvents] = useState<Event[]>([]);
-  const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [loading, setLoading] = useState(true);
   const [circles, setCircles] = useState<{id: string, name: string}[]>([]);
   const [deletableEvents, setDeletableEvents] = useState<Set<string>>(new Set());
@@ -61,7 +52,6 @@ export default function EventsScreen() {
   useEffect(() => {
     if (user) {
       fetchEvents();
-      fetchInterests();
       fetchUserCircles();
     }
   }, [user]);
@@ -87,19 +77,6 @@ export default function EventsScreen() {
     }
   };
 
-  const fetchInterests = async () => {
-    try {
-      const { data, error } = await DatabaseService.getInterestsByCategory();
-      if (error) {
-        console.error('Error fetching interests:', error);
-      } else if (data) {
-        setInterests(data);
-      }
-    } catch (error) {
-      console.error('Error fetching interests:', error);
-    }
-  };
-
   const fetchUserCircles = async () => {
     if (!user) return;
 
@@ -116,59 +93,6 @@ export default function EventsScreen() {
     } catch (error) {
       console.error('Error fetching user circles:', error);
     }
-  };
-
-  const handleCreateEvent = async () => {
-    if (newEvent.title.trim() && newEvent.date && newEvent.time && newEvent.location.trim()) {
-      try {
-        const eventData = {
-          title: newEvent.title.trim(),
-          date: newEvent.date,
-          time: newEvent.time,
-          location: newEvent.location.trim(),
-          description: newEvent.description.trim(),
-          circleid: newEvent.circleId || null, // Set to null for general events
-          interests: newEvent.interests
-        };
-
-        const { data, error } = await DatabaseService.createEvent(eventData);
-
-        if (error) {
-          console.error('Error creating event:', error);
-          Alert.alert(texts.error || 'Error', 'Failed to create event. Please try again.');
-          return;
-        }
-
-        // Refresh events list
-        await fetchEvents();
-
-        setNewEvent({
-          title: '',
-          date: '',
-          time: '',
-          location: '',
-          description: '',
-          circleId: '',
-          interests: []
-        });
-        setShowCreateModal(false);
-        Alert.alert(texts.success || 'Success', texts.eventCreated || 'Event created successfully!');
-      } catch (error) {
-        console.error('Unexpected error creating event:', error);
-        Alert.alert(texts.error || 'Error', 'Failed to create event. Please try again.');
-      }
-    } else {
-      Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all required fields.');
-    }
-  };
-
-  const toggleInterest = (interestId: string) => {
-    setNewEvent(prev => ({
-      ...prev,
-      interests: prev.interests.includes(interestId)
-        ? prev.interests.filter(id => id !== interestId)
-        : [...prev.interests, interestId]
-    }));
   };
 
   const loadEvents = fetchEvents; // Alias for clarity in handleDeleteEvent
@@ -434,202 +358,12 @@ export default function EventsScreen() {
       </Modal>
 
       {/* Create Event Modal */}
-      <Modal
+      <EventModal
         visible={showCreateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
-            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
-              <ThemedText type="subtitle" style={styles.modalTitle}>
-                {texts.createEvent || 'Create Event'}
-              </ThemedText>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowCreateModal(false)}
-              >
-                <IconSymbol name="xmark" size={24} color={textColor} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.title || 'Title'} *</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  placeholder={texts.enterEventTitle || 'Enter event title'}
-                  placeholderTextColor={textColor + '80'}
-                  value={newEvent.title}
-                  onChangeText={(text) => setNewEvent({ ...newEvent, title: text })}
-                />
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.date || 'Date'} *</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textColor + '80'}
-                  value={newEvent.date}
-                  onChangeText={(text) => setNewEvent({ ...newEvent, date: text })}
-                />
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.time || 'Time'} *</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  placeholder="HH:MM AM/PM"
-                  placeholderTextColor={textColor + '80'}
-                  value={newEvent.time}
-                  onChangeText={(text) => setNewEvent({ ...newEvent, time: text })}
-                />
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.location || 'Location'} *</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  placeholder={texts.enterLocation || 'Enter location'}
-                  placeholderTextColor={textColor + '80'}
-                  value={newEvent.location}
-                  onChangeText={(text) => setNewEvent({ ...newEvent, location: text })}
-                />
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.description || 'Description'}</ThemedText>
-                <TextInput
-                  style={[
-                    styles.textArea,
-                    { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                  ]}
-                  placeholder={texts.enterDescription || 'Enter event description'}
-                  placeholderTextColor={textColor + '80'}
-                  value={newEvent.description}
-                  onChangeText={(text) => setNewEvent({ ...newEvent, description: text })}
-                  multiline
-                />
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>{texts.circle || 'Circle'} (Optional)</ThemedText>
-                <View style={styles.pickerContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.tagButton,
-                      {
-                        backgroundColor: newEvent.circleId === '' ? tintColor : backgroundColor,
-                        borderColor: tintColor,
-                      }
-                    ]}
-                    onPress={() => setNewEvent({ ...newEvent, circleId: '' })}
-                  >
-                    <ThemedText style={[
-                      styles.tagButtonText,
-                      { color: newEvent.circleId === '' ? '#fff' : textColor }
-                    ]}>
-                      {texts.general || 'General'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  {circles.map((circle) => (
-                    <TouchableOpacity
-                      key={circle.id}
-                      style={[
-                        styles.tagButton,
-                        {
-                          backgroundColor: newEvent.circleId === circle.id ? tintColor : backgroundColor,
-                          borderColor: tintColor,
-                        }
-                      ]}
-                      onPress={() => setNewEvent({ ...newEvent, circleId: circle.id })}
-                    >
-                      <ThemedText style={[
-                        styles.tagButtonText,
-                        { color: newEvent.circleId === circle.id ? '#fff' : textColor }
-                      ]}>
-                        {circle.name}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.formField}>
-                <ThemedText style={styles.fieldLabel}>
-                  {texts.interests || 'Interests'} (Optional)
-                </ThemedText>
-                <ScrollView style={styles.interestsScrollView} showsVerticalScrollIndicator={false}>
-                  {Object.entries(interests).map(([category, categoryInterests]) => (
-                    <View key={category} style={styles.interestCategory}>
-                      <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-                      <View style={styles.pickerContainer}>
-                        {categoryInterests.map((interest) => (
-                          <TouchableOpacity
-                            key={interest.id}
-                            style={[
-                              styles.interestChip,
-                              {
-                                backgroundColor: newEvent.interests.includes(interest.id) 
-                                  ? getInterestColor(category) 
-                                  : backgroundColor,
-                                borderColor: getInterestColor(category),
-                              }
-                            ]}
-                            onPress={() => toggleInterest(interest.id)}
-                          >
-                            <ThemedText style={[
-                              styles.interestChipText,
-                              { 
-                                color: newEvent.interests.includes(interest.id) 
-                                  ? '#fff' 
-                                  : textColor 
-                              }
-                            ]}>
-                              {interest.title}
-                            </ThemedText>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalActionButton, styles.cancelButton, { backgroundColor }]}
-                  onPress={() => setShowCreateModal(false)}
-                >
-                  <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalActionButton, { backgroundColor: tintColor }]}
-                  onPress={handleCreateEvent}
-                >
-                  <ThemedText style={{ color: '#fff' }}>
-                    {texts.create || 'Create'}
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowCreateModal(false)}
+        onEventCreated={fetchEvents}
+        circles={circles}
+      />
     </SafeAreaView>
   );
 }
