@@ -114,14 +114,14 @@ export default function CircleScreen() {
 
   const loadEvents = async () => {
     if (!id) return;
-    
+
     try {
       const { data, error } = await DatabaseService.getEvents();
       if (error) {
         console.error('Error loading events:', error);
         return;
       }
-      
+
       // Filter events for this specific circle
       const circleEvents = data?.filter(event => event.circleid === id) || [];
       setEvents(circleEvents);
@@ -153,27 +153,39 @@ export default function CircleScreen() {
 
   // Function to delete an event
   const deleteEvent = async (eventId: string) => {
-    if (!circle || (!circle.isAdmin && !circle.isMainAdmin && circle.creator !== user?.id)) return;
-
+    console.log('🗑️ CIRCLE PAGE: Delete event button pressed for eventId:', eventId);
     Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
+      texts.delete_event || 'Delete Event',
+      texts.delete_event_confirmation || 'Are you sure you want to delete this event?',
       [
-        { text: 'No', style: 'cancel' },
         {
-          text: 'Yes',
+          text: texts.cancel || 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            console.log('🗑️ CIRCLE PAGE: Delete cancelled by user');
+          }
+        },
+        {
+          text: texts.delete || 'Delete',
           style: 'destructive',
           onPress: async () => {
+            console.log('🗑️ CIRCLE PAGE: Delete confirmed, calling DatabaseService.deleteEvent...');
             try {
-              const { error } = await DatabaseService.deleteEvent(eventId);
-              if (error) {
-                Alert.alert('Error', `Failed to delete event: ${error.message}`);
+              const result = await DatabaseService.deleteEvent(eventId);
+              console.log('🗑️ CIRCLE PAGE: Delete result:', result);
+
+              if (result.error) {
+                console.error('🗑️ CIRCLE PAGE: Delete failed with error:', result.error);
+                Alert.alert(texts.error || 'Error', result.error.message);
               } else {
-                Alert.alert('Success', 'Event deleted successfully');
-                await loadEvents(); // Refresh events
+                console.log('🗑️ CIRCLE PAGE: Delete successful, showing success message');
+                Alert.alert(texts.success || 'Success', texts.event_deleted || 'Event deleted successfully');
+                console.log('🗑️ CIRCLE PAGE: Reloading events...');
+                loadEvents(); // Refresh the events list
               }
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete event.');
+              console.error('🗑️ CIRCLE PAGE: Unexpected error during delete:', error);
+              Alert.alert(texts.error || 'Error', 'An unexpected error occurred');
             }
           },
         },
@@ -264,10 +276,10 @@ export default function CircleScreen() {
           // Check for pending request if not a member
           console.log('🔄 Checking for pending request since user is not a member');
           const { data: pendingRequest, error: pendingError } = await DatabaseService.getUserPendingRequest(id as string, user.id);
-          console.log('🔄 Pending request check result:', { 
-            hasPendingData: !!pendingRequest, 
+          console.log('🔄 Pending request check result:', {
+            hasPendingData: !!pendingRequest,
             pendingRequestData: pendingRequest,
-            pendingError: pendingError?.message 
+            pendingError: pendingError?.message
           });
           hasPendingRequest = !!pendingRequest;
           console.log('🔄 Setting hasPendingRequest to:', hasPendingRequest);
@@ -297,7 +309,7 @@ export default function CircleScreen() {
       setCircle(updatedCircle);
       setHasPendingRequest(hasPendingRequest);
       console.log('🔄 === LOAD_CIRCLE_DATA COMPLETED ===');
-      console.log('🔄 Final state should be:', { 
+      console.log('🔄 Final state should be:', {
         localHasPendingRequest: hasPendingRequest,
         circleHasPendingRequest: updatedCircle.hasPendingRequest
       });
@@ -1299,11 +1311,11 @@ export default function CircleScreen() {
   };
 
   // Filter functions for admin search
-  const filteredMembers = members.filter(member => 
+  const filteredMembers = members.filter(member =>
     member.name.toLowerCase().includes(memberSearchQuery.toLowerCase())
   );
 
-  const filteredJoinRequests = joinRequests.filter(request => 
+  const filteredJoinRequests = joinRequests.filter(request =>
     request.users.name.toLowerCase().includes(requestSearchQuery.toLowerCase())
   );
 
@@ -1858,10 +1870,10 @@ export default function CircleScreen() {
               disabled={uploading || !newEvent.title || !newEvent.date || !newEvent.time}
               style={[
                 styles.postButton,
-                { 
-                  backgroundColor: (!newEvent.title || !newEvent.date || !newEvent.time || uploading) 
-                    ? '#ccc' 
-                    : tintColor 
+                {
+                  backgroundColor: (!newEvent.title || !newEvent.date || !newEvent.time || uploading)
+                    ? '#ccc'
+                    : tintColor
                 }
               ]}
             >
@@ -1953,8 +1965,8 @@ export default function CircleScreen() {
                           style={[
                             styles.interestChip,
                             {
-                              backgroundColor: newEvent.interests.includes(interest.id) 
-                                ? tintColor 
+                              backgroundColor: newEvent.interests.includes(interest.id)
+                                ? tintColor
                                 : surfaceColor,
                               borderColor: tintColor,
                             }
@@ -1963,10 +1975,10 @@ export default function CircleScreen() {
                         >
                           <ThemedText style={[
                             styles.interestChipText,
-                            { 
-                              color: newEvent.interests.includes(interest.id) 
-                                ? '#fff' 
-                                : textColor 
+                            {
+                              color: newEvent.interests.includes(interest.id)
+                                ? '#fff'
+                                : textColor
                             }
                           ]}>
                             {interest.title}

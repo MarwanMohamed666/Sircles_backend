@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -98,7 +97,7 @@ export default function EventsScreen() {
 
   const fetchUserCircles = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await DatabaseService.getUserCircles(user.id);
       if (error) {
@@ -128,7 +127,7 @@ export default function EventsScreen() {
         };
 
         const { data, error } = await DatabaseService.createEvent(eventData);
-        
+
         if (error) {
           console.error('Error creating event:', error);
           Alert.alert(texts.error || 'Error', 'Failed to create event. Please try again.');
@@ -137,7 +136,7 @@ export default function EventsScreen() {
 
         // Refresh events list
         await fetchEvents();
-        
+
         setNewEvent({
           title: '',
           date: '',
@@ -167,40 +166,40 @@ export default function EventsScreen() {
     }));
   };
 
-  const handleDeleteEvent = async (eventId: string, eventCreatedBy: string) => {
-    if (!user) return;
-    
-    // Check if user can delete (must be creator or circle admin for circle events)
-    const event = events.find(e => e.id === eventId);
-    if (!event) return;
-    
-    const canDelete = event.createdby === user.id || 
-      (event.circleid && await checkIfCircleAdmin(event.circleid, user.id));
-    
-    if (!canDelete) {
-      Alert.alert(texts.error || 'Error', 'You do not have permission to delete this event.');
-      return;
-    }
-
+  const handleDeleteEvent = async (eventId: string) => {
+    console.log('🗑️ EVENTS PAGE: Delete event button pressed for eventId:', eventId);
     Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
+      texts.delete_event || 'Delete Event',
+      texts.delete_event_confirmation || 'Are you sure you want to delete this event?',
       [
-        { text: texts.cancel || 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: texts.cancel || 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            console.log('🗑️ EVENTS PAGE: Delete cancelled by user');
+          }
+        },
+        {
+          text: texts.delete || 'Delete',
           style: 'destructive',
           onPress: async () => {
+            console.log('🗑️ EVENTS PAGE: Delete confirmed, calling DatabaseService.deleteEvent...');
             try {
-              const { error } = await DatabaseService.deleteEvent(eventId);
-              if (error) {
-                Alert.alert(texts.error || 'Error', `Failed to delete event: ${error.message}`);
+              const result = await DatabaseService.deleteEvent(eventId);
+              console.log('🗑️ EVENTS PAGE: Delete result:', result);
+
+              if (result.error) {
+                console.error('🗑️ EVENTS PAGE: Delete failed with error:', result.error);
+                Alert.alert(texts.error || 'Error', result.error.message);
               } else {
-                Alert.alert(texts.success || 'Success', 'Event deleted successfully');
-                await fetchEvents(); // Refresh events
+                console.log('🗑️ EVENTS PAGE: Delete successful, showing success message');
+                Alert.alert(texts.success || 'Success', texts.event_deleted || 'Event deleted successfully');
+                console.log('🗑️ EVENTS PAGE: Reloading events...');
+                fetchEvents(); // Refresh the events list
               }
             } catch (error) {
-              Alert.alert(texts.error || 'Error', 'Failed to delete event.');
+              console.error('🗑️ EVENTS PAGE: Unexpected error during delete:', error);
+              Alert.alert(texts.error || 'Error', 'An unexpected error occurred');
             }
           },
         },
@@ -298,7 +297,7 @@ export default function EventsScreen() {
               {(event.createdby === user?.id) && (
                 <TouchableOpacity
                   style={styles.deleteEventButton}
-                  onPress={() => handleDeleteEvent(event.id, event.createdby)}
+                  onPress={() => handleDeleteEvent(event.id)}
                 >
                   <IconSymbol name="trash" size={18} color="#ff4444" />
                 </TouchableOpacity>

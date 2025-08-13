@@ -515,18 +515,122 @@ export const DatabaseService = {
   },
 
   async deleteEvent(eventId: string) {
+    console.log('🗑️ DELETE EVENT: Function called with eventId:', eventId);
+    
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
+      console.error('🗑️ DELETE EVENT: Authentication failed - no user');
       return { data: null, error: new Error('Authentication required') };
     }
 
+    console.log('🗑️ DELETE EVENT: User authenticated:', currentUser.user.id);
+
+    // First, let's check if the event exists and get its details
+    console.log('🗑️ DELETE EVENT: Checking if event exists...');
+    const { data: eventCheck, error: eventCheckError } = await supabase
+      .from('events')
+      .select('id, title, createdby, circleid')
+      .eq('id', eventId)
+      .single();
+
+    if (eventCheckError) {
+      console.error('🗑️ DELETE EVENT: Error checking event existence:', eventCheckError);
+      return { data: null, error: eventCheckError };
+    }
+
+    if (!eventCheck) {
+      console.error('🗑️ DELETE EVENT: Event not found');
+      return { data: null, error: new Error('Event not found') };
+    }
+
+    console.log('🗑️ DELETE EVENT: Event found:', {
+      id: eventCheck.id,
+      title: eventCheck.title,
+      createdby: eventCheck.createdby,
+      circleid: eventCheck.circleid,
+      currentUserId: currentUser.user.id
+    });
+
+    // Check user permissions
+    console.log('🗑️ DELETE EVENT: Checking user permissions...');
+    const isEventCreator = eventCheck.createdby === currentUser.user.id;
+    console.log('🗑️ DELETE EVENT: Is event creator?', isEventCreator);
+
+    if (eventCheck.circleid) {
+      // Check if user is circle admin or creator
+      console.log('🗑️ DELETE EVENT: Event belongs to circle, checking circle permissions...');
+      
+      const { data: circle } = await supabase
+        .from('circles')
+        .select('creator')
+        .eq('id', eventCheck.circleid)
+        .single();
+
+      const isCircleCreator = circle?.creator === currentUser.user.id;
+      console.log('🗑️ DELETE EVENT: Is circle creator?', isCircleCreator);
+
+      if (!isCircleCreator) {
+        const { data: isAdmin } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', eventCheck.circleid)
+          .eq('userid', currentUser.user.id)
+          .single();
+
+        const isCircleAdmin = !!isAdmin;
+        console.log('🗑️ DELETE EVENT: Is circle admin?', isCircleAdmin);
+
+        if (!isEventCreator && !isCircleAdmin) {
+          console.error('🗑️ DELETE EVENT: Permission denied - user is not event creator, circle creator, or circle admin');
+          return { data: null, error: new Error('You do not have permission to delete this event') };
+        }
+      }
+    } else {
+      // General event - only creator can delete
+      if (!isEventCreator) {
+        console.error('🗑️ DELETE EVENT: Permission denied - user is not the creator of this general event');
+        return { data: null, error: new Error('You do not have permission to delete this event') };
+      }
+    }
+
+    console.log('🗑️ DELETE EVENT: Permission check passed, attempting to delete...');
+
+    // First delete event interests (if any)
+    console.log('🗑️ DELETE EVENT: Deleting event interests...');
+    const { error: interestsDeleteError } = await supabase
+      .from('event_interests')
+      .delete()
+      .eq('eventid', eventId);
+
+    if (interestsDeleteError) {
+      console.error('🗑️ DELETE EVENT: Error deleting event interests:', interestsDeleteError);
+    } else {
+      console.log('🗑️ DELETE EVENT: Event interests deleted successfully');
+    }
+
+    // Now delete the event
+    console.log('🗑️ DELETE EVENT: Deleting event...');
     const { data, error } = await supabase
       .from('events')
       .delete()
       .eq('id', eventId);
+
+    if (error) {
+      console.error('🗑️ DELETE EVENT: Error deleting event:', error);
+      console.error('🗑️ DELETE EVENT: Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      return { data: null, error };
+    }
+
+    console.log('🗑️ DELETE EVENT: Event deleted successfully');
+    console.log('🗑️ DELETE EVENT: Delete response data:', data);
     
-    return { data, error };
+    return { data, error: null };
   },
 
   async updateEventInterests(eventId: string, newInterests: string[]) {
