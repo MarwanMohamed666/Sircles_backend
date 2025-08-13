@@ -130,18 +130,76 @@ CREATE POLICY "Circle members can view event interests" ON event_interests
     )
   );
 
--- Circle admins can manage event interests (including general events)
-CREATE POLICY "Circle admins can manage event interests" ON event_interests
-  FOR ALL USING (
+-- Allow event creators to insert event interests
+CREATE POLICY "Event creators can insert event interests" ON event_interests
+  FOR INSERT WITH CHECK (
     auth.role() = 'authenticated' AND
     EXISTS (
       SELECT 1 FROM events e
       WHERE e.id = event_interests.eventid
       AND (
-        -- Event creator can manage
+        -- Event creator can insert interests
         e.createdby = auth.uid()
         OR
-        -- For circle events, circle creator and admins can manage
+        -- For circle events, circle creator and admins can insert
+        (e.circleid IS NOT NULL AND EXISTS (
+          SELECT 1 FROM circles c
+          WHERE c.id = e.circleid
+          AND (
+            c.creator = auth.uid()
+            OR
+            EXISTS (
+              SELECT 1 FROM circle_admins ca
+              WHERE ca.circleid = c.id
+              AND ca.userid = auth.uid()
+            )
+          )
+        ))
+      )
+    )
+  );
+
+-- Allow event creators to update event interests
+CREATE POLICY "Event creators can update event interests" ON event_interests
+  FOR UPDATE USING (
+    auth.role() = 'authenticated' AND
+    EXISTS (
+      SELECT 1 FROM events e
+      WHERE e.id = event_interests.eventid
+      AND (
+        -- Event creator can update interests
+        e.createdby = auth.uid()
+        OR
+        -- For circle events, circle creator and admins can update
+        (e.circleid IS NOT NULL AND EXISTS (
+          SELECT 1 FROM circles c
+          WHERE c.id = e.circleid
+          AND (
+            c.creator = auth.uid()
+            OR
+            EXISTS (
+              SELECT 1 FROM circle_admins ca
+              WHERE ca.circleid = c.id
+              AND ca.userid = auth.uid()
+            )
+          )
+        ))
+      )
+    )
+  );
+
+-- Allow event creators to delete event interests
+CREATE POLICY "Event creators can delete event interests" ON event_interests
+  FOR DELETE USING (
+    auth.role() = 'authenticated' AND
+    EXISTS (
+      SELECT 1 FROM events e
+      WHERE e.id = event_interests.eventid
+      AND (
+        -- Event creator can delete interests
+        e.createdby = auth.uid()
+        OR
+        -- For circle events, circle creator and admins can delete
         (e.circleid IS NOT NULL AND EXISTS (
           SELECT 1 FROM circles c
           WHERE c.id = e.circleid
