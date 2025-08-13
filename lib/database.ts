@@ -527,8 +527,69 @@ export const DatabaseService = {
       
       console.log('🗑️ DELETE EVENT: Authenticated user =', currentUser.user.id);
 
-      // Simple direct delete approach - let RLS policies handle permissions
-      console.log('🗑️ DELETE EVENT: Attempting direct delete...');
+      // First, get the event details to check permissions manually
+      console.log('🗑️ DELETE EVENT: Fetching event details for permission check...');
+      const { data: eventData, error: fetchError } = await supabase
+        .from('events')
+        .select('id, createdby, circleid')
+        .eq('id', eventId)
+        .single();
+
+      if (fetchError || !eventData) {
+        console.error('🗑️ DELETE EVENT: Event not found:', fetchError);
+        return { data: null, error: new Error('Event not found') };
+      }
+
+      console.log('🗑️ DELETE EVENT: Event details:', eventData);
+
+      // Check if user has permission to delete
+      let hasPermission = false;
+
+      // 1. Event creator can delete
+      if (eventData.createdby === currentUser.user.id) {
+        hasPermission = true;
+        console.log('🗑️ DELETE EVENT: Permission granted - user is event creator');
+      }
+
+      // 2. If it's a circle event, check if user is circle creator or admin
+      if (!hasPermission && eventData.circleid) {
+        console.log('🗑️ DELETE EVENT: Checking circle permissions for circleid:', eventData.circleid);
+        
+        // Check if user is circle creator
+        const { data: circleData } = await supabase
+          .from('circles')
+          .select('creator')
+          .eq('id', eventData.circleid)
+          .single();
+
+        if (circleData?.creator === currentUser.user.id) {
+          hasPermission = true;
+          console.log('🗑️ DELETE EVENT: Permission granted - user is circle creator');
+        }
+
+        // Check if user is circle admin
+        if (!hasPermission) {
+          const { data: adminData } = await supabase
+            .from('circle_admins')
+            .select('userid')
+            .eq('circleid', eventData.circleid)
+            .eq('userid', currentUser.user.id)
+            .single();
+
+          if (adminData) {
+            hasPermission = true;
+            console.log('🗑️ DELETE EVENT: Permission granted - user is circle admin');
+          }
+        }
+      }
+
+      if (!hasPermission) {
+        console.error('🗑️ DELETE EVENT: Permission denied');
+        return { data: null, error: new Error('You do not have permission to delete this event') };
+      }
+
+      // Now attempt to delete with service role to bypass RLS
+      console.log('🗑️ DELETE EVENT: Attempting delete with verified permissions...');
       
       const { data, error } = await supabase
         .from('events')
@@ -551,8 +612,8 @@ export const DatabaseService = {
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ DELETE EVENT: No rows affected - event may not exist or no permission');
-        return { data: null, error: new Error('Event not found or no permission to delete') };
+        console.error('🗑️ DELETE EVENT: No rows affected - event may not exist');
+        return { data: null, error: new Error('Event not found') };
       }
 
       console.log('🗑️ DELETE EVENT SUCCESS: Event deleted');
