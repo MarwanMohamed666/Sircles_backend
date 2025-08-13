@@ -184,6 +184,48 @@ export default function CircleScreen() {
     }
   };
 
+  const handleEventRsvp = async (eventId: string, status: 'going' | 'interested' | 'not_going') => {
+    if (!user) return;
+
+    try {
+      // Check if user already has an RSVP
+      const event = events.find(e => e.id === eventId);
+      const hasExistingRsvp = event?.user_rsvp && event.user_rsvp.length > 0;
+
+      if (hasExistingRsvp) {
+        const currentStatus = event.user_rsvp[0].status;
+        if (currentStatus === status) {
+          // Same status clicked - remove RSVP
+          const { error } = await DatabaseService.deleteEventRsvp(eventId);
+          if (error) {
+            Alert.alert('Error', 'Failed to remove RSVP');
+            return;
+          }
+        } else {
+          // Different status - update RSVP
+          const { error } = await DatabaseService.updateEventRsvp(eventId, status);
+          if (error) {
+            Alert.alert('Error', 'Failed to update RSVP');
+            return;
+          }
+        }
+      } else {
+        // No existing RSVP - create new one
+        const { error } = await DatabaseService.createEventRsvp(eventId, status);
+        if (error) {
+          Alert.alert('Error', 'Failed to create RSVP');
+          return;
+        }
+      }
+
+      // Refresh events to get updated counts
+      await loadEvents();
+    } catch (error) {
+      console.error('Error handling event RSVP:', error);
+      Alert.alert('Error', 'Failed to update RSVP');
+    }
+  };
+
   
 
   const loadCircleData = async () => {
@@ -1612,6 +1654,74 @@ export default function CircleScreen() {
                   <ThemedText style={styles.eventCreator}>
                     Created by {item.creator?.name || 'Unknown'}
                   </ThemedText>
+
+                  {/* RSVP Section */}
+                  <View style={styles.eventRsvpSection}>
+                    <View style={styles.eventRsvpButtons}>
+                      <TouchableOpacity
+                        style={[
+                          styles.eventRsvpButton,
+                          { backgroundColor: item.user_rsvp?.[0]?.status === 'going' ? successColor : backgroundColor },
+                          { borderColor: successColor }
+                        ]}
+                        onPress={() => handleEventRsvp(item.id, 'going')}
+                      >
+                        <IconSymbol 
+                          name="checkmark.circle.fill" 
+                          size={14} 
+                          color={item.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor} 
+                        />
+                        <ThemedText style={[
+                          styles.eventRsvpButtonText,
+                          { color: item.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor }
+                        ]}>
+                          Going ({item.going_count || 0})
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.eventRsvpButton,
+                          { backgroundColor: item.user_rsvp?.[0]?.status === 'interested' ? '#FF9800' : backgroundColor },
+                          { borderColor: '#FF9800' }
+                        ]}
+                        onPress={() => handleEventRsvp(item.id, 'interested')}
+                      >
+                        <IconSymbol 
+                          name="star.fill" 
+                          size={14} 
+                          color={item.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800'} 
+                        />
+                        <ThemedText style={[
+                          styles.eventRsvpButtonText,
+                          { color: item.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800' }
+                        ]}>
+                          Interested ({item.interested_count || 0})
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.eventRsvpButton,
+                          { backgroundColor: item.user_rsvp?.[0]?.status === 'not_going' ? '#f44336' : backgroundColor },
+                          { borderColor: '#f44336' }
+                        ]}
+                        onPress={() => handleEventRsvp(item.id, 'not_going')}
+                      >
+                        <IconSymbol 
+                          name="xmark.circle.fill" 
+                          size={14} 
+                          color={item.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336'} 
+                        />
+                        <ThemedText style={[
+                          styles.eventRsvpButtonText,
+                          { color: item.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336' }
+                        ]}>
+                          Can't Go ({item.not_going_count || 0})
+                        </ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               )}
               ListEmptyComponent={
@@ -2854,4 +2964,29 @@ const styles = StyleSheet.create({
   // changeImageText: { ... },
   // imagePlaceholder: { ... },
   // imagePickerText: { ... },
+  eventRsvpSection: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 12,
+  },
+  eventRsvpButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  eventRsvpButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 3,
+  },
+  eventRsvpButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
 });

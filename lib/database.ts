@@ -37,6 +37,11 @@ export const getCircleInterests = (circleId: string) => DatabaseService.getCircl
 export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
 export const updateCircleInterests = (circleId: string, interestIds: string[], userId: string) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
 export const deleteEvent = (eventId: string) => DatabaseService.deleteEvent(eventId);
+export const createEventRsvp = (eventId: string, status: 'going' | 'interested' | 'not_going') => DatabaseService.createEventRsvp(eventId, status);
+export const updateEventRsvp = (eventId: string, status: 'going' | 'interested' | 'not_going') => DatabaseService.updateEventRsvp(eventId, status);
+export const deleteEventRsvp = (eventId: string) => DatabaseService.deleteEventRsvp(eventId);
+export const getEventRsvp = (eventId: string, userId: string) => DatabaseService.getEventRsvp(eventId, userId);
+export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(eventId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -417,7 +422,8 @@ export const DatabaseService = {
         circle:circles!events_circleid_fkey(name),
         event_interests(
           interests(id, title, category)
-        )
+        ),
+        user_rsvp:event_rsvps!event_rsvps_event_id_fkey(status)
       `)
       .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
       .order('date', { ascending: true });
@@ -1796,6 +1802,134 @@ export const DatabaseService = {
     } catch (error) {
       console.error('Error in sendMessage:', error);
       return { data: null, error: error as Error };
+    }
+  },
+
+  // Event RSVP operations
+  async createEventRsvp(eventId: string, status: 'going' | 'interested' | 'not_going') {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('event_rsvps')
+        .insert({
+          event_id: eventId,
+          user_id: currentUser.user.id,
+          status: status
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating RSVP:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in createEventRsvp:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updateEventRsvp(eventId: string, status: 'going' | 'interested' | 'not_going') {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('event_rsvps')
+        .update({ status: status })
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating RSVP:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in updateEventRsvp:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async deleteEventRsvp(eventId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { error } = await supabase
+        .from('event_rsvps')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.user.id);
+
+      if (error) {
+        console.error('Error deleting RSVP:', error);
+        return { data: null, error };
+      }
+
+      return { data: { success: true }, error: null };
+    } catch (error) {
+      console.error('Error in deleteEventRsvp:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getEventRsvp(eventId: string, userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('event_rsvps')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error getting RSVP:', error);
+        return { data: null, error };
+      }
+
+      return { data: data || null, error: null };
+    } catch (error) {
+      console.error('Error in getEventRsvp:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getEventRsvps(eventId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('event_rsvps')
+        .select(`
+          *,
+          users!event_rsvps_user_id_fkey(name, avatar_url)
+        `)
+        .eq('event_id', eventId);
+
+      if (error) {
+        console.error('Error getting event RSVPs:', error);
+        return { data: null, error };
+      }
+
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getEventRsvps:', error);
+      return { data: [], error: error as Error };
     }
   },
 };
