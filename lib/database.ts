@@ -460,7 +460,7 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: string[] }) {
+  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[] }) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
@@ -472,6 +472,8 @@ export const DatabaseService = {
       
       // Extract interests from event object and create clean event data
       const { interests, ...eventDataClean } = event;
+      
+      console.log('Database: Creating event with interests:', interests);
       
       // Create the event without interests field
       const { data: eventData, error: eventError } = await supabase
@@ -492,10 +494,28 @@ export const DatabaseService = {
 
       // Add event interests if provided
       if (interests && interests.length > 0) {
-        const eventInterests = interests.map(interestId => ({
-          eventid: eventData.id,
-          interestid: interestId
-        }));
+        // Handle both string array format and object array format from EventModal
+        const eventInterests = interests.map(interest => {
+          if (typeof interest === 'string') {
+            // Simple string interest ID
+            return {
+              eventid: eventData.id,
+              interestid: interest
+            };
+          } else if (interest.interestid) {
+            // Object with interestid property (from EventModal)
+            return {
+              eventid: eventData.id,
+              interestid: interest.interestid
+            };
+          } else {
+            // Fallback
+            console.warn('Unknown interest format:', interest);
+            return null;
+          }
+        }).filter(Boolean); // Remove null entries
+
+        console.log('Database: Inserting event interests:', eventInterests);
 
         const { error: interestsError } = await supabase
           .from('event_interests')
@@ -503,7 +523,7 @@ export const DatabaseService = {
 
         if (interestsError) {
           console.error('Error adding event interests:', interestsError);
-          // Don't fail the event creation if interests fail
+          // Don't fail the event creation if interests fail, but log the error
         }
       }
 
