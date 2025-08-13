@@ -55,6 +55,8 @@ export default function EventsScreen() {
   const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [loading, setLoading] = useState(true);
   const [circles, setCircles] = useState<{id: string, name: string}[]>([]);
+  const [deletableEvents, setDeletableEvents] = useState<Set<string>>(new Set());
+
 
   useEffect(() => {
     if (user) {
@@ -74,6 +76,9 @@ export default function EventsScreen() {
         console.error('Error fetching events:', error);
       } else {
         setEvents(data || []);
+        if (data) {
+          await checkDeletableEvents(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -216,6 +221,23 @@ export default function EventsScreen() {
     }
   };
 
+  const checkDeletableEvents = async (fetchedEvents: Event[]) => {
+    if (!user) return;
+    const deletable = new Set<string>();
+    for (const event of fetchedEvents) {
+      if (event.createdby === user.id) {
+        deletable.add(event.id);
+      } else if (event.circleid) {
+        const isAdmin = await checkIfCircleAdmin(event.circleid, user.id);
+        if (isAdmin) {
+          deletable.add(event.id);
+        }
+      }
+    }
+    setDeletableEvents(deletable);
+  };
+
+
   const getInterestColor = (category: string) => {
     const colors = {
       'Technology': tintColor,
@@ -294,7 +316,7 @@ export default function EventsScreen() {
                   <ThemedText style={styles.generalTag}>• General</ThemedText>
                 )}
               </View>
-              {(event.createdby === user?.id) && (
+              {deletableEvents.has(event.id) && (
                 <TouchableOpacity
                   style={styles.deleteEventButton}
                   onPress={() => handleDeleteEvent(event.id)}
