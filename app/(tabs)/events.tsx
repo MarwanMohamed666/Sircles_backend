@@ -166,7 +166,7 @@ export default function EventsScreen() {
     setDeletableEvents(deletable);
   };
 
-  const handleRsvp = async (eventId: string, status: 'going' | 'interested' | 'not_going') => {
+  const handleRsvp = async (eventId: string, status: 'going' | 'maybe' | 'not_going') => {
     if (!user) return;
 
     try {
@@ -353,21 +353,21 @@ export default function EventsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.rsvpButton,
-                    { backgroundColor: event.userRsvpStatus === 'interested' ? '#FF9800' : backgroundColor },
+                    { backgroundColor: event.userRsvpStatus === 'maybe' ? '#FF9800' : backgroundColor },
                     { borderColor: '#FF9800' }
                   ]}
-                  onPress={() => handleRsvp(event.id, 'interested')}
+                  onPress={() => handleRsvp(event.id, 'maybe')}
                 >
                   <IconSymbol 
                     name="star.fill" 
                     size={16} 
-                    color={event.userRsvpStatus === 'interested' ? '#fff' : '#FF9800'} 
+                    color={event.userRsvpStatus === 'maybe' ? '#fff' : '#FF9800'} 
                   />
                   <ThemedText style={[
                     styles.rsvpButtonText,
-                    { color: event.userRsvpStatus === 'interested' ? '#fff' : '#FF9800' }
+                    { color: event.userRsvpStatus === 'maybe' ? '#fff' : '#FF9800' }
                   ]}>
-                    Interested ({event.interested_count || 0})
+                    Maybe ({event.maybe_count || 0})
                   </ThemedText>
                 </TouchableOpacity>
 

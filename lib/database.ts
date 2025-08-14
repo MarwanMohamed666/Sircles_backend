@@ -456,7 +456,7 @@ export const DatabaseService = {
         return {
           ...event,
           going_count: eventRsvps.filter(r => r.status === 'going').length,
-          interested_count: eventRsvps.filter(r => r.status === 'interested').length,
+          maybe_count: eventRsvps.filter(r => r.status === 'maybe').length,
           not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
           userRsvpStatus: userRsvp?.status || null,
           circleName: event.circle?.name || null
@@ -532,7 +532,7 @@ export const DatabaseService = {
         return {
           ...event,
           going_count: eventRsvps.filter(r => r.status === 'going').length,
-          interested_count: eventRsvps.filter(r => r.status === 'interested').length,
+          maybe_count: eventRsvps.filter(r => r.status === 'maybe').length,
           not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
           user_rsvp: userRsvp ? [{ status: userRsvp.status }] : [],
           circleName: event.circle?.name || null

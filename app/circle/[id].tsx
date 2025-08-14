@@ -110,15 +110,13 @@ export default function CircleScreen() {
     if (!id) return;
 
     try {
-      const { data, error } = await DatabaseService.getEvents();
+      const { data, error } = await DatabaseService.getEventsByCircle(id as string);
       if (error) {
         console.error('Error loading events:', error);
         return;
       }
 
-      // Filter events for this specific circle
-      const circleEvents = data?.filter(event => event.circleid === id) || [];
-      setEvents(circleEvents);
+      setEvents(data || []);
     } catch (error) {
       console.error('Error loading events:', error);
     }
