@@ -466,7 +466,7 @@ export const DatabaseService = {
     return { data, error };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[] }) {
+  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[], photoAsset?: any }) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
@@ -476,25 +476,59 @@ export const DatabaseService = {
     try {
       const eventId = crypto.randomUUID();
       
-      // Extract interests from event object and create clean event data
-      const { interests, ...eventDataClean } = event;
+      // Extract interests and photo from event object and create clean event data
+      const { interests, photoAsset, ...eventDataClean } = event;
       
       console.log('Database: Creating event with interests:', interests);
+      console.log('Database: Creating event with photo:', !!photoAsset);
+
+      let eventPhotoUrl = null;
+
+      // Upload photo if provided
+      if (photoAsset) {
+        console.log('Uploading event photo...');
+        const { data: uploadData, error: uploadError } = await StorageService.uploadEventPhoto(
+          eventId, 
+          photoAsset, 
+          currentUser.user.id
+        );
+
+        if (uploadError) {
+          console.error('Error uploading event photo:', uploadError);
+          return { data: null, error: uploadError };
+        }
+
+        if (uploadData?.publicUrl) {
+          eventPhotoUrl = uploadData.publicUrl;
+          console.log('Event photo uploaded successfully:', eventPhotoUrl);
+        }
+      }
       
-      // Create the event without interests field
+      // Create the event with photo URL if available
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
           ...eventDataClean,
           id: eventId,
           createdby: currentUser.user.id,
-          creationdate: new Date().toISOString()
+          creationdate: new Date().toISOString(),
+          photo_url: eventPhotoUrl // Add photo URL to event
         })
         .select()
         .single();
 
       if (eventError) {
         console.error('Error creating event:', eventError);
+        // If event creation fails and we uploaded a photo, clean it up
+        if (eventPhotoUrl && photoAsset) {
+          try {
+            const urlParts = eventPhotoUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            await StorageService.deleteEventPhoto(eventId, fileName);
+          } catch (cleanupError) {
+            console.error('Error cleaning up uploaded photo after event creation failure:', cleanupError);
+          }
+        }
         return { data: null, error: eventError };
       }
 

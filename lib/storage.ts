@@ -539,5 +539,192 @@ export const StorageService = {
 
     // Add cache-busting timestamp to ensure fresh image load
     return `${data.publicUrl}?t=${Date.now()}`;
+  },
+
+  async uploadEventPhoto(eventId: string, asset: any, userId: string) {
+    try {
+      console.log('Starting event photo upload for event:', eventId);
+      console.log('Asset details:', {
+        uri: asset?.uri?.substring(0, 50) + '...',
+        type: asset?.type,
+        fileSize: asset?.fileSize,
+        fileName: asset?.fileName,
+        width: asset?.width,
+        height: asset?.height
+      });
+
+      if (!asset?.uri) {
+        throw new Error('No asset URI provided');
+      }
+
+      // Check file size limit (5MB)
+      if (asset.fileSize && asset.fileSize > 5242880) {
+        throw new Error('File size must be less than 5MB');
+      }
+
+      // Determine file extension from the asset
+      let fileExtension: string;
+      
+      if (asset.uri.startsWith('data:image/')) {
+        // Extract extension from data URI MIME type
+        const mimeMatch = asset.uri.match(/data:image\/([^;]+)/);
+        fileExtension = mimeMatch ? mimeMatch[1] : 'png';
+        console.log('Extracted extension from data URI:', fileExtension);
+      } else {
+        // Extract from file path or fileName
+        fileExtension = asset.fileName 
+          ? asset.fileName.split('.').pop()?.toLowerCase() || 'png'
+          : asset.uri.split('.').pop()?.toLowerCase() || 'png';
+        console.log('Extracted extension from file path/name:', fileExtension);
+      }
+
+      // Normalize extension
+      if (fileExtension === 'jpeg') {
+        fileExtension = 'jpg';
+      }
+      
+      // Validate supported formats (jpg, png, gif)
+      if (!['png', 'jpg', 'jpeg', 'gif'].includes(fileExtension)) {
+        throw new Error('Unsupported file format. Please use PNG, JPG/JPEG, or GIF.');
+      }
+
+      // Generate filename with event ID and timestamp for uniqueness
+      const timestamp = Date.now();
+      const fileName = `${eventId}_${timestamp}.${fileExtension}`;
+      
+      console.log('Generated filename:', fileName);
+
+      let uploadData;
+
+      if (asset?.uri) {
+        // Mobile/Expo - fetch the asset as blob
+        console.log('Processing asset from URI for mobile/Expo');
+        
+        try {
+          const response = await fetch(asset.uri);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch asset: ${response.status} ${response.statusText}`);
+          }
+          
+          uploadData = await response.blob();
+          console.log('Successfully converted URI to blob:', {
+            size: uploadData.size,
+            type: uploadData.type
+          });
+
+          // Double-check file size after conversion
+          if (uploadData.size > 5242880) {
+            throw new Error('File size must be less than 5MB');
+          }
+
+          // Validate blob
+          if (uploadData.size === 0) {
+            throw new Error('Blob is empty - asset may not have been processed correctly');
+          }
+
+        } catch (fetchError) {
+          console.error('Error processing asset - FULL DETAILS:', {
+            error: fetchError,
+            message: fetchError?.message,
+            stack: fetchError?.stack,
+            assetUri: asset?.uri?.substring(0, 50) + '...'
+          });
+          throw new Error(`Failed to process image: ${fetchError.message}`);
+        }
+      } else if (asset instanceof Blob || asset instanceof File) {
+        // Direct blob/file upload (web)
+        uploadData = asset;
+        
+        // Check file size
+        if (uploadData.size > 5242880) {
+          throw new Error('File size must be less than 5MB');
+        }
+        
+        console.log('Using direct blob/file upload');
+      } else {
+        throw new Error('Invalid asset format - expected asset with URI or Blob/File');
+      }
+
+      // Determine correct content type
+      const contentType = fileExtension === 'jpg' || fileExtension === 'jpeg' 
+        ? 'image/jpeg' 
+        : fileExtension === 'gif'
+          ? 'image/gif'
+          : `image/${fileExtension}`;
+
+      console.log('Uploading to Supabase with params:', {
+        bucket: 'events-photos',
+        fileName,
+        contentType,
+        blobSize: uploadData.size,
+        upsert: true
+      });
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('events-photos')
+        .upload(fileName, uploadData, {
+          upsert: true,
+          contentType: contentType,
+          cacheControl: '3600'  // Cache for 1 hour
+        });
+
+      if (error) {
+        console.error('Supabase upload error details:', {
+          message: error.message,
+          statusCode: error.statusCode,
+          error: error
+        });
+        return { data: null, error };
+      }
+
+      console.log('Upload successful - Supabase response:', data);
+      console.log('Uploaded file path:', data?.path);
+      console.log('Uploaded file name should be:', fileName);
+
+      // Get public URL with cache-busting parameter
+      const { data: urlData } = supabase.storage
+        .from('events-photos')
+        .getPublicUrl(fileName);
+      
+      const cacheBustingUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      
+      console.log('Generated public URL:', urlData.publicUrl);
+      console.log('Cache-busting URL:', cacheBustingUrl);
+      
+      return { 
+        data: { 
+          ...data, 
+          publicUrl: cacheBustingUrl 
+        }, 
+        error: null 
+      };
+    } catch (error) {
+      console.error('Event photo upload error:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async deleteEventPhoto(eventId: string, fileName: string) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('events-photos')
+        .remove([fileName]);
+
+      return { data, error };
+    } catch (error) {
+      console.error('Delete event photo error:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  getEventPhotoUrl(fileName: string) {
+    const { data } = supabase.storage
+      .from('events-photos')
+      .getPublicUrl(fileName);
+
+    // Add cache-busting timestamp to ensure fresh image load
+    return `${data.publicUrl}?t=${Date.now()}`;
   }
 };

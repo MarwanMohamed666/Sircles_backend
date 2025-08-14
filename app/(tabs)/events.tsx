@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -21,6 +21,7 @@ interface Event {
   circleid?: string;
   circleName?: string;
   createdby: string;
+  photo_url?: string;
   going_count?: number;
   interested_count?: number;
   not_going_count?: number;
@@ -318,6 +319,15 @@ export default function EventsScreen() {
                 <ThemedText style={styles.detailText}>{event.location}</ThemedText>
               </View>
             </View>
+
+            {/* Event Photo */}
+            {event.photo_url && (
+              <Image 
+                source={{ uri: event.photo_url }} 
+                style={styles.eventPhoto}
+                resizeMode="cover"
+              />
+            )}
 
             {/* RSVP Section */}
             <View style={styles.rsvpSection}>
@@ -754,5 +764,11 @@ const styles = StyleSheet.create({
   rsvpButtonText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  eventPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 12,
   },
 });

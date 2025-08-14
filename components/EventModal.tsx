@@ -1,7 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { StyleSheet, View, Modal, ScrollView, TouchableOpacity, TextInput, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+
 import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -52,6 +55,8 @@ export default function EventModal({
 
   const [interests, setInterests] = useState<{[category: string]: any[]}>({});
   const [uploading, setUploading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
 
   // Update circleId when preSelectedCircleId changes
   useEffect(() => {
@@ -136,7 +141,7 @@ export default function EventModal({
     }));
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
     setNewEvent({
       title: '',
       date: '',
@@ -146,6 +151,114 @@ export default function EventModal({
       circleId: preSelectedCircleId || '',
       interests: []
     });
+    setSelectedPhoto(null);
+  };
+
+  const pickEventPhoto = async () => {
+    try {
+      console.log('Starting image picker for event...');
+
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('Permission status:', status);
+
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to select images.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+        base64: false,
+      });
+
+      console.log('Image picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        console.log('Selected asset for event:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          width: asset.width,
+          height: asset.height,
+          fileSize: asset.fileSize
+        });
+
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
+          return;
+        }
+
+        // Check file size (5MB limit)
+        if (asset.fileSize && asset.fileSize > 5242880) {
+          Alert.alert('Error', 'Image size must be less than 5MB');
+          return;
+        }
+
+        setSelectedPhoto(asset);
+        console.log('Event photo updated in UI preview');
+      } else {
+        console.log('Image selection was canceled or no asset selected');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error with image picker - full details:', {
+        error: error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
+    }
+  };
+
+  const handleCreateEvent = async () => {
+    if (!newEvent.title.trim() || !newEvent.date || !newEvent.time) {
+      Alert.alert('Error', 'Please fill in all required fields (title, date, time).');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      console.log('EventModal: Creating event with form data:', newEvent);
+      console.log('EventModal: Selected interests:', newEvent.interests);
+      console.log('EventModal: Selected photo:', !!selectedPhoto);
+
+      // Convert selected interests to the format expected by the database
+      const interestObjects = newEvent.interests.map(interestId => ({
+        interestid: interestId
+      }));
+
+      console.log('EventModal: Converted interest objects:', interestObjects);
+
+      const { error } = await DatabaseService.createEvent({
+        ...newEvent,
+        interests: interestObjects,
+        photoAsset: selectedPhoto // Include photo asset
+      });
+
+      if (error) {
+        console.error('EventModal: Error creating event:', error);
+        Alert.alert('Error', error.message || 'Failed to create event.');
+        return;
+      }
+
+      Alert.alert('Success', 'Event created successfully!');
+      resetForm();
+      onClose();
+      onEventCreated?.();
+    } catch (error) {
+      console.error('EventModal: Unexpected error:', error);
+      Alert.alert('Error', 'Failed to create event.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
   };
 
@@ -169,7 +282,7 @@ export default function EventModal({
           </TouchableOpacity>
           <ThemedText style={styles.modalTitle}>Create Event</ThemedText>
           <TouchableOpacity
-            onPress={createEvent}
+            onPress={handleCreateEvent}
             disabled={uploading || !newEvent.title || !newEvent.date || !newEvent.time}
             style={[
               styles.postButton,
@@ -260,6 +373,41 @@ export default function EventModal({
               placeholder="Event location"
               placeholderTextColor="#999"
             />
+          </View>
+
+          {/* Event Photo */}
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.inputLabel}>Event Photo</ThemedText>
+            <TouchableOpacity
+              onPress={pickEventPhoto}
+              style={[
+                styles.photoPickerButton,
+                { backgroundColor: surfaceColor, borderColor: tintColor },
+                selectedPhoto && styles.selectedPhotoContainer
+              ]}
+            >
+              {selectedPhoto ? (
+                <>
+                  <Image source={{ uri: selectedPhoto.uri }} style={styles.selectedEventPhoto} />
+                  <View style={[styles.photoOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                    <IconSymbol name="camera" size={16} color="#fff" />
+                    <ThemedText style={styles.changePhotoText}>Change Photo</ThemedText>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <IconSymbol name="camera" size={32} color={tintColor} />
+                  <ThemedText style={[styles.photoPickerText, { color: tintColor }]}>
+                    Tap to add event photo
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+            {selectedPhoto && (
+              <ThemedText style={{ fontSize: 12, color: textColor + '80', marginTop: 4 }}>
+                File size: {(selectedPhoto.fileSize / 1024 / 1024).toFixed(2)} MB
+              </ThemedText>
+            )}
           </View>
 
           {/* Circle Selection - Only show if no preSelectedCircleId */}
@@ -469,5 +617,49 @@ const styles = StyleSheet.create({
   interestChipText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  photoPickerButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    minHeight: 120,
+  },
+  photoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPickerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  selectedPhotoContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  selectedEventPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  photoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  changePhotoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
