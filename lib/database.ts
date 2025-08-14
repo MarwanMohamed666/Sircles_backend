@@ -414,7 +414,7 @@ export const DatabaseService = {
     }
 
     // Get events that are either general (circleid is null) or from circles the user is a member of
-    const { data, error } = await supabase
+    const { data: events, error } = await supabase
       .from('events')
       .select(`
         *,
@@ -422,12 +422,51 @@ export const DatabaseService = {
         circle:circles!events_circleid_fkey(name),
         event_interests(
           interests(id, title, category)
-        ),
-        user_rsvp:event_rsvps!event_rsvps_event_id_fkey(status)
+        )
       `)
       .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
       .order('date', { ascending: true });
-    return { data, error };
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get RSVP data separately and calculate counts for each event
+    if (events && events.length > 0) {
+      const eventIds = events.map(e => e.id);
+      
+      // Get all RSVPs for these events
+      const { data: allRsvps } = await supabase
+        .from('event_rsvps')
+        .select('event_id, user_id, status')
+        .in('event_id', eventIds);
+
+      // Get current user's RSVPs
+      const { data: userRsvps } = await supabase
+        .from('event_rsvps')
+        .select('event_id, status')
+        .eq('user_id', currentUser.user.id)
+        .in('event_id', eventIds);
+
+      // Calculate counts and add user RSVP status
+      const enhancedEvents = events.map(event => {
+        const eventRsvps = allRsvps?.filter(rsvp => rsvp.event_id === event.id) || [];
+        const userRsvp = userRsvps?.find(rsvp => rsvp.event_id === event.id);
+
+        return {
+          ...event,
+          going_count: eventRsvps.filter(r => r.status === 'going').length,
+          interested_count: eventRsvps.filter(r => r.status === 'interested').length,
+          not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
+          userRsvpStatus: userRsvp?.status || null,
+          circleName: event.circle?.name || null
+        };
+      });
+
+      return { data: enhancedEvents, error: null };
+    }
+
+    return { data: events || [], error: null };
   },
 
   async getUserCircleIds(userId: string) {
@@ -451,7 +490,7 @@ export const DatabaseService = {
       return { data: null, error: new Error('Authentication required') };
     }
 
-    const { data, error } = await supabase
+    const { data: events, error } = await supabase
       .from('events')
       .select(`
         *,
@@ -463,7 +502,47 @@ export const DatabaseService = {
       `)
       .eq('circleid', circleId)
       .order('date', { ascending: true });
-    return { data, error };
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Get RSVP data separately and calculate counts for each event
+    if (events && events.length > 0) {
+      const eventIds = events.map(e => e.id);
+      
+      // Get all RSVPs for these events
+      const { data: allRsvps } = await supabase
+        .from('event_rsvps')
+        .select('event_id, user_id, status')
+        .in('event_id', eventIds);
+
+      // Get current user's RSVPs
+      const { data: userRsvps } = await supabase
+        .from('event_rsvps')
+        .select('event_id, status')
+        .eq('user_id', currentUser.user.id)
+        .in('event_id', eventIds);
+
+      // Calculate counts and add user RSVP status
+      const enhancedEvents = events.map(event => {
+        const eventRsvps = allRsvps?.filter(rsvp => rsvp.event_id === event.id) || [];
+        const userRsvp = userRsvps?.find(rsvp => rsvp.event_id === event.id);
+
+        return {
+          ...event,
+          going_count: eventRsvps.filter(r => r.status === 'going').length,
+          interested_count: eventRsvps.filter(r => r.status === 'interested').length,
+          not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
+          user_rsvp: userRsvp ? [{ status: userRsvp.status }] : [],
+          circleName: event.circle?.name || null
+        };
+      });
+
+      return { data: enhancedEvents, error: null };
+    }
+
+    return { data: events || [], error: null };
   },
 
   async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[], photoAsset?: any }) {
@@ -504,16 +583,24 @@ export const DatabaseService = {
         }
       }
 
-      // Create the event with photo URL if available
+      // Create the event with photo URL if available - fix column name
+      const eventToInsert = {
+        ...eventDataClean,
+        id: eventId,
+        createdby: currentUser.user.id,
+        creationdate: new Date().toISOString(),
+        photo_url: eventPhotoUrl // Add photo URL to event
+      };
+
+      // Fix column name - use circleid not circleId
+      if (eventToInsert.circleId) {
+        eventToInsert.circleid = eventToInsert.circleId;
+        delete eventToInsert.circleId;
+      }
+
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .insert({
-          ...eventDataClean,
-          id: eventId,
-          createdby: currentUser.user.id,
-          creationdate: new Date().toISOString(),
-          photo_url: eventPhotoUrl // Add photo URL to event
-        })
+        .insert(eventToInsert)
         .select()
         .single();
 
