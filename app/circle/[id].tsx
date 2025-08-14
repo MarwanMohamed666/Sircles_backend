@@ -185,7 +185,7 @@ export default function CircleScreen() {
     }
   };
 
-  const handleEventRsvp = async (eventId: string, status: 'going' | 'interested' | 'not_going') => {
+  const handleEventRsvp = async (eventId: string, status: 'going' | 'maybe' | 'no_going') => {
     if (!user) return;
 
     try {
@@ -1692,42 +1692,42 @@ export default function CircleScreen() {
                       <TouchableOpacity
                         style={[
                           styles.eventRsvpButton,
-                          { backgroundColor: item.user_rsvp?.[0]?.status === 'interested' ? '#FF9800' : backgroundColor },
+                          { backgroundColor: item.user_rsvp?.[0]?.status === 'maybe' ? '#FF9800' : backgroundColor },
                           { borderColor: '#FF9800' }
                         ]}
-                        onPress={() => handleEventRsvp(item.id, 'interested')}
+                        onPress={() => handleEventRsvp(item.id, 'maybe')}
                       >
                         <IconSymbol 
                           name="star.fill" 
                           size={14} 
-                          color={item.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800'} 
+                          color={item.user_rsvp?.[0]?.status === 'maybe' ? '#fff' : '#FF9800'} 
                         />
                         <ThemedText style={[
                           styles.eventRsvpButtonText,
-                          { color: item.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800' }
+                          { color: item.user_rsvp?.[0]?.status === 'maybe' ? '#fff' : '#FF9800' }
                         ]}>
-                          Interested ({item.interested_count || 0})
+                          Maybe ({item.maybe_count || 0})
                         </ThemedText>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={[
                           styles.eventRsvpButton,
-                          { backgroundColor: item.user_rsvp?.[0]?.status === 'not_going' ? '#f44336' : backgroundColor },
+                          { backgroundColor: item.user_rsvp?.[0]?.status === 'no_going' ? '#f44336' : backgroundColor },
                           { borderColor: '#f44336' }
                         ]}
-                        onPress={() => handleEventRsvp(item.id, 'not_going')}
+                        onPress={() => handleEventRsvp(item.id, 'no_going')}
                       >
                         <IconSymbol 
                           name="xmark.circle.fill" 
                           size={14} 
-                          color={item.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336'} 
+                          color={item.user_rsvp?.[0]?.status === 'no_going' ? '#fff' : '#f44336'} 
                         />
                         <ThemedText style={[
                           styles.eventRsvpButtonText,
-                          { color: item.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336' }
+                          { color: item.user_rsvp?.[0]?.status === 'no_going' ? '#fff' : '#f44336' }
                         ]}>
-                          Can't Go ({item.not_going_count || 0})
+                          Can't Go ({item.no_going_count || 0})
                         </ThemedText>
                       </TouchableOpacity>
                     </View>

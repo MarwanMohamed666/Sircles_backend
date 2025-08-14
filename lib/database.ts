@@ -37,8 +37,8 @@ export const getCircleInterests = (circleId: string) => DatabaseService.getCircl
 export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
 export const updateCircleInterests = (circleId: string, interestIds: string[], userId: string) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
 export const deleteEvent = (eventId: string) => DatabaseService.deleteEvent(eventId);
-export const createEventRsvp = (eventId: string, status: 'going' | 'interested' | 'not_going') => DatabaseService.createEventRsvp(eventId, status);
-export const updateEventRsvp = (eventId: string, status: 'going' | 'interested' | 'not_going') => DatabaseService.updateEventRsvp(eventId, status);
+export const createEventRsvp = (eventId: string, status: 'going' | 'maybe' | 'no_going') => DatabaseService.createEventRsvp(eventId, status);
+export const updateEventRsvp = (eventId: string, status: 'going' | 'maybe' | 'no_going') => DatabaseService.updateEventRsvp(eventId, status);
 export const deleteEventRsvp = (eventId: string) => DatabaseService.deleteEventRsvp(eventId);
 export const getEventRsvp = (eventId: string, userId: string) => DatabaseService.getEventRsvp(eventId, userId);
 export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(eventId);
@@ -434,7 +434,7 @@ export const DatabaseService = {
     // Get RSVP data separately and calculate counts for each event
     if (events && events.length > 0) {
       const eventIds = events.map(e => e.id);
-      
+
       // Get all RSVPs for these events
       const { data: allRsvps } = await supabase
         .from('event_rsvps')
@@ -510,7 +510,7 @@ export const DatabaseService = {
     // Get RSVP data separately and calculate counts for each event
     if (events && events.length > 0) {
       const eventIds = events.map(e => e.id);
-      
+
       // Get all RSVPs for these events
       const { data: allRsvps } = await supabase
         .from('event_rsvps')
@@ -1927,7 +1927,7 @@ export const DatabaseService = {
   },
 
   // Event RSVP operations
-  async createEventRsvp(eventId: string, status: 'going' | 'interested' | 'not_going') {
+  async createEventRsvp(eventId: string, status: 'going' | 'maybe' | 'no_going') {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
@@ -1937,13 +1937,14 @@ export const DatabaseService = {
 
       const { data, error } = await supabase
         .from('event_rsvps')
-        .insert({
-          event_id: eventId,
-          user_id: currentUser.user.id,
-          status: status
-        })
-        .select()
-        .single();
+        .insert([
+          {
+            event_id: eventId,
+            user_id: currentUser.user.id,
+            status: status
+          }
+        ])
+        .select();
 
       if (error) {
         console.error('Error creating RSVP:', error);
@@ -1957,7 +1958,7 @@ export const DatabaseService = {
     }
   },
 
-  async updateEventRsvp(eventId: string, status: 'going' | 'interested' | 'not_going') {
+  async updateEventRsvp(eventId: string, status: 'going' | 'maybe' | 'no_going') {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
@@ -1970,8 +1971,7 @@ export const DatabaseService = {
         .update({ status: status })
         .eq('event_id', eventId)
         .eq('user_id', currentUser.user.id)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error('Error updating RSVP:', error);
