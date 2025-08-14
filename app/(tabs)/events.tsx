@@ -25,9 +25,7 @@ interface Event {
   going_count?: number;
   interested_count?: number;
   not_going_count?: number;
-  user_rsvp?: Array<{
-    status: 'going' | 'interested' | 'not_going';
-  }>;
+  userRsvpStatus?: 'going' | 'interested' | 'not_going' | null;
   event_interests?: Array<{
     interests: {
       id: string;
@@ -174,10 +172,9 @@ export default function EventsScreen() {
     try {
       // Check if user already has an RSVP
       const event = events.find(e => e.id === eventId);
-      const hasExistingRsvp = event?.user_rsvp && event.user_rsvp.length > 0;
+      const currentStatus = event?.userRsvpStatus;
 
-      if (hasExistingRsvp) {
-        const currentStatus = event.user_rsvp[0].status;
+      if (currentStatus) {
         if (currentStatus === status) {
           // Same status clicked - remove RSVP
           const { error } = await DatabaseService.deleteEventRsvp(eventId);
@@ -335,7 +332,7 @@ export default function EventsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.rsvpButton,
-                    { backgroundColor: event.user_rsvp?.[0]?.status === 'going' ? successColor : backgroundColor },
+                    { backgroundColor: event.userRsvpStatus === 'going' ? successColor : backgroundColor },
                     { borderColor: successColor }
                   ]}
                   onPress={() => handleRsvp(event.id, 'going')}
@@ -343,11 +340,11 @@ export default function EventsScreen() {
                   <IconSymbol 
                     name="checkmark.circle.fill" 
                     size={16} 
-                    color={event.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor} 
+                    color={event.userRsvpStatus === 'going' ? '#fff' : successColor} 
                   />
                   <ThemedText style={[
                     styles.rsvpButtonText,
-                    { color: event.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor }
+                    { color: event.userRsvpStatus === 'going' ? '#fff' : successColor }
                   ]}>
                     Going ({event.going_count || 0})
                   </ThemedText>
@@ -356,7 +353,7 @@ export default function EventsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.rsvpButton,
-                    { backgroundColor: event.user_rsvp?.[0]?.status === 'interested' ? '#FF9800' : backgroundColor },
+                    { backgroundColor: event.userRsvpStatus === 'interested' ? '#FF9800' : backgroundColor },
                     { borderColor: '#FF9800' }
                   ]}
                   onPress={() => handleRsvp(event.id, 'interested')}
@@ -364,11 +361,11 @@ export default function EventsScreen() {
                   <IconSymbol 
                     name="star.fill" 
                     size={16} 
-                    color={event.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800'} 
+                    color={event.userRsvpStatus === 'interested' ? '#fff' : '#FF9800'} 
                   />
                   <ThemedText style={[
                     styles.rsvpButtonText,
-                    { color: event.user_rsvp?.[0]?.status === 'interested' ? '#fff' : '#FF9800' }
+                    { color: event.userRsvpStatus === 'interested' ? '#fff' : '#FF9800' }
                   ]}>
                     Interested ({event.interested_count || 0})
                   </ThemedText>
@@ -377,7 +374,7 @@ export default function EventsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.rsvpButton,
-                    { backgroundColor: event.user_rsvp?.[0]?.status === 'not_going' ? '#f44336' : backgroundColor },
+                    { backgroundColor: event.userRsvpStatus === 'not_going' ? '#f44336' : backgroundColor },
                     { borderColor: '#f44336' }
                   ]}
                   onPress={() => handleRsvp(event.id, 'not_going')}
@@ -385,11 +382,11 @@ export default function EventsScreen() {
                   <IconSymbol 
                     name="xmark.circle.fill" 
                     size={16} 
-                    color={event.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336'} 
+                    color={event.userRsvpStatus === 'not_going' ? '#fff' : '#f44336'} 
                   />
                   <ThemedText style={[
                     styles.rsvpButtonText,
-                    { color: event.user_rsvp?.[0]?.status === 'not_going' ? '#fff' : '#f44336' }
+                    { color: event.userRsvpStatus === 'not_going' ? '#fff' : '#f44336' }
                   ]}>
                     Can't Go ({event.not_going_count || 0})
                   </ThemedText>

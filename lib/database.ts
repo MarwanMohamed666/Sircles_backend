@@ -436,7 +436,7 @@ export const DatabaseService = {
         .from('user_circles')
         .select('circleid')
         .eq('userid', userId);
-      
+
       const circleIds = data?.map(uc => uc.circleid) || [];
       return circleIds.length > 0 ? circleIds.join(',') : '00000000-0000-0000-0000-000000000000'; // dummy ID if no circles
     } catch (error) {
@@ -475,10 +475,10 @@ export const DatabaseService = {
 
     try {
       const eventId = crypto.randomUUID();
-      
+
       // Extract interests and photo from event object and create clean event data
       const { interests, photoAsset, ...eventDataClean } = event;
-      
+
       console.log('Database: Creating event with interests:', interests);
       console.log('Database: Creating event with photo:', !!photoAsset);
 
@@ -503,7 +503,7 @@ export const DatabaseService = {
           console.log('Event photo uploaded successfully:', eventPhotoUrl);
         }
       }
-      
+
       // Create the event with photo URL if available
       const { data: eventData, error: eventError } = await supabase
         .from('events')
@@ -576,7 +576,7 @@ export const DatabaseService = {
 
   async deleteEvent(eventId: string) {
     console.log('🗑️ DELETE EVENT START: eventId =', eventId);
-    
+
     try {
       // Check authentication
       const { data: currentUser } = await supabase.auth.getUser();
@@ -584,7 +584,7 @@ export const DatabaseService = {
         console.error('🗑️ DELETE EVENT: No authenticated user');
         return { data: null, error: new Error('Authentication required') };
       }
-      
+
       console.log('🗑️ DELETE EVENT: Authenticated user =', currentUser.user.id);
 
       // First, get the event details to check permissions manually
@@ -614,7 +614,7 @@ export const DatabaseService = {
       // 2. If it's a circle event, check if user is circle creator or admin
       if (!hasPermission && eventData.circleid) {
         console.log('🗑️ DELETE EVENT: Checking circle permissions for circleid:', eventData.circleid);
-        
+
         // Check if user is circle creator
         const { data: circleData } = await supabase
           .from('circles')
@@ -650,7 +650,7 @@ export const DatabaseService = {
 
       // Now attempt to delete with service role to bypass RLS
       console.log('🗑️ DELETE EVENT: Attempting delete with verified permissions...');
-      
+
       const { data, error } = await supabase
         .from('events')
         .delete()
@@ -678,7 +678,7 @@ export const DatabaseService = {
 
       console.log('🗑️ DELETE EVENT SUCCESS: Event deleted');
       return { data: data[0], error: null };
-      
+
     } catch (error) {
       console.error('🗑️ DELETE EVENT CATCH:', error);
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
@@ -778,7 +778,7 @@ export const DatabaseService = {
     }
 
     const postId = crypto.randomUUID();
-    
+
     try {
       let imageUrl = null;
 
@@ -1058,7 +1058,7 @@ export const DatabaseService = {
         const { data: circle } = await supabase
           .from('circles')
           .select('creator, name')
-          .eq('id', circleId)
+          .eq('circleid', circleId)
           .single();
 
         if (circle) {
@@ -1233,7 +1233,7 @@ export const DatabaseService = {
             .from('circle_join_requests')
             .update({ status: 'pending' })
             .eq('id', requestId);
-          
+
           return { data: null, error: new Error('Failed to add user to circle') };
         }
       }
@@ -1390,7 +1390,7 @@ export const DatabaseService = {
         requestingAdminId: requestingAdminId,
         areEqual: circle.creator === requestingAdminId
       });
-      
+
       if (!isCreator) {
         // Check if requesting user is at least an admin
         console.log('STEP 2A: User is not creator, checking admin status...');
@@ -1413,7 +1413,7 @@ export const DatabaseService = {
           console.error('STEP 2A FAILED: Permission denied - requesting user is not an admin');
           return { data: null, error: new Error('Only circle admins can manage admin privileges') };
         }
-        
+
         console.log('STEP 2A PASSED: User is confirmed as admin');
       } else {
         console.log('STEP 2 PASSED: User is creator, has permission');
@@ -1440,13 +1440,13 @@ export const DatabaseService = {
         console.log('STEP 3 RESULT: User is already an admin, returning early');
         return { data: null, error: new Error('User is already an admin') };
       }
-      
+
       console.log('STEP 3 PASSED: User is not currently an admin, proceeding with insert');
 
       // Perform the insert
       console.log('STEP 4: Attempting to insert new admin...');
       console.log('STEP 4: Insert payload:', { circleid: circleId, userid: userId });
-      
+
       const { data, error } = await supabase
         .from('circle_admins')
         .insert({
@@ -1474,7 +1474,7 @@ export const DatabaseService = {
       console.log('STEP 4 PASSED: Successfully added circle admin');
       console.log('=== DATABASE: addCircleAdmin function completed successfully ===');
       return { data, error: null };
-      
+
     } catch (error) {
       console.error('=== DATABASE: UNEXPECTED ERROR in addCircleAdmin ===');
       console.error('Caught error:', error);
@@ -1554,7 +1554,7 @@ export const DatabaseService = {
         requestingAdminId: requestingAdminId,
         areEqual: circle.creator === requestingAdminId
       });
-      
+
       if (!isCreator) {
         // Check if requesting user is at least an admin
         console.log('STEP 3A: User is not creator, checking admin status...');
@@ -1577,7 +1577,7 @@ export const DatabaseService = {
           console.error('STEP 3A FAILED: Permission denied - requesting user is not an admin');
           return { data: null, error: new Error('Only circle admins can manage admin privileges') };
         }
-        
+
         console.log('STEP 3A PASSED: User is confirmed as admin');
       } else {
         console.log('STEP 3 PASSED: User is creator, has permission');
@@ -1586,7 +1586,7 @@ export const DatabaseService = {
       // Perform the delete
       console.log('STEP 4: Attempting to remove admin...');
       console.log('STEP 4: Delete conditions:', { circleid: circleId, userid: userId });
-      
+
       const { data, error } = await supabase
         .from('circle_admins')
         .delete()
@@ -1611,7 +1611,7 @@ export const DatabaseService = {
       console.log('STEP 4 PASSED: Successfully removed circle admin');
       console.log('=== DATABASE: removeCircleAdmin function completed successfully ===');
       return { data, error: null };
-      
+
     } catch (error) {
       console.error('=== DATABASE: UNEXPECTED ERROR in removeCircleAdmin ===');
       console.error('Caught error:', error);
