@@ -1632,6 +1632,15 @@ export default function CircleScreen() {
                     )}
                   </View>
 
+                  {/* Event Photo */}
+                  {item.photo_url && (
+                    <Image
+                      source={{ uri: item.photo_url }}
+                      style={styles.eventPhoto}
+                      resizeMode="cover"
+                    />
+                  )}
+
                   {item.description && (
                     <ThemedText style={styles.eventDescription}>{item.description}</ThemedText>
                   )}
@@ -2989,5 +2998,11 @@ const styles = StyleSheet.create({
   eventRsvpButtonText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  eventPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginVertical: 12,
   },
 });
