@@ -71,6 +71,7 @@ export default function CircleScreen() {
   const surfaceColor = useThemeColor({}, 'surface');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
+  const successColor = useThemeColor({}, 'success');
 
   const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'admin' | 'events'>('feed');
   const [posts, setPosts] = useState<Post[]>([]);
