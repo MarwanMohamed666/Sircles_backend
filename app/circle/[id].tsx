@@ -194,9 +194,9 @@ export default function CircleScreen() {
       date: event.date,
       time: event.time,
       location: event.location,
+      circleid: event.circleid,
       interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
-      photo_url: event.photo_url,
-      _selectedImageAsset: null
+      photo_url: event.photo_url
     });
     setShowEditEventModal(true);
   };
@@ -2092,197 +2092,15 @@ export default function CircleScreen() {
         circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
       />
 
-      {/* Edit Event Modal */}
-      <Modal
+      {/* Edit Event Modal - Use the same component as events page */}
+      <EventModal
         visible={showEditEventModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowEditEventModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.editEventModalContent, { backgroundColor: surfaceColor }]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>Edit Event</ThemedText>
-              <TouchableOpacity
-                style={[styles.closeButton, { backgroundColor: textColor + '20' }]}
-                onPress={() => setShowEditEventModal(false)}
-              >
-                <IconSymbol name="xmark" size={18} color={textColor} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.modalBody}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {editingEvent && (
-                <>
-                  {/* Event Title */}
-                  <View style={styles.inputSection}>
-                    <ThemedText style={styles.sectionLabel}>Event Title</ThemedText>
-                    <TextInput
-                      style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
-                      value={editingEvent.title}
-                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, title: text }) : null)}
-                      placeholder="Enter event title"
-                      placeholderTextColor={textColor + '60'}
-                    />
-                  </View>
-
-                  {/* Event Description */}
-                  <View style={styles.inputSection}>
-                    <ThemedText style={styles.sectionLabel}>Description</ThemedText>
-                    <TextInput
-                      style={[styles.textAreaInput, { backgroundColor: backgroundColor, color: textColor }]}
-                      value={editingEvent.description}
-                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, description: text }) : null)}
-                      placeholder="Enter event description"
-                      placeholderTextColor={textColor + '60'}
-                      multiline
-                      numberOfLines={4}
-                      textAlignVertical="top"
-                    />
-                  </View>
-
-                  {/* Date and Time */}
-                  <View style={styles.dateTimeSection}>
-                    <View style={styles.dateTimeField}>
-                      <ThemedText style={styles.sectionLabel}>Date</ThemedText>
-                      <TextInput
-                        style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
-                        value={editingEvent.date}
-                        onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, date: text }) : null)}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={textColor + '60'}
-                      />
-                    </View>
-                    <View style={styles.dateTimeField}>
-                      <ThemedText style={styles.sectionLabel}>Time</ThemedText>
-                      <TextInput
-                        style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
-                        value={editingEvent.time}
-                        onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, time: text }) : null)}
-                        placeholder="HH:MM"
-                        placeholderTextColor={textColor + '60'}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Location */}
-                  <View style={styles.inputSection}>
-                    <ThemedText style={styles.sectionLabel}>Location</ThemedText>
-                    <TextInput
-                      style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
-                      value={editingEvent.location}
-                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, location: text }) : null)}
-                      placeholder="Enter event location"
-                      placeholderTextColor={textColor + '60'}
-                    />
-                  </View>
-
-                  {/* Event Photo */}
-                  <View style={styles.inputSection}>
-                    <ThemedText style={styles.sectionLabel}>Event Photo</ThemedText>
-                    <TouchableOpacity
-                      onPress={handleEventImagePicker}
-                      style={[
-                        styles.imagePickerButton,
-                        { backgroundColor: backgroundColor, borderColor: tintColor },
-                        editingEvent.photo_url && styles.selectedImageContainer
-                      ]}
-                    >
-                      {editingEvent.photo_url ? (
-                        <>
-                          <Image source={{ uri: editingEvent.photo_url }} style={styles.selectedEventImage} />
-                          <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-                            <IconSymbol name="camera" size={16} color="#fff" />
-                            <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
-                          </View>
-                        </>
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <IconSymbol name="camera" size={32} color={tintColor} />
-                          <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>
-                            Tap to select photo
-                          </ThemedText>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Interests Selection */}
-                  <View style={styles.inputSection}>
-                    <ThemedText style={styles.sectionLabel}>Interests</ThemedText>
-                    <ScrollView style={styles.interestsScrollView} showsVerticalScrollIndicator={false}>
-                      {Object.entries(interests).map(([category, categoryInterests]) => (
-                        <View key={category} style={styles.interestCategory}>
-                          <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-                          <View style={styles.interestChips}>
-                            {categoryInterests.map((interest: any) => (
-                              <TouchableOpacity
-                                key={interest.id}
-                                style={[
-                                  styles.editInterestChip,
-                                  {
-                                    backgroundColor: editingEvent.interests.includes(interest.id)
-                                      ? tintColor
-                                      : backgroundColor,
-                                    borderColor: tintColor,
-                                  }
-                                ]}
-                                onPress={() => {
-                                  setEditingEvent(prev => {
-                                    if (!prev) return null;
-                                    const interests = prev.interests.includes(interest.id)
-                                      ? prev.interests.filter((id: string) => id !== interest.id)
-                                      : [...prev.interests, interest.id];
-                                    return { ...prev, interests };
-                                  });
-                                }}
-                              >
-                                <ThemedText style={[
-                                  styles.editInterestChipText,
-                                  {
-                                    color: editingEvent.interests.includes(interest.id)
-                                      ? '#fff'
-                                      : textColor
-                                  }
-                                ]}>
-                                  {interest.title}
-                                </ThemedText>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </View>
-                      ))}
-                    </ScrollView>
-                  </View>
-                </>
-              )}
-            </ScrollView>
-
-            {/* Modal Footer */}
-            <View style={[styles.modalFooter, { backgroundColor: surfaceColor, borderTopColor: textColor + '20' }]}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor, borderColor: textColor + '30' }]}
-                onPress={() => setShowEditEventModal(false)}
-              >
-                <ThemedText style={{ color: textColor }}>Cancel</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleSaveEventChanges}
-                disabled={loading}
-              >
-                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowEditEventModal(false)}
+        onEventCreated={loadEvents}
+        preSelectedCircleId={id as string}
+        circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
+        editingEvent={editingEvent}
+      />
 
       {/* Edit Circle Modal */}
       <Modal

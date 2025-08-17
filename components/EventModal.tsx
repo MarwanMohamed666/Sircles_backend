@@ -266,9 +266,9 @@ export default function EventModal({
           location: newEvent.location.trim()
         };
 
-        // Handle photo update
-        if (selectedPhoto && editingEvent._selectedImageAsset) {
-          updateData.photoAsset = editingEvent._selectedImageAsset;
+        // Handle photo update if new photo selected
+        if (selectedPhoto && selectedPhoto.uri !== editingEvent.photo_url) {
+          updateData.photoAsset = selectedPhoto;
         }
 
         const { error } = await DatabaseService.updateEvent(editingEvent.id, updateData);
@@ -280,7 +280,7 @@ export default function EventModal({
         }
 
         // Update interests
-        if (newEvent.interests.length > 0) {
+        try {
           const { error: interestsError } = await DatabaseService.updateEventInterests(
             editingEvent.id, 
             newEvent.interests
@@ -288,7 +288,11 @@ export default function EventModal({
 
           if (interestsError) {
             console.error('Error updating interests:', interestsError);
+            // Don't fail the entire operation for interests
           }
+        } catch (interestError) {
+          console.error('Error updating interests:', interestError);
+          // Don't fail the entire operation for interests
         }
 
         Alert.alert('Success', 'Event updated successfully!');
