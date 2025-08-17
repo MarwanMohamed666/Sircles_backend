@@ -244,9 +244,9 @@ export default function EventsScreen() {
       date: event.date,
       time: event.time,
       location: event.location,
+      circleid: event.circleid,
       interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
-      photo_url: event.photo_url,
-      _selectedImageAsset: null
+      photo_url: event.photo_url
     });
     setShowEditEventModal(true);
   };
