@@ -47,6 +47,8 @@ export default function EventsScreen() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any | null>(null);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,6 +209,48 @@ export default function EventsScreen() {
     }
   };
 
+  // Function to check if user can edit an event
+  const canEditEvent = async (event: Event) => {
+    if (!user?.id) return false;
+    
+    // Event creator can edit
+    if (event.createdby === user.id) return true;
+    
+    // Circle admin can edit circle events
+    if (event.circleid) {
+      try {
+        const { data } = await DatabaseService.isCircleAdmin(event.circleid, user.id);
+        return data?.isAdmin || false;
+      } catch (error) {
+        return false;
+      }
+    }
+    
+    return false;
+  };
+
+  // Function to edit an event
+  const handleEditEvent = async (event: Event) => {
+    const canEdit = await canEditEvent(event);
+    if (!canEdit) {
+      Alert.alert('Error', 'You do not have permission to edit this event');
+      return;
+    }
+
+    setEditingEvent({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
+      photo_url: event.photo_url,
+      _selectedImageAsset: null
+    });
+    setShowEditEventModal(true);
+  };
+
 
   const getInterestColor = (category: string) => {
     const colors = {
@@ -286,14 +330,24 @@ export default function EventsScreen() {
                   <ThemedText style={styles.generalTag}>• General</ThemedText>
                 )}
               </View>
-              {deletableEvents.has(event.id) && (
-                <TouchableOpacity
-                  style={styles.deleteEventButton}
-                  onPress={() => handleDeleteEvent(event.id)}
-                >
-                  <IconSymbol name="trash" size={18} color="#ff4444" />
-                </TouchableOpacity>
-              )}
+              <View style={styles.eventActions}>
+                {deletableEvents.has(event.id) && (
+                  <TouchableOpacity
+                    style={styles.editEventButton}
+                    onPress={() => handleEditEvent(event)}
+                  >
+                    <IconSymbol name="pencil" size={16} color={tintColor} />
+                  </TouchableOpacity>
+                )}
+                {deletableEvents.has(event.id) && (
+                  <TouchableOpacity
+                    style={styles.deleteEventButton}
+                    onPress={() => handleDeleteEvent(event.id)}
+                  >
+                    <IconSymbol name="trash" size={16} color="#ff4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             <ThemedText type="defaultSemiBold" style={[styles.eventTitle, isRTL && styles.rtlText]}>
@@ -767,5 +821,15 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginTop: 12,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editEventButton: {
+    padding: 6,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

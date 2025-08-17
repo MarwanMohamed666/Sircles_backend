@@ -81,6 +81,8 @@ export default function CircleScreen() {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imageUploading, setImageUploading] = useState(false); // State to track image upload
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
@@ -180,6 +182,155 @@ export default function CircleScreen() {
     } catch (error) {
       console.error('🗑️ CIRCLE PAGE: Unexpected error deleting event:', error);
       Alert.alert('Error', 'An unexpected error occurred: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  };
+
+  // Function to edit an event
+  const handleEditEvent = (event: any) => {
+    setEditingEvent({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
+      photo_url: event.photo_url,
+      _selectedImageAsset: null
+    });
+    setShowEditEventModal(true);
+  };
+
+  // Function to save event changes
+  const handleSaveEventChanges = async () => {
+    if (!editingEvent || !user?.id) {
+      Alert.alert('Error', 'Unable to save changes. Please try again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      let updateData = {
+        title: editingEvent.title,
+        description: editingEvent.description,
+        date: editingEvent.date,
+        time: editingEvent.time,
+        location: editingEvent.location
+      };
+
+      // Handle image upload if a new image was selected
+      if (editingEvent._selectedImageAsset) {
+        try {
+          console.log('Uploading new event image...');
+          const { data: uploadData, error: uploadError } = await StorageService.uploadEventPhoto(
+            editingEvent.id, 
+            editingEvent._selectedImageAsset, 
+            user.id
+          );
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            Alert.alert('Warning', 'Event updated but image upload failed. You can update the image later.');
+          } else if (uploadData?.publicUrl) {
+            updateData.photo_url = uploadData.publicUrl;
+            console.log('Image uploaded successfully, adding to update data');
+          }
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Warning', 'Event updated but image upload failed. You can update the image later.');
+        }
+      }
+
+      // Update event basic info
+      const { error } = await supabase
+        .from('events')
+        .update(updateData)
+        .eq('id', editingEvent.id);
+
+      if (error) {
+        console.error('Update error:', error);
+        Alert.alert('Error', error.message || 'Failed to update event');
+        return;
+      }
+
+      // Update interests
+      try {
+        const { error: interestsError } = await DatabaseService.updateEventInterests(
+          editingEvent.id, 
+          editingEvent.interests
+        );
+
+        if (interestsError) {
+          console.error('Error updating interests:', interestsError);
+          // Don't fail the entire operation for interests
+        }
+      } catch (interestError) {
+        console.error('Error updating interests:', interestError);
+        // Don't fail the entire operation for interests
+      }
+
+      Alert.alert('Success', 'Event updated successfully');
+      setShowEditEventModal(false);
+      setEditingEvent(null);
+      await loadEvents(); // Refresh the events
+    } catch (error) {
+      console.error('Update error:', error);
+      Alert.alert('Error', 'Failed to update event');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to check if user can edit an event
+  const canEditEvent = (event: any) => {
+    if (!user?.id) return false;
+    
+    // Event creator can edit
+    if (event.createdby === user.id) return true;
+    
+    // Circle admin can edit circle events
+    if (event.circleid && circle?.isAdmin) return true;
+    
+    return false;
+  };
+
+  // Function to handle event image picker for editing
+  const handleEventImagePicker = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to change event picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        
+        if (!asset.uri) {
+          Alert.alert('Error', 'Invalid image selected');
+          return;
+        }
+
+        setEditingEvent(prev => prev ? ({
+          ...prev,
+          photo_url: asset.uri,
+          _selectedImageAsset: asset
+        }) : null);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error with image picker:', error);
+      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
     }
   };
 
@@ -1620,14 +1771,24 @@ export default function CircleScreen() {
                         <ThemedText style={styles.eventLocation}>📍 {item.location}</ThemedText>
                       )}
                     </View>
-                    {(circle?.creator === user?.id || circle.isAdmin || item.createdby === user?.id) && ( // Check if user is creator, admin, or event creator
-                      <TouchableOpacity
-                        style={styles.deleteEventButton}
-                        onPress={() => deleteEvent(item.id)}
-                      >
-                        <IconSymbol name="trash" size={20} color="#EF5350" />
-                      </TouchableOpacity>
-                    )}
+                    <View style={styles.eventActions}>
+                      {canEditEvent(item) && (
+                        <TouchableOpacity
+                          style={styles.editEventButton}
+                          onPress={() => handleEditEvent(item)}
+                        >
+                          <IconSymbol name="pencil" size={18} color={tintColor} />
+                        </TouchableOpacity>
+                      )}
+                      {(circle?.creator === user?.id || circle.isAdmin || item.createdby === user?.id) && (
+                        <TouchableOpacity
+                          style={styles.deleteEventButton}
+                          onPress={() => deleteEvent(item.id)}
+                        >
+                          <IconSymbol name="trash" size={18} color="#EF5350" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
 
                   {/* Event Photo */}
@@ -1930,6 +2091,198 @@ export default function CircleScreen() {
         preSelectedCircleId={id as string}
         circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
       />
+
+      {/* Edit Event Modal */}
+      <Modal
+        visible={showEditEventModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditEventModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.editEventModalContent, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Edit Event</ThemedText>
+              <TouchableOpacity
+                style={[styles.closeButton, { backgroundColor: textColor + '20' }]}
+                onPress={() => setShowEditEventModal(false)}
+              >
+                <IconSymbol name="xmark" size={18} color={textColor} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {editingEvent && (
+                <>
+                  {/* Event Title */}
+                  <View style={styles.inputSection}>
+                    <ThemedText style={styles.sectionLabel}>Event Title</ThemedText>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
+                      value={editingEvent.title}
+                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, title: text }) : null)}
+                      placeholder="Enter event title"
+                      placeholderTextColor={textColor + '60'}
+                    />
+                  </View>
+
+                  {/* Event Description */}
+                  <View style={styles.inputSection}>
+                    <ThemedText style={styles.sectionLabel}>Description</ThemedText>
+                    <TextInput
+                      style={[styles.textAreaInput, { backgroundColor: backgroundColor, color: textColor }]}
+                      value={editingEvent.description}
+                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, description: text }) : null)}
+                      placeholder="Enter event description"
+                      placeholderTextColor={textColor + '60'}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                    />
+                  </View>
+
+                  {/* Date and Time */}
+                  <View style={styles.dateTimeSection}>
+                    <View style={styles.dateTimeField}>
+                      <ThemedText style={styles.sectionLabel}>Date</ThemedText>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
+                        value={editingEvent.date}
+                        onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, date: text }) : null)}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor={textColor + '60'}
+                      />
+                    </View>
+                    <View style={styles.dateTimeField}>
+                      <ThemedText style={styles.sectionLabel}>Time</ThemedText>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
+                        value={editingEvent.time}
+                        onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, time: text }) : null)}
+                        placeholder="HH:MM"
+                        placeholderTextColor={textColor + '60'}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Location */}
+                  <View style={styles.inputSection}>
+                    <ThemedText style={styles.sectionLabel}>Location</ThemedText>
+                    <TextInput
+                      style={[styles.textInput, { backgroundColor: backgroundColor, color: textColor }]}
+                      value={editingEvent.location}
+                      onChangeText={(text) => setEditingEvent(prev => prev ? ({ ...prev, location: text }) : null)}
+                      placeholder="Enter event location"
+                      placeholderTextColor={textColor + '60'}
+                    />
+                  </View>
+
+                  {/* Event Photo */}
+                  <View style={styles.inputSection}>
+                    <ThemedText style={styles.sectionLabel}>Event Photo</ThemedText>
+                    <TouchableOpacity
+                      onPress={handleEventImagePicker}
+                      style={[
+                        styles.imagePickerButton,
+                        { backgroundColor: backgroundColor, borderColor: tintColor },
+                        editingEvent.photo_url && styles.selectedImageContainer
+                      ]}
+                    >
+                      {editingEvent.photo_url ? (
+                        <>
+                          <Image source={{ uri: editingEvent.photo_url }} style={styles.selectedEventImage} />
+                          <View style={[styles.imageOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                            <IconSymbol name="camera" size={16} color="#fff" />
+                            <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <IconSymbol name="camera" size={32} color={tintColor} />
+                          <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>
+                            Tap to select photo
+                          </ThemedText>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Interests Selection */}
+                  <View style={styles.inputSection}>
+                    <ThemedText style={styles.sectionLabel}>Interests</ThemedText>
+                    <ScrollView style={styles.interestsScrollView} showsVerticalScrollIndicator={false}>
+                      {Object.entries(interests).map(([category, categoryInterests]) => (
+                        <View key={category} style={styles.interestCategory}>
+                          <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
+                          <View style={styles.interestChips}>
+                            {categoryInterests.map((interest: any) => (
+                              <TouchableOpacity
+                                key={interest.id}
+                                style={[
+                                  styles.editInterestChip,
+                                  {
+                                    backgroundColor: editingEvent.interests.includes(interest.id)
+                                      ? tintColor
+                                      : backgroundColor,
+                                    borderColor: tintColor,
+                                  }
+                                ]}
+                                onPress={() => {
+                                  setEditingEvent(prev => {
+                                    if (!prev) return null;
+                                    const interests = prev.interests.includes(interest.id)
+                                      ? prev.interests.filter((id: string) => id !== interest.id)
+                                      : [...prev.interests, interest.id];
+                                    return { ...prev, interests };
+                                  });
+                                }}
+                              >
+                                <ThemedText style={[
+                                  styles.editInterestChipText,
+                                  {
+                                    color: editingEvent.interests.includes(interest.id)
+                                      ? '#fff'
+                                      : textColor
+                                  }
+                                ]}>
+                                  {interest.title}
+                                </ThemedText>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={[styles.modalFooter, { backgroundColor: surfaceColor, borderTopColor: textColor + '20' }]}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor, borderColor: textColor + '30' }]}
+                onPress={() => setShowEditEventModal(false)}
+              >
+                <ThemedText style={{ color: textColor }}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                onPress={handleSaveEventChanges}
+                disabled={loading}
+              >
+                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Edit Circle Modal */}
       <Modal
@@ -3002,5 +3355,44 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginVertical: 12,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editEventButton: {
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editEventModalContent: {
+    width: '95%',
+    maxHeight: '90%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  dateTimeSection: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  dateTimeField: {
+    flex: 1,
+  },
+  textAreaInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  selectedEventImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
 });

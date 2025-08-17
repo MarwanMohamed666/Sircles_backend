@@ -42,6 +42,7 @@ export const updateEventRsvp = (eventId: string, status: 'going' | 'maybe' | 'no
 export const deleteEventRsvp = (eventId: string) => DatabaseService.deleteEventRsvp(eventId);
 export const getEventRsvp = (eventId: string, userId: string) => DatabaseService.getEventRsvp(eventId, userId);
 export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(eventId);
+export const updateEvent = (eventId: string, updates: any) => DatabaseService.updateEvent(eventId, updates);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -2051,6 +2052,83 @@ export const DatabaseService = {
     } catch (error) {
       console.error('Error in getEventRsvps:', error);
       return { data: [], error: error as Error };
+    }
+  },
+
+  async updateEvent(eventId: string, updates: {
+    title?: string;
+    description?: string;
+    date?: string;
+    time?: string;
+    location?: string;
+    photo_url?: string;
+  }) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user has permission to update
+      const { data: event } = await supabase
+        .from('events')
+        .select('createdby, circleid')
+        .eq('id', eventId)
+        .single();
+
+      if (!event) {
+        return { data: null, error: new Error('Event not found') };
+      }
+
+      const isCreator = event.createdby === currentUser.user.id;
+      let isCircleAdmin = false;
+
+      if (!isCreator && event.circleid) {
+        // Check if user is circle admin
+        const { data: adminCheck } = await supabase
+          .from('circle_admins')
+          .select('userid')
+          .eq('circleid', event.circleid)
+          .eq('userid', currentUser.user.id)
+          .single();
+
+        if (adminCheck) {
+          isCircleAdmin = true;
+        } else {
+          // Check if user is circle creator
+          const { data: circleCheck } = await supabase
+            .from('circles')
+            .select('creator')
+            .eq('id', event.circleid)
+            .single();
+
+          if (circleCheck?.creator === currentUser.user.id) {
+            isCircleAdmin = true;
+          }
+        }
+      }
+
+      if (!isCreator && !isCircleAdmin) {
+        return { data: null, error: new Error('You do not have permission to edit this event') };
+      }
+
+      const { data, error } = await supabase
+        .from('events')
+        .update(updates)
+        .eq('id', eventId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating event:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in updateEvent:', error);
+      return { data: null, error: error as Error };
     }
   },
 };
