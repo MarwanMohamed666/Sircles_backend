@@ -17,6 +17,7 @@ interface EventModalProps {
   onEventCreated: () => void;
   preSelectedCircleId?: string; // If provided, circle selection is disabled
   circles?: Array<{ id: string; name: string }>; // Only needed when circle selection is enabled
+  editingEvent?: any | null; // Event data for editing
 }
 
 interface NewEvent {
@@ -34,7 +35,8 @@ export default function EventModal({
   onClose, 
   onEventCreated, 
   preSelectedCircleId,
-  circles = []
+  circles = [],
+  editingEvent = null
 }: EventModalProps) {
   const { user } = useAuth();
   const { texts } = useLanguage();
@@ -64,6 +66,36 @@ export default function EventModal({
       setNewEvent(prev => ({ ...prev, circleId: preSelectedCircleId }));
     }
   }, [preSelectedCircleId]);
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingEvent && visible) {
+      setNewEvent({
+        title: editingEvent.title || '',
+        date: editingEvent.date || '',
+        time: editingEvent.time || '',
+        location: editingEvent.location || '',
+        description: editingEvent.description || '',
+        circleId: editingEvent.circleid || preSelectedCircleId || '',
+        interests: editingEvent.interests || []
+      });
+      if (editingEvent.photo_url) {
+        setSelectedPhoto({ uri: editingEvent.photo_url } as any);
+      }
+    } else if (!editingEvent && visible) {
+      // Reset form for new event
+      setNewEvent({
+        title: '',
+        date: '',
+        time: '',
+        location: '',
+        description: '',
+        circleId: preSelectedCircleId || '',
+        interests: []
+      });
+      setSelectedPhoto(null);
+    }
+  }, [editingEvent, visible, preSelectedCircleId]);
 
   useEffect(() => {
     if (visible) {
@@ -222,36 +254,78 @@ export default function EventModal({
 
     setUploading(true);
     try {
-      console.log('EventModal: Creating event with form data:', newEvent);
-      console.log('EventModal: Selected interests:', newEvent.interests);
-      console.log('EventModal: Selected photo:', !!selectedPhoto);
+      if (editingEvent) {
+        // Update existing event
+        console.log('EventModal: Updating event with form data:', newEvent);
+        
+        const updateData: any = {
+          title: newEvent.title.trim(),
+          description: newEvent.description.trim(),
+          date: newEvent.date,
+          time: newEvent.time,
+          location: newEvent.location.trim()
+        };
 
-      // Convert selected interests to the format expected by the database
-      const interestObjects = newEvent.interests.map(interestId => ({
-        interestid: interestId
-      }));
+        // Handle photo update
+        if (selectedPhoto && editingEvent._selectedImageAsset) {
+          updateData.photoAsset = editingEvent._selectedImageAsset;
+        }
 
-      console.log('EventModal: Converted interest objects:', interestObjects);
+        const { error } = await DatabaseService.updateEvent(editingEvent.id, updateData);
 
-      const { error } = await DatabaseService.createEvent({
-        ...newEvent,
-        interests: interestObjects,
-        photoAsset: selectedPhoto // Include photo asset
-      });
+        if (error) {
+          console.error('EventModal: Error updating event:', error);
+          Alert.alert('Error', error.message || 'Failed to update event.');
+          return;
+        }
 
-      if (error) {
-        console.error('EventModal: Error creating event:', error);
-        Alert.alert('Error', error.message || 'Failed to create event.');
-        return;
+        // Update interests
+        if (newEvent.interests.length > 0) {
+          const { error: interestsError } = await DatabaseService.updateEventInterests(
+            editingEvent.id, 
+            newEvent.interests
+          );
+
+          if (interestsError) {
+            console.error('Error updating interests:', interestsError);
+          }
+        }
+
+        Alert.alert('Success', 'Event updated successfully!');
+      } else {
+        // Create new event
+        console.log('EventModal: Creating event with form data:', newEvent);
+        console.log('EventModal: Selected interests:', newEvent.interests);
+        console.log('EventModal: Selected photo:', !!selectedPhoto);
+
+        // Convert selected interests to the format expected by the database
+        const interestObjects = newEvent.interests.map(interestId => ({
+          interestid: interestId
+        }));
+
+        console.log('EventModal: Converted interest objects:', interestObjects);
+
+        const { error } = await DatabaseService.createEvent({
+          ...newEvent,
+          interests: interestObjects,
+          photoAsset: selectedPhoto // Include photo asset
+        });
+
+        if (error) {
+          console.error('EventModal: Error creating event:', error);
+          Alert.alert('Error', error.message || 'Failed to create event.');
+          return;
+        }
+
+        Alert.alert('Success', 'Event created successfully!');
       }
 
-      Alert.alert('Success', 'Event created successfully!');
       resetForm();
       onClose();
       onEventCreated?.();
     } catch (error) {
       console.error('EventModal: Unexpected error:', error);
-      Alert.alert('Error', 'Failed to create event.');
+      Alert.alert('Error', editingEvent ? 'Failed to update event.' : 'Failed to create event.');
     } finally {
       setUploading(false);
     }
@@ -280,7 +354,9 @@ export default function EventModal({
           <TouchableOpacity onPress={handleClose}>
             <IconSymbol name="xmark" size={24} color={textColor} />
           </TouchableOpacity>
-          <ThemedText style={styles.modalTitle}>Create Event</ThemedText>
+          <ThemedText style={styles.modalTitle}>
+            {editingEvent ? 'Edit Event' : 'Create Event'}
+          </ThemedText>
           <TouchableOpacity
             onPress={handleCreateEvent}
             disabled={uploading || !newEvent.title || !newEvent.date || !newEvent.time}
@@ -294,14 +370,19 @@ export default function EventModal({
             ]}
           >
             <ThemedText style={styles.postButtonText}>
-              {uploading ? 'Creating...' : 'Create'}
+              {uploading 
+                ? (editingEvent ? 'Updating...' : 'Creating...') 
+                : (editingEvent ? 'Update' : 'Create')
+              }
             </ThemedText>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.modalBody}>
           <View style={styles.inputSection}>
-            <ThemedText style={styles.postingInLabel}>Creating event in:</ThemedText>
+            <ThemedText style={styles.postingInLabel}>
+              {editingEvent ? 'Editing event in:' : 'Creating event in:'}
+            </ThemedText>
             {preSelectedCircleId ? (
               <ThemedText style={[styles.circleName, { color: tintColor }]}>
                 {getCircleName()}
