@@ -541,6 +541,15 @@ export default function EventsScreen() {
         onEventCreated={fetchEvents}
         circles={circles}
       />
+
+      {/* Edit Event Modal */}
+      <EventModal
+        visible={showEditEventModal}
+        onClose={() => setShowEditEventModal(false)}
+        onEventCreated={fetchEvents}
+        circles={circles}
+        editingEvent={editingEvent}
+      />
     </SafeAreaView>
   );
 }
