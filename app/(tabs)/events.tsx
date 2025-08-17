@@ -244,6 +244,7 @@ export default function EventsScreen() {
       date: event.date,
       time: event.time,
       location: event.location,
+      circleid: event.circleid,
       interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
       photo_url: event.photo_url
     });
@@ -548,7 +549,6 @@ export default function EventsScreen() {
         onEventCreated={fetchEvents}
         circles={circles}
         editingEvent={editingEvent}
-        preSelectedCircleId={editingEvent?.circleid}
       />
     </SafeAreaView>
   );
