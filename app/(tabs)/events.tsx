@@ -212,10 +212,10 @@ export default function EventsScreen() {
   // Function to check if user can edit an event
   const canEditEvent = async (event: Event) => {
     if (!user?.id) return false;
-    
+
     // Event creator can edit
     if (event.createdby === user.id) return true;
-    
+
     // Circle admin can edit circle events
     if (event.circleid) {
       try {
@@ -225,7 +225,7 @@ export default function EventsScreen() {
         return false;
       }
     }
-    
+
     return false;
   };
 
@@ -542,7 +542,7 @@ export default function EventsScreen() {
         circles={circles}
       />
 
-      {/* Edit Event Modal */}
+      {/* Edit Event Modal - Use the same component as circle page */}
       <EventModal
         visible={showEditEventModal}
         onClose={() => setShowEditEventModal(false)}
