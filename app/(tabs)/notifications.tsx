@@ -9,6 +9,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/database';
+import { getNavigationTarget } from '@/lib/notifications';
+import { router } from 'expo-router';
 
 interface Notification {
   id: string;
@@ -173,6 +175,50 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleNotificationPress = async (notification: Notification) => {
+    try {
+      // Mark as read if not already read
+      if (!notification.read) {
+        await handleMarkAsRead(notification.id);
+      }
+
+      // Get navigation target
+      const navigationTarget = getNavigationTarget(notification);
+
+      if (navigationTarget) {
+        // Navigate to the target screen with parameters
+        if (navigationTarget.params?.tab) {
+          // For circle navigation with specific tab
+          router.push({
+            pathname: `/circle/${navigationTarget.params.id}`,
+            params: {
+              initialTab: navigationTarget.params.tab
+            }
+          });
+        } else if (navigationTarget.screen === 'post/[id]') {
+          // For post navigation
+          router.push({
+            pathname: `/post/${navigationTarget.params.id}`
+          });
+        } else if (navigationTarget.screen === 'event/[id]') {
+          // For event navigation
+          router.push({
+            pathname: `/event/${navigationTarget.params.id}`
+          });
+        } else {
+          // For other navigation targets
+          router.push({
+            pathname: `/${navigationTarget.screen}`,
+            params: navigationTarget.params
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error handling notification press:', error);
+    }
+  };
+
+
   const filteredNotifications = notifications.filter(notification => 
     filter === 'all' || !notification.read
   );
@@ -186,11 +232,7 @@ export default function NotificationsScreen() {
         styles.notificationItem,
         { backgroundColor: notification.read ? 'transparent' : tintColor + '10' }
       ]}
-      onPress={() => {
-        if (!notification.read) {
-          handleMarkAsRead(notification.id);
-        }
-      }}
+      onPress={() => handleNotificationPress(notification)}
     >
       <View style={[styles.notificationContent, isRTL && styles.notificationContentRTL]}>
         <View style={[

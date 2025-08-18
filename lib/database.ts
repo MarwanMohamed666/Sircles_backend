@@ -1010,6 +1010,67 @@ export const DatabaseService = {
     return { data, error };
   },
 
+  // Get single post for post detail page
+  async getPost(postId: string) {
+    return await supabase
+      .from('posts')
+      .select(`
+        *,
+        author:users!posts_userid_fkey(
+          name,
+          avatar_url
+        ),
+        circle:circles!posts_circleid_fkey(
+          id,
+          name
+        ),
+        likes:post_likes(count),
+        comments:post_comments(
+          id,
+          content,
+          creationdate,
+          author:users!post_comments_userid_fkey(
+            name,
+            avatar_url
+          )
+        )
+      `)
+      .eq('id', postId)
+      .single();
+  },
+
+  // Get single event for event detail page
+  async getEvent(eventId: string) {
+    return await supabase
+      .from('events')
+      .select(`
+        *,
+        creator:users!events_createdby_fkey(
+          name,
+          avatar_url
+        ),
+        circle:circles!events_circleid_fkey(
+          id,
+          name
+        ),
+        event_interests(
+          interests(
+            id,
+            title
+          )
+        ),
+        user_rsvp:event_rsvp!event_rsvp_eventid_fkey(
+          status
+        ),
+        going_count:event_rsvp!event_rsvp_eventid_fkey(count),
+        maybe_count:event_rsvp!event_rsvp_eventid_fkey(count),
+        no_going_count:event_rsvp!event_rsvp_eventid_fkey(count)
+      `)
+      .eq('id', eventId)
+      .single();
+  },
+
+
   async markNotificationAsRead(notificationId: string) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
