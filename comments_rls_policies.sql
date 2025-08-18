@@ -69,4 +69,4 @@ CREATE POLICY "Users can delete own comments" ON public.comments
 
 -- Grant necessary permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.comments TO authenticated;
-GRANT USAGE ON SEQUENCE public.comments_id_seq TO authenticated;
+-- Note: No sequence needed since comments table uses text IDs, not auto-increment

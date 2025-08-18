@@ -2318,7 +2318,7 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication required') };
       }
 
-      const commentId = crypto.randomUUID();
+      const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const now = new Date().toISOString();
 
       const { data, error } = await supabase
@@ -2333,7 +2333,7 @@ export const DatabaseService = {
         })
         .select(`
           *,
-          author:users!comments_userid_fkey(
+          users!comments_userid_fkey(
             name,
             avatar_url
           )
@@ -2345,7 +2345,13 @@ export const DatabaseService = {
         return { data: null, error };
       }
 
-      return { data, error: null };
+      // Transform the response to match expected format
+      const transformedData = {
+        ...data,
+        author: data.users
+      };
+
+      return { data: transformedData, error: null };
     } catch (error) {
       console.error('Error in createComment:', error);
       return { data: null, error: error as Error };
@@ -2358,7 +2364,7 @@ export const DatabaseService = {
         .from('comments')
         .select(`
           *,
-          author:users!comments_userid_fkey(
+          users!comments_userid_fkey(
             name,
             avatar_url
           )
@@ -2371,7 +2377,13 @@ export const DatabaseService = {
         return { data: [], error };
       }
 
-      return { data: data || [], error: null };
+      // Transform the response to match expected format
+      const transformedData = (data || []).map(comment => ({
+        ...comment,
+        author: comment.users
+      }));
+
+      return { data: transformedData, error: null };
     } catch (error) {
       console.error('Error in getPostComments:', error);
       return { data: [], error: error as Error };
