@@ -17,6 +17,7 @@ export const getUserInterests = (userId: string) => DatabaseService.getUserInter
 export const getInterestsByCategory = () => DatabaseService.getInterestsByCategory();
 export const getUserNotifications = (userId: string) => DatabaseService.getUserNotifications(userId);
 export const markNotificationAsRead = (notificationId: string) => DatabaseService.markNotificationAsRead(notificationId);
+export const markAllNotificationsAsRead = (userId: string) => DatabaseService.markAllNotificationsAsRead(userId);
 export const joinCircle = (userId: string, circleId: string) => DatabaseService.joinCircle(userId, circleId);
 export const leaveCircle = (userId: string, circleId: string) => DatabaseService.leaveCircle(userId, circleId);
 export const getUserJoinedCircles = (userId: string) => DatabaseService.getUserJoinedCircles(userId);
@@ -1020,6 +1021,21 @@ export const DatabaseService = {
       .from('notifications')
       .update({ read: true })
       .eq('id', notificationId);
+    return { data, error };
+  },
+
+  async markAllNotificationsAsRead(userId: string) {
+    // Verify user is authenticated
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (!currentUser.user) {
+      return { data: null, error: new Error('Authentication required') };
+    }
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('userid', userId)
+      .eq('read', false);
     return { data, error };
   },
 
