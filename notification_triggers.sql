@@ -19,7 +19,7 @@ BEGIN
   FROM circles
   WHERE circles.id = NEW.circleid;
 
-  -- Create notifications for circle admins
+  -- Create notifications for circle admins (excluding creator to avoid duplicates)
   INSERT INTO notifications (id, userid, type, content, linkeditemtype, linkeditemid, read, creationdate)
   SELECT 
     gen_random_uuid()::text,
@@ -32,7 +32,8 @@ BEGIN
     now()
   FROM circle_admins ca
   JOIN circles c ON c.id = ca.circleid
-  WHERE ca.circleid = NEW.circleid;
+  WHERE ca.circleid = NEW.circleid
+  AND ca.userid != c.creator; -- Exclude creator to avoid duplicate notifications
 
   RETURN NEW;
 END;
