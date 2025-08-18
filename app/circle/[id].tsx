@@ -66,7 +66,26 @@ interface JoinRequest {
 }
 
 export default function CircleScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, tab = 'feed' } = useLocalSearchParams();
+  const circleId = Array.isArray(id) ? id[0] : (id || '');
+
+  // Early return if no valid circle ID
+  if (!circleId || circleId === 'undefined') {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.centeredContainer}>
+          <ThemedText>Invalid circle ID</ThemedText>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: tintColor }]}
+            onPress={() => router.back()}
+          >
+            <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
   const backgroundColor = useThemeColor({}, 'background');
@@ -111,10 +130,10 @@ export default function CircleScreen() {
   const [circle, setCircle] = useState<Circle | null>(null);
 
   const loadEvents = async () => {
-    if (!id) return;
+    if (!circleId) return;
 
     try {
-      const { data, error } = await DatabaseService.getEventsByCircle(id as string);
+      const { data, error } = await DatabaseService.getEventsByCircle(circleId as string);
       if (error) {
         console.error('Error loading events:', error);
         return;
@@ -161,11 +180,11 @@ export default function CircleScreen() {
       console.log('🗑️ CIRCLE PAGE: About to call DatabaseService.deleteEvent');
       const { data, error } = await DatabaseService.deleteEvent(eventId);
 
-      console.log('🗑️ CIRCLE PAGE: Delete event result:', { 
-        hasData: !!data, 
+      console.log('🗑️ CIRCLE PAGE: Delete event result:', {
+        hasData: !!data,
         hasError: !!error,
         errorMessage: error?.message,
-        data 
+        data
       });
 
       if (error) {
@@ -226,8 +245,8 @@ export default function CircleScreen() {
         try {
           console.log('Uploading new event image...');
           const { data: uploadData, error: uploadError } = await StorageService.uploadEventPhoto(
-            editingEvent.id, 
-            editingEvent._selectedImageAsset, 
+            editingEvent.id,
+            editingEvent._selectedImageAsset,
             user.id
           );
 
@@ -259,7 +278,7 @@ export default function CircleScreen() {
       // Update interests
       try {
         const { error: interestsError } = await DatabaseService.updateEventInterests(
-          editingEvent.id, 
+          editingEvent.id,
           editingEvent.interests
         );
 
@@ -381,15 +400,19 @@ export default function CircleScreen() {
 
 
   const loadCircleData = async () => {
-    if (!id) return;
-
     console.log('🔄 === LOAD_CIRCLE_DATA STARTED ===');
-    console.log('🔄 Function called with:', { id, userId: user?.id });
+    console.log('🔄 Function called with:', { id: circleId, userId: user?.id });
+
+    if (!circleId || circleId === 'undefined' || !user?.id) {
+      console.log('🔄 Missing or invalid parameters:', { circleId, userId: user?.id });
+      setLoading(false);
+      return;
+    }
 
     try {
       // Load circle details
       const { data: circleDataFromDb, error: circleError } = await DatabaseService.getCircles();
-      const currentCircle = circleDataFromDb?.find(c => c.id === id);
+      const currentCircle = circleDataFromDb?.find(c => c.id === circleId);
 
       if (!currentCircle) {
         Alert.alert('Error', 'Circle not found');
@@ -408,19 +431,19 @@ export default function CircleScreen() {
       if (user?.id) {
         // Check if user is in user_circles table using getUserJoinedCircles function
         const { data: joinedCircles } = await DatabaseService.getUserJoinedCircles(user.id);
-        isJoined = joinedCircles?.some(jc => jc.circleid === id) || false;
+        isJoined = joinedCircles?.some(jc => jc.circleid === circleId) || false;
 
-        console.log('🔄 Membership check result:', { userId: user.id, circleId: id, isJoined });
+        console.log('🔄 Membership check result:', { userId: user.id, circleId: circleId, isJoined });
 
         if (isJoined) {
-          const { data: adminData } = await DatabaseService.isCircleAdmin(id as string, user.id);
+          const { data: adminData } = await DatabaseService.isCircleAdmin(circleId as string, user.id);
           isAdmin = adminData?.isAdmin || false;
           isMainAdmin = adminData?.isMainAdmin || false;
           console.log('🔄 Admin check (member):', { isAdmin, isMainAdmin });
         } else {
           // Check for pending request if not a member
           console.log('🔄 Checking for pending request since user is not a member');
-          const { data: pendingRequest, error: pendingError } = await DatabaseService.getUserPendingRequest(id as string, user.id);
+          const { data: pendingRequest, error: pendingError } = await DatabaseService.getUserPendingRequest(circleId as string, user.id);
           console.log('🔄 Pending request check result:', {
             hasPendingData: !!pendingRequest,
             pendingRequestData: pendingRequest,
@@ -461,7 +484,7 @@ export default function CircleScreen() {
 
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
-        const { data: postsData } = await DatabaseService.getPosts(id as string);
+        const { data: postsData } = await DatabaseService.getPosts(circleId as string);
         // Map posts to include userLiked and likes_count
         const postsWithLikes = postsData.map((post: Post) => ({
           ...post,
@@ -475,8 +498,8 @@ export default function CircleScreen() {
       console.log('Loading members check:', { isJoined, privacy: currentCircle.privacy, shouldLoadMembers: isJoined || currentCircle.privacy === 'public' });
 
       if (isJoined || currentCircle.privacy === 'public') {
-        console.log('Loading circle members for circle:', id);
-        const { data: membersData, error: membersError } = await DatabaseService.getCircleMembers(id as string);
+        console.log('Loading circle members for circle:', circleId);
+        const { data: membersData, error: membersError } = await DatabaseService.getCircleMembers(circleId as string);
 
         if (membersError) {
           console.error('Error loading members:', membersError);
@@ -491,7 +514,7 @@ export default function CircleScreen() {
 
       // Load join requests if user is admin
       if (isAdmin) {
-        const { data: requestsData } = await DatabaseService.getCircleJoinRequests(id as string);
+        const { data: requestsData } = await DatabaseService.getCircleJoinRequests(circleId as string);
         setJoinRequests(requestsData || []);
       }
 
@@ -528,7 +551,7 @@ export default function CircleScreen() {
   };
 
   const handleDeleteCircle = async () => {
-    if (!user?.id || !id) {
+    if (!user?.id || !circleId) {
       Alert.alert('Error', 'Unable to delete circle. Please try again.');
       return;
     }
@@ -547,7 +570,7 @@ export default function CircleScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              const { error } = await DatabaseService.deleteCircle(id, user.id);
+              const { error } = await DatabaseService.deleteCircle(circleId, user.id);
 
               if (error) {
                 console.error('Delete error:', error);
@@ -585,7 +608,7 @@ export default function CircleScreen() {
 
     try {
       const { error } = await DatabaseService.removeMemberFromCircle(
-        id as string,
+        circleId as string,
         memberId,
         user!.id
       );
@@ -608,14 +631,14 @@ export default function CircleScreen() {
 
     try {
       console.log('Starting remove member process...', {
-        circleId: id,
+        circleId: circleId,
         memberId,
         memberName,
         adminId: user?.id
       });
 
       const { error } = await DatabaseService.removeMemberFromCircle(
-        id as string,
+        circleId as string,
         memberId,
         user!.id
       );
@@ -646,7 +669,7 @@ export default function CircleScreen() {
     console.log('Function parameters:', { memberId, memberName, isCurrentlyAdmin });
     console.log('Circle admin status:', circle?.isAdmin);
     console.log('Current user ID:', user?.id);
-    console.log('Circle ID:', id);
+    console.log('Circle ID:', circleId);
 
     if (!circle?.isAdmin) {
       console.log('BLOCKED: User is not admin, cannot toggle admin status');
@@ -658,7 +681,7 @@ export default function CircleScreen() {
       return;
     }
 
-    if (!id) {
+    if (!circleId) {
       console.log('BLOCKED: No circle ID available');
       return;
     }
@@ -670,7 +693,7 @@ export default function CircleScreen() {
     console.log('=== Executing admin toggle directly ===');
     console.log('=== Starting admin toggle process ===');
     console.log('Pre-operation validation:');
-    console.log('- Circle ID:', id);
+    console.log('- Circle ID:', circleId);
     console.log('- Member ID:', memberId);
     console.log('- Current user ID:', user?.id);
     console.log('- Is currently admin:', isCurrentlyAdmin);
@@ -685,25 +708,25 @@ export default function CircleScreen() {
       if (isCurrentlyAdmin) {
         console.log('=== BRANCH: Calling removeCircleAdmin ===');
         console.log('Parameters for removeCircleAdmin:', {
-          circleId: id,
+          circleId: circleId,
           userId: memberId,
           requestingAdminId: user.id
         });
 
         console.log('=== CALLING DatabaseService.removeCircleAdmin ===');
-        result = await DatabaseService.removeCircleAdmin(id as string, memberId, user.id);
+        result = await DatabaseService.removeCircleAdmin(circleId as string, memberId, user.id);
         console.log('=== removeCircleAdmin RETURNED ===');
         console.log('removeCircleAdmin completed, result:', result);
       } else {
         console.log('=== BRANCH: Calling addCircleAdmin ===');
         console.log('Parameters for addCircleAdmin:', {
-          circleId: id,
+          circleId: circleId,
           userId: memberId,
           requestingAdminId: user.id
         });
 
         console.log('=== CALLING DatabaseService.addCircleAdmin ===');
-        result = await DatabaseService.addCircleAdmin(id as string, memberId, user.id);
+        result = await DatabaseService.addCircleAdmin(circleId as string, memberId, user.id);
         console.log('=== addCircleAdmin RETURNED ===');
         console.log('addCircleAdmin completed, result:', result);
       }
@@ -753,7 +776,7 @@ export default function CircleScreen() {
   };
 
   const handleJoinCircle = async () => {
-    if (!user?.id || !id || !circle) return;
+    if (!user?.id || !circleId || !circle) return;
 
     if (circle.privacy === 'private') {
       // Show join request dialog
@@ -770,9 +793,9 @@ export default function CircleScreen() {
             onPress: async (message) => {
               try {
                 console.log('🚀 === JOIN REQUEST STARTING ===');
-                console.log('🚀 Request parameters:', { userId: user.id, circleId: id, message: message || 'No message' });
+                console.log('🚀 Request parameters:', { userId: user.id, circleId: circleId, message: message || 'No message' });
 
-                const { error } = await DatabaseService.requestToJoinCircle(user.id, id as string, message || '');
+                const { error } = await DatabaseService.requestToJoinCircle(user.id, circleId as string, message || '');
                 if (error) {
                   console.log('🚀 Join request error:', error.message);
                   if (error.message.includes('already requested') || error.message.includes('already have a pending request')) {
@@ -828,7 +851,7 @@ export default function CircleScreen() {
     } else {
       // Public circle - join directly
       try {
-        const { error } = await DatabaseService.joinCircle(user.id, id as string);
+        const { error } = await DatabaseService.joinCircle(user.id, circleId as string);
         if (error) {
           if (error.message.includes('already a member')) {
             Alert.alert('Info', 'You are already a member of this circle.');
@@ -846,7 +869,7 @@ export default function CircleScreen() {
   };
 
   const handleLeaveCircle = async () => {
-    if (!user?.id || !id) return;
+    if (!user?.id || !circleId) return;
 
     Alert.alert(
       'Leave Circle',
@@ -861,7 +884,7 @@ export default function CircleScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await DatabaseService.leaveCircle(user.id, id);
+              const { error } = await DatabaseService.leaveCircle(user.id, circleId);
               if (error) {
                 Alert.alert('Error', error.message || 'Failed to leave circle');
                 return;
@@ -1017,14 +1040,14 @@ export default function CircleScreen() {
   };
 
   const uploadCircleImage = async (asset: ImagePicker.ImagePickerAsset) => {
-    if (!user?.id || !id) {
+    if (!user?.id || !circleId) {
       Alert.alert('Error', 'User or circle information is missing.');
       return;
     }
 
     console.log('=== CIRCLE IMAGE UPLOAD STARTING ===');
     console.log('User ID:', user.id);
-    console.log('Circle ID:', id);
+    console.log('Circle ID:', circleId);
     console.log('Asset URI exists:', !!asset?.uri);
 
     setImageUploading(true);
@@ -1035,7 +1058,7 @@ export default function CircleScreen() {
       console.log('Using file extension:', fileExtension);
 
       console.log('Calling StorageService.uploadCircleProfilePicture...');
-      const result = await StorageService.uploadCircleProfilePicture(id as string, asset);
+      const result = await StorageService.uploadCircleProfilePicture(circleId as string, asset);
 
       console.log('Upload result:', {
         hasData: !!result.data,
@@ -1057,7 +1080,7 @@ export default function CircleScreen() {
         const { error: updateError } = await supabase
           .from('circles')
           .update({ circle_profile_url: imageUrl })
-          .eq('id', id);
+          .eq('id', circleId);
 
         if (updateError) {
           console.error('Error updating circle:', updateError);
@@ -1079,10 +1102,10 @@ export default function CircleScreen() {
 
   // This function should be renamed to loadCirclePosts
   const loadCirclePosts = async () => {
-    if (!id) return;
+    if (!circleId) return;
     setLoading(true);
     try {
-      const { data: postsData } = await DatabaseService.getPosts(id as string);
+      const { data: postsData } = await DatabaseService.getPosts(circleId as string);
       // Map posts to include userLiked and likes_count
       const postsWithLikes = postsData.map((post: Post) => ({
         ...post,
@@ -1173,7 +1196,7 @@ export default function CircleScreen() {
       const { error } = await DatabaseService.createPost({
         userid: user.id,
         content: newPostContent.trim(),
-        circleid: id
+        circleid: circleId
       }, selectedPostImage);
 
       if (error) {
@@ -1217,7 +1240,7 @@ export default function CircleScreen() {
       setPosts(updatedPosts);
 
       // Make API call
-      const { error } = isCurrentlyLiked 
+      const { error } = isCurrentlyLiked
         ? await DatabaseService.unlikePost(postId, user.id)
         : await DatabaseService.likePost(postId, user.id);
 
@@ -1235,7 +1258,7 @@ export default function CircleScreen() {
 
 
   const handleSaveChanges = async () => {
-    if (!user?.id || !id || !circle) {
+    if (!user?.id || !circleId || !circle) {
       Alert.alert('Error', 'Unable to save changes. Please try again.');
       return;
     }
@@ -1269,7 +1292,7 @@ export default function CircleScreen() {
       }
 
       // Update circle basic info
-      const { error } = await DatabaseService.updateCircle(id as string, updateData, user.id);
+      const { error } = await DatabaseService.updateCircle(circleId as string, updateData, user.id);
 
       if (error) {
         console.error('Update error:', error);
@@ -1280,7 +1303,7 @@ export default function CircleScreen() {
       // Update interests
       try {
         // Get current interests
-        const { data: currentInterests } = await DatabaseService.getCircleInterests(id as string);
+        const { data: currentInterests } = await DatabaseService.getCircleInterests(circleId as string);
         const currentInterestIds = currentInterests?.map(interest => interest.id) || [];
 
         // Find interests to add and remove
@@ -1292,7 +1315,7 @@ export default function CircleScreen() {
           await supabase
             .from('circle_interests')
             .delete()
-            .eq('circleid', id)
+            .eq('circleid', circleId)
             .eq('interestid', interestId);
         }
 
@@ -1301,7 +1324,7 @@ export default function CircleScreen() {
           await supabase
             .from('circle_interests')
             .insert({
-              circleid: id,
+              circleid: circleId,
               interestid: interestId
             });
         }
@@ -1324,22 +1347,21 @@ export default function CircleScreen() {
   // Load initial data on component mount
   useEffect(() => {
     console.log('🔄 useEffect triggered - about to call loadCircleData');
-    console.log('🔄 useEffect dependencies:', { id, userId: user?.id });
+    console.log('🔄 useEffect dependencies:', { id: circleId, userId: user?.id });
     loadCircleData();
     loadEvents(); // Load events on mount
     loadInterests(); // Load interests on mount
-  }, [id, user]);
+  }, [circleId, user]);
 
   // Handle initial tab from notification navigation
-  const params = useLocalSearchParams();
   useEffect(() => {
     // Handle initial tab from notification navigation
-    if (params?.tab && ['feed', 'events', 'chat', 'admin'].includes(params.tab as string)) {
-      setActiveTab(params.tab as any);
-    } else if (params?.initialTab && ['feed', 'events', 'chat', 'admin'].includes(params.initialTab as string)) {
-      setActiveTab(params.initialTab as any);
+    if (tab && ['feed', 'events', 'chat', 'admin'].includes(tab as string)) {
+      setActiveTab(tab as any);
+    } else if (tab && ['feed', 'events', 'chat', 'admin'].includes(tab as string)) {
+      setActiveTab(tab as any);
     }
-  }, [params?.tab, params?.initialTab]);
+  }, [tab]);
 
   if (loading) {
     return (
@@ -1390,20 +1412,20 @@ export default function CircleScreen() {
       )}
       {/* Post Actions */}
       <View style={styles.postActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleLikePost(post.id)}
         >
-          <IconSymbol 
-            name={post.userLiked ? "heart.fill" : "heart"} 
-            size={20} 
-            color={post.userLiked ? "#ff4444" : textColor} 
+          <IconSymbol
+            name={post.userLiked ? "heart.fill" : "heart"}
+            size={20}
+            color={post.userLiked ? "#ff4444" : textColor}
           />
           <ThemedText style={styles.actionText}>
             {post.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => router.push(`/post/${post.id}`)}
         >
@@ -1928,10 +1950,10 @@ export default function CircleScreen() {
                         ]}
                         onPress={() => handleEventRsvp(item.id, 'going')}
                       >
-                        <IconSymbol 
-                          name="checkmark.circle.fill" 
-                          size={14} 
-                          color={item.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor} 
+                        <IconSymbol
+                          name="checkmark.circle.fill"
+                          size={14}
+                          color={item.user_rsvp?.[0]?.status === 'going' ? '#fff' : successColor}
                         />
                         <ThemedText style={[
                           styles.eventRsvpButtonText,
@@ -1949,10 +1971,10 @@ export default function CircleScreen() {
                         ]}
                         onPress={() => handleEventRsvp(item.id, 'maybe')}
                       >
-                        <IconSymbol 
-                          name="star.fill" 
-                          size={14} 
-                          color={item.user_rsvp?.[0]?.status === 'maybe' ? '#fff' : '#FF9800'} 
+                        <IconSymbol
+                          name="star.fill"
+                          size={14}
+                          color={item.user_rsvp?.[0]?.status === 'maybe' ? '#fff' : '#FF9800'}
                         />
                         <ThemedText style={[
                           styles.eventRsvpButtonText,
@@ -1970,10 +1992,10 @@ export default function CircleScreen() {
                         ]}
                         onPress={() => handleEventRsvp(item.id, 'no_going')}
                       >
-                        <IconSymbol 
-                          name="xmark.circle.fill" 
-                          size={14} 
-                          color={item.user_rsvp?.[0]?.status === 'no_going' ? '#fff' : '#f44336'} 
+                        <IconSymbol
+                          name="xmark.circle.fill"
+                          size={14}
+                          color={item.user_rsvp?.[0]?.status === 'no_going' ? '#fff' : '#f44336'}
                         />
                         <ThemedText style={[
                           styles.eventRsvpButtonText,
@@ -2181,8 +2203,8 @@ export default function CircleScreen() {
         visible={showEventModal}
         onClose={() => setShowEventModal(false)}
         onEventCreated={loadEvents}
-        preSelectedCircleId={id as string}
-        circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
+        preSelectedCircleId={circleId as string}
+        circles={[{ id: circleId as string, name: circle?.name || 'Current Circle' }]}
       />
 
       {/* Edit Event Modal - Use the same component as events page */}
@@ -2190,8 +2212,8 @@ export default function CircleScreen() {
         visible={showEditEventModal}
         onClose={() => setShowEditEventModal(false)}
         onEventCreated={loadEvents}
-        preSelectedCircleId={id as string}
-        circles={[{ id: id as string, name: circle?.name || 'Current Circle' }]}
+        preSelectedCircleId={circleId as string}
+        circles={[{ id: circleId as string, name: circle?.name || 'Current Circle' }]}
         editingEvent={editingEvent}
       />
 
@@ -2823,7 +2845,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  imagePlaceholderText: {
+  imagePickerText: {
     fontSize: 14,
     fontWeight: '500',
   },
@@ -3305,22 +3327,29 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  dateTimeField: {
-    flex: 1,
-  },
-  textAreaInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
+  // textAreaInput: { // Reusing from above
+  //   borderWidth: 1,
+  //   borderColor: '#ddd',
+  //   borderRadius: 8,
+  //   padding: 12,
+  //   fontSize: 16,
+  //   minHeight: 100,
+  //   textAlignVertical: 'top',
+  // },
   selectedEventImage: {
     width: '100%',
     height: '100%',
     borderRadius: 8,
+  },
+  backButton: { // Added for the new early return case
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

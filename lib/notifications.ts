@@ -87,43 +87,45 @@ export const deleteNotification = async (notificationId: string) => {
 
 // Handle navigation based on notification type
 export const getNavigationTarget = (notification: any) => {
-  const linkedItemId = notification.linkeditemid || notification.linkedItemId;
-  const type = notification.type;
-  
-  console.log('Getting navigation target for:', { type, linkedItemId });
-  
-  switch (type) {
+  console.log('Getting navigation target for:', {
+    type: notification.type,
+    linkedItemId: notification.linkeditemid,
+    hasValidId: !!notification.linkeditemid && notification.linkeditemid !== 'undefined'
+  });
+
+  // Validate that we have a valid linkeditemid
+  if (!notification.linkeditemid || notification.linkeditemid === 'undefined') {
+    console.error('Invalid linkeditemid in notification:', notification);
+    return null;
+  }
+
+  switch (notification.type) {
     case 'join':
-    case 'circle_join':
-    case 'join_request':
-      // Navigate to circle admin tab for join requests (linkeditemid is circle ID)
       return {
-        screen: 'circle/[id]',
-        params: { id: linkedItemId, tab: 'admin' }
+        screen: 'circle/[id]' as const,
+        params: { id: notification.linkeditemid, tab: 'admin' }
       };
+
     case 'accept_join':
-    case 'join_accepted':
-      // Navigate to circle feed tab when join is accepted (linkeditemid is circle ID)
       return {
-        screen: 'circle/[id]',
-        params: { id: linkedItemId, tab: 'feed' }
+        screen: 'circle/[id]' as const,
+        params: { id: notification.linkeditemid, tab: 'feed' }
       };
+
     case 'comment':
-    case 'post_comment':
-      // Navigate to specific post (linkeditemid is post ID)
       return {
-        screen: 'post/[id]',
-        params: { id: linkedItemId }
+        screen: 'post/[id]' as const,
+        params: { id: notification.linkeditemid }
       };
+
     case 'new_event':
-    case 'event_created':
-      // Navigate to specific event (linkeditemid is event ID)
       return {
-        screen: 'event/[id]',
-        params: { id: linkedItemId }
+        screen: 'event/[id]' as const,
+        params: { id: notification.linkeditemid }
       };
+
     default:
-      console.log('Unknown notification type:', type);
+      console.warn('Unknown notification type:', notification.type);
       return null;
   }
 };
