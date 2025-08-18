@@ -184,34 +184,25 @@ export default function NotificationsScreen() {
 
       // Get navigation target
       const navigationTarget = getNavigationTarget(notification);
+      console.log('Navigation target:', navigationTarget);
 
       if (navigationTarget) {
         // Navigate to the target screen with parameters
         if (navigationTarget.params?.tab) {
           // For circle navigation with specific tab
-          router.push({
-            pathname: `/circle/${navigationTarget.params.id}`,
-            params: {
-              initialTab: navigationTarget.params.tab
-            }
-          });
+          router.push(`/circle/${navigationTarget.params.id}?tab=${navigationTarget.params.tab}`);
         } else if (navigationTarget.screen === 'post/[id]') {
           // For post navigation
-          router.push({
-            pathname: `/post/${navigationTarget.params.id}`
-          });
+          router.push(`/post/${navigationTarget.params.id}`);
         } else if (navigationTarget.screen === 'event/[id]') {
           // For event navigation
-          router.push({
-            pathname: `/event/${navigationTarget.params.id}`
-          });
+          router.push(`/event/${navigationTarget.params.id}`);
         } else {
           // For other navigation targets
-          router.push({
-            pathname: `/${navigationTarget.screen}`,
-            params: navigationTarget.params
-          });
+          console.log('Other navigation target:', navigationTarget);
         }
+      } else {
+        console.log('No navigation target found for notification:', notification.type);
       }
     } catch (error) {
       console.error('Error handling notification press:', error);

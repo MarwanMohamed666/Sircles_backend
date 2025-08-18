@@ -285,13 +285,13 @@ export default function CircleScreen() {
   // Function to check if user can edit an event
   const canEditEvent = (event: any) => {
     if (!user?.id) return false;
-    
+
     // Event creator can edit
     if (event.createdby === user.id) return true;
-    
+
     // Circle admin can edit circle events
     if (event.circleid && circle?.isAdmin) return true;
-    
+
     return false;
   };
 
@@ -299,7 +299,7 @@ export default function CircleScreen() {
   const handleEventImagePicker = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant photo library access to change event picture.');
         return;
@@ -315,7 +315,7 @@ export default function CircleScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        
+
         if (!asset.uri) {
           Alert.alert('Error', 'Invalid image selected');
           return;
@@ -376,7 +376,7 @@ export default function CircleScreen() {
     }
   };
 
-  
+
 
   const loadCircleData = async () => {
     if (!id) return;
@@ -1272,6 +1272,17 @@ export default function CircleScreen() {
     loadEvents(); // Load events on mount
     loadInterests(); // Load interests on mount
   }, [id, user]);
+
+  // Handle initial tab from notification navigation
+  const params = useLocalSearchParams();
+  useEffect(() => {
+    // Handle initial tab from notification navigation
+    if (params?.tab && ['feed', 'events', 'chat', 'admin'].includes(params.tab as string)) {
+      setActiveTab(params.tab as any);
+    } else if (params?.initialTab && ['feed', 'events', 'chat', 'admin'].includes(params.initialTab as string)) {
+      setActiveTab(params.initialTab as any);
+    }
+  }, [params?.tab, params?.initialTab]);
 
   if (loading) {
     return (

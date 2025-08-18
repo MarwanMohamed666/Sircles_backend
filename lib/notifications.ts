@@ -86,38 +86,44 @@ export const deleteNotification = async (notificationId: string) => {
 };
 
 // Handle navigation based on notification type
-export const getNavigationTarget = (notification: Notification) => {
-  switch (notification.type) {
+export const getNavigationTarget = (notification: any) => {
+  const linkedItemId = notification.linkeditemid || notification.linkedItemId;
+  const type = notification.type;
+  
+  console.log('Getting navigation target for:', { type, linkedItemId });
+  
+  switch (type) {
     case 'join':
     case 'circle_join':
     case 'join_request':
       // Navigate to circle admin tab for join requests (linkeditemid is circle ID)
       return {
         screen: 'circle/[id]',
-        params: { id: notification.linkeditemid, tab: 'admin' }
+        params: { id: linkedItemId, tab: 'admin' }
       };
     case 'accept_join':
     case 'join_accepted':
       // Navigate to circle feed tab when join is accepted (linkeditemid is circle ID)
       return {
         screen: 'circle/[id]',
-        params: { id: notification.linkeditemid, tab: 'feed' }
+        params: { id: linkedItemId, tab: 'feed' }
       };
     case 'comment':
     case 'post_comment':
       // Navigate to specific post (linkeditemid is post ID)
       return {
         screen: 'post/[id]',
-        params: { id: notification.linkeditemid }
+        params: { id: linkedItemId }
       };
     case 'new_event':
     case 'event_created':
       // Navigate to specific event (linkeditemid is event ID)
       return {
         screen: 'event/[id]',
-        params: { id: notification.linkeditemid }
+        params: { id: linkedItemId }
       };
     default:
+      console.log('Unknown notification type:', type);
       return null;
   }
 };
