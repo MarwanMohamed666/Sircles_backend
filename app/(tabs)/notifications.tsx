@@ -15,7 +15,7 @@ interface Notification {
   type: string;
   content: string;
   read: boolean;
-  timestamp: string;
+  creationdate: string;
   linkedItemId?: string;
   linkedItemType?: string;
 }
@@ -51,9 +51,9 @@ export default function NotificationsScreen() {
         type: notif.type || 'general',
         content: notif.content || '',
         read: notif.read || false,
-        timestamp: notif.timestamp,
-        linkedItemId: notif.linkedItemId || undefined,
-        linkedItemType: notif.linkedItemType || undefined,
+        creationdate: notif.creationdate,
+        linkedItemId: notif.linkeditemid || undefined,
+        linkedItemType: notif.linkeditemtype || undefined,
       })) || [];
 
       setNotifications(formattedNotifications);
@@ -153,8 +153,8 @@ export default function NotificationsScreen() {
     }
   };
 
-  const formatNotificationTime = (timestamp: string) => {
-    const date = new Date(timestamp);
+  const formatNotificationTime = (creationdate: string) => {
+    const date = new Date(creationdate);
     const now = new Date();
     const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
     const diffInHours = diffInMinutes / 60;
@@ -215,7 +215,7 @@ export default function NotificationsScreen() {
 
           <View style={[styles.notificationFooter, isRTL && styles.notificationFooterRTL]}>
             <ThemedText style={styles.notificationTime}>
-              {formatNotificationTime(notification.timestamp)}
+              {formatNotificationTime(notification.creationdate)}
             </ThemedText>
             {!notification.read && (
               <View style={[styles.unreadDot, { backgroundColor: tintColor }]} />

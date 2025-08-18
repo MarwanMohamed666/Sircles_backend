@@ -1005,7 +1005,7 @@ export const DatabaseService = {
       .from('notifications')
       .select('*')
       .eq('userid', userId)
-      .order('timestamp', { ascending: false });
+      .order('creationdate', { ascending: false });
     return { data, error };
   },
 
