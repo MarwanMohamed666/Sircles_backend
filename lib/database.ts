@@ -44,6 +44,8 @@ export const deleteEventRsvp = (eventId: string) => DatabaseService.deleteEventR
 export const getEventRsvp = (eventId: string, userId: string) => DatabaseService.getEventRsvp(eventId, userId);
 export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(eventId);
 export const updateEvent = (eventId: string, updates: any) => DatabaseService.updateEvent(eventId, updates);
+export const likePost = (postId: string, userId: string) => DatabaseService.likePost(postId, userId);
+export const unlikePost = (postId: string, userId: string) => DatabaseService.unlikePost(postId, userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -850,7 +852,6 @@ export const DatabaseService = {
           id,
           name
         ),
-        likes_count,
         comments:post_comments(count)
       `)
       .order('creationdate', { ascending: false });
@@ -867,23 +868,34 @@ export const DatabaseService = {
       return { data: posts, error };
     }
 
-    // Check which posts the current user has liked
-    if (currentUserId) {
+    // Get like counts and user like status for each post
+    if (posts && posts.length > 0) {
       const postIds = posts.map(post => post.id);
-      const { data: userLikes } = await supabase
+      
+      // Get all likes for these posts
+      const { data: allLikes } = await supabase
         .from('post_likes')
-        .select('postid')
-        .eq('userid', currentUserId)
+        .select('postid, userid')
         .in('postid', postIds);
 
-      const likedPostIds = new Set(userLikes?.map(like => like.postid) || []);
+      // Check which posts the current user has liked
+      const userLikes = currentUserId ? 
+        allLikes?.filter(like => like.userid === currentUserId) || [] : [];
+      const likedPostIds = new Set(userLikes.map(like => like.postid));
 
-      const postsWithLikeStatus = posts.map(post => ({
+      // Calculate like counts for each post
+      const likeCounts = allLikes?.reduce((acc, like) => {
+        acc[like.postid] = (acc[like.postid] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      const postsWithLikeData = posts.map(post => ({
         ...post,
+        likes_count: likeCounts[post.id] || 0,
         userLiked: likedPostIds.has(post.id)
       }));
 
-      return { data: postsWithLikeStatus, error: null };
+      return { data: postsWithLikeData, error: null };
     }
 
     return { data: posts, error };
@@ -2235,6 +2247,61 @@ export const DatabaseService = {
       return { data, error: null };
     } catch (error) {
       console.error('Error in updateEvent:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  // Post Like operations
+  async likePost(postId: string, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('post_likes')
+        .insert({
+          postid: postId,
+          userid: userId
+        })
+        .select();
+
+      if (error) {
+        console.error('Error liking post:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in likePost:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async unlikePost(postId: string, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('postid', postId)
+        .eq('userid', userId);
+
+      if (error) {
+        console.error('Error unliking post:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in unlikePost:', error);
       return { data: null, error: error as Error };
     }
   },
