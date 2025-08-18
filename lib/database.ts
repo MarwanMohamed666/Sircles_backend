@@ -2318,8 +2318,17 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication required') };
       }
 
-      const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate a proper UUID for the comment ID
+      const commentId = crypto.randomUUID();
       const now = new Date().toISOString();
+
+      console.log('Creating comment with data:', {
+        id: commentId,
+        postid: postId,
+        userid: userId,
+        text: text.substring(0, 50) + '...',
+        timestamp: now
+      });
 
       const { data, error } = await supabase
         .from('comments')
@@ -2331,13 +2340,7 @@ export const DatabaseService = {
           timestamp: now,
           creationdate: now
         })
-        .select(`
-          *,
-          users!comments_userid_fkey(
-            name,
-            avatar_url
-          )
-        `)
+        .select()
         .single();
 
       if (error) {
@@ -2345,12 +2348,20 @@ export const DatabaseService = {
         return { data: null, error };
       }
 
+      // Get the user info separately to avoid foreign key issues
+      const { data: userInfo } = await supabase
+        .from('users')
+        .select('name, avatar_url')
+        .eq('id', userId)
+        .single();
+
       // Transform the response to match expected format
       const transformedData = {
         ...data,
-        author: data.users
+        author: userInfo || { name: 'Unknown User', avatar_url: null }
       };
 
+      console.log('Comment created successfully:', transformedData.id);
       return { data: transformedData, error: null };
     } catch (error) {
       console.error('Error in createComment:', error);
@@ -2360,15 +2371,11 @@ export const DatabaseService = {
 
   async getPostComments(postId: string) {
     try {
+      console.log('Fetching comments for post:', postId);
+
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          users!comments_userid_fkey(
-            name,
-            avatar_url
-          )
-        `)
+        .select('*')
         .eq('postid', postId)
         .order('creationdate', { ascending: true });
 
@@ -2377,12 +2384,32 @@ export const DatabaseService = {
         return { data: [], error };
       }
 
+      console.log('Raw comments data:', data?.length || 0, 'comments found');
+
+      if (!data || data.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // Get user info for each comment
+      const userIds = [...new Set(data.map(comment => comment.userid))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, name, avatar_url')
+        .in('id', userIds);
+
+      // Create a map of user info
+      const userMap = (users || []).reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+      }, {} as Record<string, any>);
+
       // Transform the response to match expected format
-      const transformedData = (data || []).map(comment => ({
+      const transformedData = data.map(comment => ({
         ...comment,
-        author: comment.users
+        author: userMap[comment.userid] || { name: 'Unknown User', avatar_url: null }
       }));
 
+      console.log('Transformed comments:', transformedData.length);
       return { data: transformedData, error: null };
     } catch (error) {
       console.error('Error in getPostComments:', error);
