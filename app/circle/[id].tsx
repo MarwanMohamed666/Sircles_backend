@@ -1403,7 +1403,10 @@ export default function CircleScreen() {
             {post.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => router.push(`/post/${post.id}`)}
+        >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
             {post.comments?.length || 0}

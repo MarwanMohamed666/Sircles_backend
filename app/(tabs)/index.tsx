@@ -381,7 +381,10 @@ export default function HomeScreen() {
             {item.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
+        <TouchableOpacity 
+          style={[styles.actionButton, isRTL && styles.actionButtonRTL]}
+          onPress={() => router.push(`/post/${item.id}`)}
+        >
           <IconSymbol name="message" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
             {item.comments?.length || 0}

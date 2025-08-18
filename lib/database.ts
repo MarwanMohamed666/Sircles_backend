@@ -46,6 +46,9 @@ export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(
 export const updateEvent = (eventId: string, updates: any) => DatabaseService.updateEvent(eventId, updates);
 export const likePost = (postId: string, userId: string) => DatabaseService.likePost(postId, userId);
 export const unlikePost = (postId: string, userId: string) => DatabaseService.unlikePost(postId, userId);
+export const createComment = (postId: string, userId: string, text: string) => DatabaseService.createComment(postId, userId, text);
+export const getPostComments = (postId: string) => DatabaseService.getPostComments(postId);
+export const deleteComment = (commentId: string, userId: string) => DatabaseService.deleteComment(commentId, userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -852,7 +855,7 @@ export const DatabaseService = {
           id,
           name
         ),
-        comments:post_comments(count)
+        comments:comments(count)
       `)
       .order('creationdate', { ascending: false });
 
@@ -2302,6 +2305,112 @@ export const DatabaseService = {
       return { data, error: null };
     } catch (error) {
       console.error('Error in unlikePost:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  // Comment operations
+  async createComment(postId: string, userId: string, text: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const commentId = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          id: commentId,
+          postid: postId,
+          userid: userId,
+          text: text,
+          timestamp: now,
+          creationdate: now
+        })
+        .select(`
+          *,
+          author:users!comments_userid_fkey(
+            name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error creating comment:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in createComment:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getPostComments(postId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          *,
+          author:users!comments_userid_fkey(
+            name,
+            avatar_url
+          )
+        `)
+        .eq('postid', postId)
+        .order('creationdate', { ascending: true });
+
+      if (error) {
+        console.error('Error getting comments:', error);
+        return { data: [], error };
+      }
+
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getPostComments:', error);
+      return { data: [], error: error as Error };
+    }
+  },
+
+  async deleteComment(commentId: string, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user owns the comment
+      const { data: comment } = await supabase
+        .from('comments')
+        .select('userid')
+        .eq('id', commentId)
+        .single();
+
+      if (!comment || comment.userid !== userId) {
+        return { data: null, error: new Error('You can only delete your own comments') };
+      }
+
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('userid', userId);
+
+      if (error) {
+        console.error('Error deleting comment:', error);
+        return { data: null, error };
+      }
+
+      return { data: { success: true }, error: null };
+    } catch (error) {
+      console.error('Error in deleteComment:', error);
       return { data: null, error: error as Error };
     }
   },
