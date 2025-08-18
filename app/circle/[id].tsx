@@ -44,6 +44,8 @@ interface Post {
   };
   likes: any[];
   comments: any[];
+  likes_count?: number; // Added for like count
+  userLiked?: boolean;  // Added to track if the current user liked the post
 }
 
 interface Member {
@@ -460,7 +462,13 @@ export default function CircleScreen() {
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
         const { data: postsData } = await DatabaseService.getPosts(id as string);
-        setPosts(postsData || []);
+        // Map posts to include userLiked and likes_count
+        const postsWithLikes = postsData.map((post: Post) => ({
+          ...post,
+          likes_count: post.likes?.length || 0,
+          userLiked: post.likes?.some(like => like.user_id === user?.id) || false,
+        }));
+        setPosts(postsWithLikes || []);
       }
 
       // Load full member details if user is member or if circle is public
@@ -1075,7 +1083,13 @@ export default function CircleScreen() {
     setLoading(true);
     try {
       const { data: postsData } = await DatabaseService.getPosts(id as string);
-      setPosts(postsData || []);
+      // Map posts to include userLiked and likes_count
+      const postsWithLikes = postsData.map((post: Post) => ({
+        ...post,
+        likes_count: post.likes?.length || 0,
+        userLiked: post.likes?.some(like => like.user_id === user?.id) || false,
+      }));
+      setPosts(postsWithLikes || []);
     } catch (error) {
       console.error("Error loading posts:", error);
       Alert.alert("Error", "Failed to load posts.");
@@ -1163,19 +1177,62 @@ export default function CircleScreen() {
       }, selectedPostImage);
 
       if (error) {
+        console.error('Error creating post:', error);
         Alert.alert('Error', 'Failed to create post');
         return;
       }
 
-      Alert.alert('Success', 'Post created successfully!');
       setNewPostContent('');
       setSelectedPostImage(null);
       setShowPostModal(false);
-      await loadCirclePosts();
+      loadCirclePosts();
     } catch (error) {
+      console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post');
     }
   };
+
+  // Like functionality for posts
+  const handleLikePost = async (postId: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to like posts');
+      return;
+    }
+
+    try {
+      // Find the post in our current posts array
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex === -1) return;
+
+      const post = posts[postIndex];
+      const isCurrentlyLiked = post.userLiked;
+
+      // Optimistically update UI
+      const updatedPosts = [...posts];
+      updatedPosts[postIndex] = {
+        ...post,
+        userLiked: !isCurrentlyLiked,
+        likes_count: isCurrentlyLiked ? (post.likes_count || 1) - 1 : (post.likes_count || 0) + 1
+      };
+      setPosts(updatedPosts);
+
+      // Make API call
+      const { error } = isCurrentlyLiked 
+        ? await DatabaseService.unlikePost(postId, user.id)
+        : await DatabaseService.likePost(postId, user.id);
+
+      if (error) {
+        console.error('Error toggling like:', error);
+        // Revert optimistic update on error
+        setPosts(posts);
+        Alert.alert('Error', 'Failed to update like');
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+      Alert.alert('Error', 'Failed to update like');
+    }
+  };
+
 
   const handleSaveChanges = async () => {
     if (!user?.id || !id || !circle) {
@@ -1331,6 +1388,28 @@ export default function CircleScreen() {
       {post.image && (
         <Image source={{ uri: post.image }} style={styles.postImage} />
       )}
+      {/* Post Actions */}
+      <View style={styles.postActions}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => handleLikePost(post.id)}
+        >
+          <IconSymbol 
+            name={post.userLiked ? "heart.fill" : "heart"} 
+            size={20} 
+            color={post.userLiked ? "#ff4444" : textColor} 
+          />
+          <ThemedText style={styles.actionText}>
+            {post.likes_count || 0}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <IconSymbol name="bubble.left" size={20} color={textColor} />
+          <ThemedText style={styles.actionText}>
+            {post.comments?.length || 0}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -2402,6 +2481,20 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
   },
+  postActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionText: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
   membersContainer: {
     gap: 12,
   },
@@ -3030,6 +3123,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  dateTimeField: {
+    flex: 1,
   },
   interestsScrollView: {
     maxHeight: 200,

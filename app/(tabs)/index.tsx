@@ -26,6 +26,8 @@ interface Post {
   } | null;
   likes: any[];
   comments: any[];
+  likes_count?: number;
+  userLiked?: boolean;
 }
 
 export default function HomeScreen() {
@@ -65,7 +67,13 @@ export default function HomeScreen() {
         setError('Unable to load posts. Please try again.');
         setPosts([]);
       } else {
-        setPosts(data || []);
+        // Ensure data is of type Post[] and add userLiked and likes_count if not present
+        const postsWithLikes = (data || []).map((post: any) => ({
+          ...post,
+          likes_count: post.likes?.length || 0,
+          userLiked: post.likes?.some((like: any) => like.userid === user.id) || false,
+        }));
+        setPosts(postsWithLikes);
         setError(null);
       }
     } catch (error) {
@@ -190,6 +198,47 @@ export default function HomeScreen() {
       setSelectedPostImage(result.assets[0]);
     }
   };
+
+  const handleLikePost = async (postId: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to like posts');
+      return;
+    }
+
+    try {
+      // Find the post in our current posts array
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex === -1) return;
+
+      const post = posts[postIndex];
+      const isCurrentlyLiked = post.userLiked;
+
+      // Optimistically update UI
+      const updatedPosts = [...posts];
+      updatedPosts[postIndex] = {
+        ...post,
+        userLiked: !isCurrentlyLiked,
+        likes_count: isCurrentlyLiked ? (post.likes_count || 1) - 1 : (post.likes_count || 0) + 1
+      };
+      setPosts(updatedPosts);
+
+      // Make API call
+      const { error } = isCurrentlyLiked
+        ? await DatabaseService.unlikePost(postId, user.id)
+        : await DatabaseService.likePost(postId, user.id);
+
+      if (error) {
+        console.error('Error toggling like:', error);
+        // Revert optimistic update on error
+        setPosts(posts);
+        Alert.alert('Error', 'Failed to update like');
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+      Alert.alert('Error', 'Failed to update like');
+    }
+  };
+
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim() || !selectedCircle) {
@@ -326,10 +375,10 @@ export default function HomeScreen() {
 
       {/* Post Actions */}
       <View style={[styles.postActions, isRTL && styles.postActionsRTL]}>
-        <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
-          <IconSymbol name="heart" size={20} color={textColor} />
-          <ThemedText style={styles.actionText}>
-            {item.likes?.length || 0}
+        <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]} onPress={() => handleLikePost(item.id)}>
+          <IconSymbol name="heart" size={20} color={item.userLiked ? tintColor : textColor} />
+          <ThemedText style={[styles.actionText, item.userLiked && { color: tintColor }]}>
+            {item.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>

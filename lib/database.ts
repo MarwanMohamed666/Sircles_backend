@@ -75,12 +75,12 @@ export const getCirclesByUser = async (userId: string) => {
       return { data: null, error };
     }
 
-    return { 
+    return {
       data: data?.map(uc => ({
         circleId: uc.circleid,
         circles: uc.circles
-      })) || [], 
-      error: null 
+      })) || [],
+      error: null
     };
   } catch (error) {
     console.error('Error in getCirclesByUser:', error);
@@ -161,9 +161,9 @@ export const DatabaseService = {
       `)
       .eq('circleid', circleId);
 
-    return { 
-      data: data?.map(ci => ci.interests).filter(Boolean) || [], 
-      error 
+    return {
+      data: data?.map(ci => ci.interests).filter(Boolean) || [],
+      error
     };
   },
 
@@ -569,8 +569,8 @@ export const DatabaseService = {
       if (photoAsset) {
         console.log('Uploading event photo...');
         const { data: uploadData, error: uploadError } = await StorageService.uploadEventPhoto(
-          eventId, 
-          photoAsset, 
+          eventId,
+          photoAsset,
           currentUser.user.id
         );
 
@@ -834,29 +834,59 @@ export const DatabaseService = {
 
   // Post operations
   async getPosts(circleId?: string) {
-    // Verify user is authenticated
-    const { data: currentUser } = await supabase.auth.getUser();
-    if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
-    }
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = user?.id;
 
     let query = supabase
       .from('posts')
       .select(`
         *,
-        author:users!posts_userid_fkey(name, avatar_url),
-        circle:circles!posts_circleid_fkey(name),
-        likes:post_likes(userid),
-        comments(count)
+        author:users!posts_userid_fkey(
+          name,
+          avatar_url
+        ),
+        circle:circles!posts_circleid_fkey(
+          id,
+          name
+        ),
+        likes_count,
+        comments:post_comments(count)
       `)
       .order('creationdate', { ascending: false });
 
     if (circleId) {
       query = query.eq('circleid', circleId);
+    } else {
+      query = query.is('circleid', null);
     }
 
-    const { data, error } = await query;
-    return { data, error };
+    const { data: posts, error } = await query;
+
+    if (error || !posts) {
+      return { data: posts, error };
+    }
+
+    // Check which posts the current user has liked
+    if (currentUserId) {
+      const postIds = posts.map(post => post.id);
+      const { data: userLikes } = await supabase
+        .from('post_likes')
+        .select('postid')
+        .eq('userid', currentUserId)
+        .in('postid', postIds);
+
+      const likedPostIds = new Set(userLikes?.map(like => like.postid) || []);
+
+      const postsWithLikeStatus = posts.map(post => ({
+        ...post,
+        userLiked: likedPostIds.has(post.id)
+      }));
+
+      return { data: postsWithLikeStatus, error: null };
+    }
+
+    return { data: posts, error };
   },
 
   async createPost(post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) {
@@ -875,8 +905,8 @@ export const DatabaseService = {
       if (photoAsset) {
         console.log('Uploading post photo...');
         const { data: uploadData, error: uploadError } = await StorageService.uploadPostPhoto(
-          postId, 
-          photoAsset, 
+          postId,
+          photoAsset,
           currentUser.user.id
         );
 
@@ -1330,12 +1360,12 @@ export const DatabaseService = {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      console.log('Pending request query result:', { 
-        hasData: !!data && data.length > 0, 
+      console.log('Pending request query result:', {
+        hasData: !!data && data.length > 0,
         dataLength: data?.length || 0,
-        hasError: !!error, 
+        hasError: !!error,
         errorCode: error?.code,
-        errorMessage: error?.message 
+        errorMessage: error?.message
       });
 
       if (error) {
@@ -1479,14 +1509,14 @@ export const DatabaseService = {
 
       const adminUserIds = new Set(adminData?.map(admin => admin.userid) || []);
 
-      return { 
+      return {
         data: data.map(member => ({
           id: member.users.id,
           name: member.users.name,
           avatar_url: member.users.avatar_url,
           isAdmin: adminUserIds.has(member.userid)
-        })), 
-        error: null 
+        })),
+        error: null
       };
     } catch (error) {
       console.error('Error in getCircleMembers:', error);
@@ -1499,10 +1529,10 @@ export const DatabaseService = {
     console.log('🔵 IMMEDIATE ENTRY LOG - Function definitely started');
     try {
       console.log('=== DATABASE: addCircleAdmin function started ===');
-      console.log('INPUT Parameters:', { 
-        circleId: circleId || 'undefined', 
-        userId: userId || 'undefined', 
-        requestingAdminId: requestingAdminId || 'undefined' 
+      console.log('INPUT Parameters:', {
+        circleId: circleId || 'undefined',
+        userId: userId || 'undefined',
+        requestingAdminId: requestingAdminId || 'undefined'
       });
 
       // Validate inputs
@@ -1529,9 +1559,9 @@ export const DatabaseService = {
         .eq('id', circleId)
         .single();
 
-      console.log('STEP 1 RESULT:', { 
-        hasCircleData: !!circle, 
-        creator: circle?.creator, 
+      console.log('STEP 1 RESULT:', {
+        hasCircleData: !!circle,
+        creator: circle?.creator,
         hasError: !!circleError,
         errorMessage: circleError?.message,
         errorCode: circleError?.code
@@ -1550,8 +1580,8 @@ export const DatabaseService = {
       // Verify requesting user is the main admin (creator) OR a regular admin
       const isCreator = circle.creator === requestingAdminId;
       console.log('STEP 2: Permission check - isCreator:', isCreator);
-      console.log('STEP 2: Creator comparison:', { 
-        circleCreator: circle.creator, 
+      console.log('STEP 2: Creator comparison:', {
+        circleCreator: circle.creator,
         requestingAdminId: requestingAdminId,
         areEqual: circle.creator === requestingAdminId
       });
@@ -1566,8 +1596,8 @@ export const DatabaseService = {
           .eq('userid', requestingAdminId)
           .single();
 
-        console.log('STEP 2A RESULT:', { 
-          hasAdminData: !!adminCheck, 
+        console.log('STEP 2A RESULT:', {
+          hasAdminData: !!adminCheck,
           adminUserId: adminCheck?.userid,
           hasError: !!adminError,
           errorMessage: adminError?.message,
@@ -1593,8 +1623,8 @@ export const DatabaseService = {
         .eq('userid', userId)
         .single();
 
-      console.log('STEP 3 RESULT:', { 
-        hasExistingAdmin: !!existingAdmin, 
+      console.log('STEP 3 RESULT:', {
+        hasExistingAdmin: !!existingAdmin,
         existingUserId: existingAdmin?.userid,
         hasError: !!existingError,
         errorMessage: existingError?.message,
@@ -1620,7 +1650,7 @@ export const DatabaseService = {
         })
         .select();
 
-      console.log('STEP 4 RESULT:', { 
+      console.log('STEP 4 RESULT:', {
         hasData: !!data,
         dataLength: data?.length || 0,
         data: data,
@@ -1655,10 +1685,10 @@ export const DatabaseService = {
     console.log('🔴 IMMEDIATE ENTRY LOG - Function definitely started');
     try {
       console.log('=== DATABASE: removeCircleAdmin function started ===');
-      console.log('INPUT Parameters:', { 
-        circleId: circleId || 'undefined', 
-        userId: userId || 'undefined', 
-        requestingAdminId: requestingAdminId || 'undefined' 
+      console.log('INPUT Parameters:', {
+        circleId: circleId || 'undefined',
+        userId: userId || 'undefined',
+        requestingAdminId: requestingAdminId || 'undefined'
       });
 
       // Validate inputs
@@ -1685,9 +1715,9 @@ export const DatabaseService = {
         .eq('id', circleId)
         .single();
 
-      console.log('STEP 1 RESULT:', { 
-        hasCircleData: !!circle, 
-        creator: circle?.creator, 
+      console.log('STEP 1 RESULT:', {
+        hasCircleData: !!circle,
+        creator: circle?.creator,
         hasError: !!circleError,
         errorMessage: circleError?.message,
         errorCode: circleError?.code
@@ -1714,8 +1744,8 @@ export const DatabaseService = {
       // Verify requesting user is the main admin (creator) OR a regular admin
       const isCreator = circle.creator === requestingAdminId;
       console.log('STEP 3: Permission check - isCreator:', isCreator);
-      console.log('STEP 3: Creator comparison:', { 
-        circleCreator: circle.creator, 
+      console.log('STEP 3: Creator comparison:', {
+        circleCreator: circle.creator,
         requestingAdminId: requestingAdminId,
         areEqual: circle.creator === requestingAdminId
       });
@@ -1730,8 +1760,8 @@ export const DatabaseService = {
           .eq('userid', requestingAdminId)
           .single();
 
-        console.log('STEP 3A RESULT:', { 
-          hasAdminData: !!adminCheck, 
+        console.log('STEP 3A RESULT:', {
+          hasAdminData: !!adminCheck,
           adminUserId: adminCheck?.userid,
           hasError: !!adminError,
           errorMessage: adminError?.message,
@@ -1758,7 +1788,7 @@ export const DatabaseService = {
         .eq('circleid', circleId)
         .eq('userid', userId);
 
-      console.log('STEP 4 RESULT:', { 
+      console.log('STEP 4 RESULT:', {
         hasData: !!data,
         data: data,
         hasError: !!error,
@@ -1967,7 +1997,7 @@ export const DatabaseService = {
   async sendMessage(message: {
     circleId: string;
     senderId: string;
-    content: string;  
+    content: string;
     type: string;
     attachment?: string;
   }) {
