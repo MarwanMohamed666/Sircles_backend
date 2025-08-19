@@ -87,14 +87,17 @@ export const deleteNotification = async (notificationId: string) => {
 
 // Handle navigation based on notification type
 export const getNavigationTarget = (notification: any) => {
+  // Handle both camelCase and snake_case property names
+  const linkedItemId = notification.linkedItemId || notification.linkeditemid;
+  
   console.log('Getting navigation target for:', {
     type: notification.type,
-    linkedItemId: notification.linkeditemid,
-    hasValidId: !!notification.linkeditemid && notification.linkeditemid !== 'undefined'
+    linkedItemId: linkedItemId,
+    hasValidId: !!linkedItemId && linkedItemId !== 'undefined'
   });
 
   // Validate that we have a valid linkeditemid
-  if (!notification.linkeditemid || notification.linkeditemid === 'undefined') {
+  if (!linkedItemId || linkedItemId === 'undefined') {
     console.error('Invalid linkeditemid in notification:', notification);
     return null;
   }
@@ -103,25 +106,25 @@ export const getNavigationTarget = (notification: any) => {
     case 'join':
       return {
         screen: 'circle/[id]' as const,
-        params: { id: notification.linkeditemid, tab: 'admin' }
+        params: { id: linkedItemId, tab: 'admin' }
       };
 
     case 'accept_join':
       return {
         screen: 'circle/[id]' as const,
-        params: { id: notification.linkeditemid, tab: 'feed' }
+        params: { id: linkedItemId, tab: 'feed' }
       };
 
     case 'comment':
       return {
         screen: 'post/[id]' as const,
-        params: { id: notification.linkeditemid }
+        params: { id: linkedItemId }
       };
 
     case 'new_event':
       return {
         screen: 'event/[id]' as const,
-        params: { id: notification.linkeditemid }
+        params: { id: linkedItemId }
       };
 
     default:
