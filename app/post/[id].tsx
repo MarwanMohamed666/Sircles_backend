@@ -328,17 +328,19 @@ export default function PostScreen() {
                     style={[
                       styles.commentSubmitButton,
                       { 
-                        backgroundColor: newComment.trim() ? tintColor : textColor + '20',
-                        opacity: commentLoading ? 0.6 : 1
+                        backgroundColor: newComment.trim() ? tintColor : 'transparent',
+                        opacity: commentLoading ? 0.6 : 1,
+                        transform: [{ scale: newComment.trim() ? 1 : 0.8 }]
                       }
                     ]}
                     onPress={handleCreateComment}
                     disabled={!newComment.trim() || commentLoading}
+                    activeOpacity={newComment.trim() ? 0.8 : 1}
                   >
                     <IconSymbol 
-                      name="paperplane.fill" 
+                      name={newComment.trim() ? "paperplane.fill" : "paperplane.fill"} 
                       size={16} 
-                      color={newComment.trim() ? '#fff' : textColor + '60'} 
+                      color={newComment.trim() ? '#fff' : textColor + '40'} 
                     />
                   </TouchableOpacity>
                 </View>
@@ -572,6 +574,8 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     fontSize: 14,
     textAlignVertical: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   commentSubmitButton: {
     width: 36,
@@ -579,6 +583,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    transition: 'all 0.2s ease',
   },
   commentHeader: {
     flexDirection: 'row',
