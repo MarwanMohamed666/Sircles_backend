@@ -467,7 +467,7 @@ export default function HomeScreen() {
               <ThemedText style={styles.postTime}>
                 • {formatTimeAgo(item.creationdate)}
               </ThemedText>
-              {item.interestScore && item.interestScore > 0 && (
+              {item.interestScore > 0 && (
                 <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
                   • ⭐ {item.interestScore}
                 </ThemedText>
