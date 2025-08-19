@@ -1057,7 +1057,11 @@ export const DatabaseService = {
 
   // Get single post for post detail page
   async getPost(postId: string) {
-    return await supabase
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = user?.id;
+
+    const { data: post, error } = await supabase
       .from('posts')
       .select(`
         *,
@@ -1068,20 +1072,47 @@ export const DatabaseService = {
         circle:circles!posts_circleid_fkey(
           id,
           name
-        ),
-        likes:post_likes(count),
-        comments:post_comments(
-          id,
-          content,
-          creationdate,
-          author:users!post_comments_userid_fkey(
-            name,
-            avatar_url
-          )
         )
       `)
       .eq('id', postId)
       .single();
+
+    if (error || !post) {
+      return { data: post, error };
+    }
+
+    // Get like count and user like status
+    const { data: likes } = await supabase
+      .from('post_likes')
+      .select('userid')
+      .eq('postid', postId);
+
+    const likesCount = likes?.length || 0;
+    const userLiked = currentUserId ? likes?.some(like => like.userid === currentUserId) : false;
+
+    // Get comments
+    const { data: comments } = await supabase
+      .from('comments')
+      .select(`
+        id,
+        text as content,
+        creationdate,
+        author:users!comments_userid_fkey(
+          name,
+          avatar_url
+        )
+      `)
+      .eq('postid', postId)
+      .order('creationdate', { ascending: true });
+
+    const enhancedPost = {
+      ...post,
+      likes_count: likesCount,
+      userLiked: userLiked,
+      comments: comments || []
+    };
+
+    return { data: enhancedPost, error: null };
   },
 
   // Get single event for event detail page
