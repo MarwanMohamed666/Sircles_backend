@@ -2498,15 +2498,21 @@ export const DatabaseService = {
       }
 
       console.log('🗑️ Deleting comment...');
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('comments')
         .delete()
         .eq('id', commentId)
-        .eq('userid', userId);
+        .eq('userid', userId)
+        .select();
 
       if (error) {
         console.error('🗑️ Error deleting comment:', error);
         return { data: null, error };
+      }
+
+      if (!data || data.length === 0) {
+        console.error('🗑️ No rows affected - comment may not exist');
+        return { data: null, error: new Error('Comment not found or already deleted') };
       }
 
       console.log('🗑️ Comment deleted successfully');
