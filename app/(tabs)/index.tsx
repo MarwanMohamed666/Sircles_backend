@@ -212,13 +212,14 @@ export default function HomeScreen() {
 
       const post = posts[postIndex];
       const isCurrentlyLiked = post.userLiked;
+      const originalPosts = [...posts]; // Store original state for rollback
 
       // Optimistically update UI
       const updatedPosts = [...posts];
       updatedPosts[postIndex] = {
         ...post,
         userLiked: !isCurrentlyLiked,
-        likes_count: isCurrentlyLiked ? (post.likes_count || 1) - 1 : (post.likes_count || 0) + 1
+        likes_count: isCurrentlyLiked ? Math.max(0, (post.likes_count || 1) - 1) : (post.likes_count || 0) + 1
       };
       setPosts(updatedPosts);
 
@@ -229,12 +230,23 @@ export default function HomeScreen() {
 
       if (error) {
         console.error('Error toggling like:', error);
-        // Revert optimistic update on error
-        setPosts(posts);
+        // Revert to original state on error
+        setPosts(originalPosts);
         Alert.alert('Error', 'Failed to update like');
       }
     } catch (error) {
       console.error('Error handling like:', error);
+      // Revert to original state on error
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        const originalPosts = [...posts];
+        originalPosts[postIndex] = {
+          ...originalPosts[postIndex],
+          userLiked: originalPosts[postIndex].userLiked,
+          likes_count: originalPosts[postIndex].likes_count
+        };
+        setPosts(originalPosts);
+      }
       Alert.alert('Error', 'Failed to update like');
     }
   };
@@ -376,8 +388,12 @@ export default function HomeScreen() {
       {/* Post Actions */}
       <View style={[styles.postActions, isRTL && styles.postActionsRTL]}>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]} onPress={() => handleLikePost(item.id)}>
-          <IconSymbol name="heart" size={20} color={item.userLiked ? tintColor : textColor} />
-          <ThemedText style={[styles.actionText, item.userLiked && { color: tintColor }]}>
+          <IconSymbol 
+            name={item.userLiked ? "heart.fill" : "heart"} 
+            size={20} 
+            color={item.userLiked ? "#ff4444" : textColor} 
+          />
+          <ThemedText style={[styles.actionText, item.userLiked && { color: "#ff4444" }]}>
             {item.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
