@@ -432,7 +432,7 @@ export const DatabaseService = {
         )
       `)
       .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
-      .order('createdat', { ascending: false });
+      .order('creationdate', { ascending: false });
 
     if (error) {
       return { data: null, error };

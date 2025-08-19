@@ -23,6 +23,7 @@ interface Post {
   } | null;
   circle: {
     name: string;
+    circle_interests?: { interests: { id: string, title: string } }[]
   } | null;
   likes: any[];
   comments: any[];
@@ -92,65 +93,88 @@ export default function HomeScreen() {
       const { data, error } = await DatabaseService.getEvents();
       if (error) {
         console.error('Error loading events:', error);
+        setError('Unable to load events. Please try again.');
       } else {
         console.log('Events loaded successfully:', data?.length);
         setEvents(data || []);
+        setError(null);
       }
     } catch (error) {
       console.error('Error loading events:', error);
+      setError('Unable to load events. Please try again.');
     }
   };
 
   const calculateInterestScore = (item: any) => {
-    if (!userInterests.length) return 0;
+    if (!userInterests || userInterests.length === 0) return 0;
 
-    let itemInterests: any[] = [];
-    
-    if (item.type === 'post') {
-      // For posts, use circle interests
-      itemInterests = item.circle?.circle_interests?.map((ci: any) => ci.interests) || [];
-    } else if (item.type === 'event') {
-      // For events, use event interests
-      itemInterests = item.event_interests?.map((ei: any) => ei.interests) || [];
+    let itemInterests: string[] = [];
+
+    if (item.type === 'event') {
+      // Events use their direct interests
+      itemInterests = item.event_interests?.map((ei: any) => ei.interests?.id).filter(Boolean) || [];
+    } else if (item.type === 'post') {
+      // Posts use their circle's interests
+      itemInterests = item.circle?.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
     }
 
     if (!itemInterests.length) return 0;
 
     // Calculate number of matching interests
-    const userInterestIds = userInterests.map(ui => ui.id);
-    const matchingInterests = itemInterests.filter(interest => 
-      userInterestIds.includes(interest.id)
+    const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
+    const matchingInterests = itemInterests.filter(interestId =>
+      userInterestIds.includes(interestId)
     );
 
     return matchingInterests.length;
   };
 
   const combineFeedItems = () => {
+    if (!userInterests || userInterests.length === 0) {
+      // If user has no interests, sort by creation date only
+      const combined = [
+        ...posts.map(post => ({ ...post, type: 'post', sortDate: new Date(post.creationdate) })),
+        ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.creationdate) }))
+      ];
+
+      combined.sort((a, b) => {
+        return b.sortDate.getTime() - a.sortDate.getTime();
+      });
+
+      return combined;
+    }
+
+    // Get user's interest IDs for comparison
+    const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
+
     const combined = [
-      ...posts.map(post => ({ 
-        ...post, 
-        type: 'post', 
-        sortDate: new Date(post.createdat || post.creationdate),
-        interestScore: calculateInterestScore({ ...post, type: 'post' })
+      ...posts.map(post => ({
+        ...post,
+        type: 'post',
+        sortDate: new Date(post.creationdate),
+        interestScore: 0
       })),
-      ...events.map(event => ({ 
-        ...event, 
-        type: 'event', 
-        sortDate: new Date(event.createdat || event.creationdate),
-        interestScore: calculateInterestScore({ ...event, type: 'event' })
+      ...events.map(event => ({
+        ...event,
+        type: 'event',
+        sortDate: new Date(event.creationdate),
+        interestScore: 0
       }))
     ];
 
-    // Smart sorting algorithm:
-    // 1. First by interest score (higher = more relevant)
-    // 2. Then by creation date (newer first)
+    // Calculate interest scores
+    combined.forEach(item => {
+      item.interestScore = calculateInterestScore(item);
+    });
+
+    // Sort by interest score (descending), then by creation date (newest first)
     combined.sort((a, b) => {
-      // If interest scores are different, prioritize higher score
+      // First priority: interest score (higher is better)
       if (a.interestScore !== b.interestScore) {
         return b.interestScore - a.interestScore;
       }
-      
-      // If interest scores are the same, sort by creation date (newest first)
+
+      // Second priority: creation date (newer is better)
       return b.sortDate.getTime() - a.sortDate.getTime();
     });
 
@@ -165,11 +189,14 @@ export default function HomeScreen() {
       const { data, error } = await DatabaseService.getUserInterests(user.id);
       if (error) {
         console.error('Error loading user interests:', error);
-        return;
+        setError('Unable to load user interests.');
+      } else {
+        setUserInterests(data || []);
+        setError(null);
       }
-      setUserInterests(data || []);
     } catch (error) {
       console.error('Error loading user interests:', error);
+      setError('Unable to load user interests.');
     }
   };
 
@@ -180,6 +207,7 @@ export default function HomeScreen() {
       const { data, error } = await DatabaseService.getUserJoinedCircles(user.id);
       if (error) {
         console.error('Error loading user circles:', error);
+        setError('Unable to load user circles.');
         return;
       }
 
@@ -192,8 +220,10 @@ export default function HomeScreen() {
       );
 
       setUserCircles(circleDetails.filter(Boolean));
+      setError(null);
     } catch (error) {
       console.error('Error loading user circles:', error);
+      setError('Unable to load user circles.');
     }
   };
 
@@ -206,12 +236,24 @@ export default function HomeScreen() {
   useEffect(() => {
     if (user) {
       Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
+    } else {
+      setPosts([]);
+      setEvents([]);
+      setFeedItems([]);
+      setUserInterests([]);
+      setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    combineFeedItems();
-  }, [posts, events, userInterests]);
+    if (posts.length > 0 || events.length > 0 || userInterests.length > 0) {
+      combineFeedItems();
+    } else if (!loading && user) {
+      // If still loading and no data, show empty state
+      setFeedItems([]);
+      setLoading(false);
+    }
+  }, [posts, events, userInterests, loading, user]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -253,15 +295,13 @@ export default function HomeScreen() {
     }
 
     try {
-      // Find the post in our current posts array
       const postIndex = posts.findIndex(p => p.id === postId);
       if (postIndex === -1) return;
 
       const post = posts[postIndex];
       const isCurrentlyLiked = post.userLiked;
-      const originalPosts = [...posts]; // Store original state for rollback
+      const originalPosts = [...posts];
 
-      // Optimistically update UI
       const updatedPosts = [...posts];
       updatedPosts[postIndex] = {
         ...post,
@@ -270,20 +310,17 @@ export default function HomeScreen() {
       };
       setPosts(updatedPosts);
 
-      // Make API call
       const { error } = isCurrentlyLiked
         ? await DatabaseService.unlikePost(postId, user.id)
         : await DatabaseService.likePost(postId, user.id);
 
       if (error) {
         console.error('Error toggling like:', error);
-        // Revert to original state on error
         setPosts(originalPosts);
         Alert.alert('Error', 'Failed to update like');
       }
     } catch (error) {
       console.error('Error handling like:', error);
-      // Revert to original state on error
       const postIndex = posts.findIndex(p => p.id === postId);
       if (postIndex !== -1) {
         const originalPosts = [...posts];
@@ -346,7 +383,7 @@ export default function HomeScreen() {
 
   const renderEvent = ({ item }: { item: any }) => (
     <View style={[
-      styles.postCard, 
+      styles.postCard,
       { backgroundColor: surfaceColor },
       item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
     ]}>
@@ -363,7 +400,7 @@ export default function HomeScreen() {
             </ThemedText>
             <View style={styles.timeAndInterest}>
               <ThemedText style={styles.postTime}>
-                Event • {formatTimeAgo(item.createdat || item.creationdate)}
+                Event • {formatTimeAgo(item.creationdate)}
               </ThemedText>
               {item.interestScore > 0 && (
                 <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
@@ -408,7 +445,7 @@ export default function HomeScreen() {
 
   const renderPost = ({ item }: { item: Post & { interestScore?: number } }) => (
     <View key={item.id} style={[
-      styles.postCard, 
+      styles.postCard,
       { backgroundColor: surfaceColor },
       item.interestScore && item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
     ]}>
@@ -458,16 +495,16 @@ export default function HomeScreen() {
       {/* Post Actions */}
       <View style={[styles.postActions, isRTL && styles.postActionsRTL]}>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]} onPress={() => handleLikePost(item.id)}>
-          <IconSymbol 
-            name={item.userLiked ? "heart.fill" : "heart"} 
-            size={20} 
-            color={item.userLiked ? "#ff4444" : textColor} 
+          <IconSymbol
+            name={item.userLiked ? "heart.fill" : "heart"}
+            size={20}
+            color={item.userLiked ? "#ff4444" : textColor}
           />
           <ThemedText style={[styles.actionText, item.userLiked && { color: "#ff4444" }]}>
             {item.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.actionButton, isRTL && styles.actionButtonRTL]}
           onPress={() => router.push(`/post/${item.id}`)}
         >
