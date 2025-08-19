@@ -2471,23 +2471,33 @@ export const DatabaseService = {
 
   async deleteComment(commentId: string, userId: string) {
     try {
+      console.log('🗑️ Attempting to delete comment:', commentId, 'by user:', userId);
+      
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
+        console.error('🗑️ Authentication failed');
         return { data: null, error: new Error('Authentication required') };
       }
 
       // Check if user owns the comment
-      const { data: comment } = await supabase
+      const { data: comment, error: fetchError } = await supabase
         .from('comments')
         .select('userid')
         .eq('id', commentId)
         .single();
 
+      if (fetchError) {
+        console.error('🗑️ Error fetching comment:', fetchError);
+        return { data: null, error: new Error('Comment not found') };
+      }
+
       if (!comment || comment.userid !== userId) {
+        console.error('🗑️ Permission denied - comment owner:', comment?.userid, 'current user:', userId);
         return { data: null, error: new Error('You can only delete your own comments') };
       }
 
+      console.log('🗑️ Deleting comment...');
       const { error } = await supabase
         .from('comments')
         .delete()
@@ -2495,13 +2505,14 @@ export const DatabaseService = {
         .eq('userid', userId);
 
       if (error) {
-        console.error('Error deleting comment:', error);
+        console.error('🗑️ Error deleting comment:', error);
         return { data: null, error };
       }
 
+      console.log('🗑️ Comment deleted successfully');
       return { data: { success: true }, error: null };
     } catch (error) {
-      console.error('Error in deleteComment:', error);
+      console.error('🗑️ Error in deleteComment:', error);
       return { data: null, error: error as Error };
     }
   },

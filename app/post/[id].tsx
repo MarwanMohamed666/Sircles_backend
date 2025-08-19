@@ -375,11 +375,13 @@ export default function PostScreen() {
             {comments.length > 0 ? (
               comments.map((comment: any) => {
                 const canDelete = user?.id === comment.userid;
-                console.log('Comment permission check:', {
+                console.log('🗑️ Comment permission check:', {
                   commentId: comment.id,
                   commentUserId: comment.userid,
                   currentUserId: user?.id,
-                  canDelete: canDelete
+                  canDelete: canDelete,
+                  userIdType: typeof user?.id,
+                  commentUserIdType: typeof comment.userid
                 });
                 
                 return (
@@ -404,10 +406,21 @@ export default function PostScreen() {
                     {canDelete && (
                       <TouchableOpacity
                         style={styles.deleteCommentButton}
-                        onPress={() => handleDeleteComment(comment.id)}
+                        onPress={() => {
+                          console.log('🗑️ Delete button pressed for comment:', comment.id);
+                          handleDeleteComment(comment.id);
+                        }}
                       >
                         <IconSymbol name="trash" size={14} color="#EF5350" />
                       </TouchableOpacity>
+                    )}
+                    {/* Debug: Show delete button status */}
+                    {__DEV__ && (
+                      <View style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'red', padding: 2 }}>
+                        <ThemedText style={{ fontSize: 8, color: 'white' }}>
+                          {canDelete ? '✓' : '✗'}
+                        </ThemedText>
+                      </View>
                     )}
                   </View>
                 );
@@ -626,7 +639,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   deleteCommentButton: {
-    padding: 4,
+    padding: 8,
     marginLeft: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(239, 83, 80, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 30,
+    minHeight: 30,
   },
 });
