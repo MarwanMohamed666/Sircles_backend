@@ -29,6 +29,30 @@ interface Post {
   };
 }
 
+const formatCommentTime = (creationdate: string) => {
+  const date = new Date(creationdate);
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInMinutes < 1) {
+    return 'Just now';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes}m`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours}h`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays}d`;
+  } else {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+  }
+};
+
 export default function PostScreen() {
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
@@ -361,7 +385,7 @@ export default function PostScreen() {
                         {comment.author?.name || 'Unknown User'}
                       </ThemedText>
                       <ThemedText style={styles.commentTime}>
-                        {new Date(comment.creationdate).toLocaleDateString()}
+                        {formatCommentTime(comment.creationdate)}
                       </ThemedText>
                     </View>
                     <ThemedText style={styles.commentText}>
