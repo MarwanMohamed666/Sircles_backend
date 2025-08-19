@@ -157,7 +157,7 @@ export function IconSymbol({
 
   // Fallback to MaterialIcons for Android and web
   const mappedName = MAPPING[name as keyof typeof MAPPING];
-  
+
   // If no mapping found, use a default icon instead of potentially showing invalid characters
   const iconName = mappedName || 'help-outline';
 

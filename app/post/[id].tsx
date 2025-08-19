@@ -184,7 +184,12 @@ export default function PostScreen() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.error('🗑️ No user ID available for delete');
+      return;
+    }
+
+    console.log('🗑️ Starting delete process for comment:', commentId);
 
     Alert.alert(
       'Delete Comment',
@@ -196,17 +201,22 @@ export default function PostScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await DatabaseService.deleteComment(commentId, user.id);
+              console.log('🗑️ User confirmed deletion, calling DatabaseService...');
+              const { data, error } = await DatabaseService.deleteComment(commentId, user.id);
+              
+              console.log('🗑️ Delete result:', { data, error });
               
               if (error) {
-                console.error('Error deleting comment:', error);
-                Alert.alert('Error', 'Failed to delete comment');
+                console.error('🗑️ Error from DatabaseService:', error);
+                Alert.alert('Error', error.message || 'Failed to delete comment');
                 return;
               }
 
+              console.log('🗑️ Delete successful, reloading comments...');
               await loadComments(); // Reload comments
+              console.log('🗑️ Comments reloaded successfully');
             } catch (error) {
-              console.error('Error deleting comment:', error);
+              console.error('🗑️ Unexpected error in handleDeleteComment:', error);
               Alert.alert('Error', 'Failed to delete comment');
             }
           }
@@ -375,13 +385,16 @@ export default function PostScreen() {
             {comments.length > 0 ? (
               comments.map((comment: any) => {
                 const canDelete = user?.id === comment.userid;
-                console.log('🗑️ Comment permission check:', {
+                console.log('🗑️ DETAILED Comment check:', {
                   commentId: comment.id,
+                  commentText: comment.text?.substring(0, 20) + '...',
                   commentUserId: comment.userid,
                   currentUserId: user?.id,
                   canDelete: canDelete,
                   userIdType: typeof user?.id,
-                  commentUserIdType: typeof comment.userid
+                  commentUserIdType: typeof comment.userid,
+                  userIdMatch: user?.id === comment.userid,
+                  authorName: comment.author?.name
                 });
                 
                 return (
@@ -408,11 +421,29 @@ export default function PostScreen() {
                         style={styles.deleteCommentButton}
                         onPress={() => {
                           console.log('🗑️ Delete button pressed for comment:', comment.id);
+                          console.log('🗑️ Button press context:', {
+                            userId: user?.id,
+                            commentUserId: comment.userid,
+                            canDelete
+                          });
                           handleDeleteComment(comment.id);
                         }}
+                        testID={`delete-comment-${comment.id}`}
                       >
                         <IconSymbol name="trash" size={16} color="#EF5350" />
                       </TouchableOpacity>
+                    )}
+                    {/* Temporary debug indicator */}
+                    {__DEV__ && (
+                      <View style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        right: 0, 
+                        backgroundColor: canDelete ? 'green' : 'red',
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5
+                      }} />
                     )}
                   </View>
                 );
