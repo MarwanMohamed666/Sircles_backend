@@ -373,35 +373,45 @@ export default function PostScreen() {
 
             {/* Comments List */}
             {comments.length > 0 ? (
-              comments.map((comment: any) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <Image
-                    source={{ uri: comment.author?.avatar_url || 'https://via.placeholder.com/32' }}
-                    style={styles.commentAvatar}
-                  />
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <ThemedText style={styles.commentAuthor}>
-                        {comment.author?.name || 'Unknown User'}
-                      </ThemedText>
-                      <ThemedText style={styles.commentTime}>
-                        {formatCommentTime(comment.creationdate)}
+              comments.map((comment: any) => {
+                const canDelete = user?.id === comment.userid;
+                console.log('Comment permission check:', {
+                  commentId: comment.id,
+                  commentUserId: comment.userid,
+                  currentUserId: user?.id,
+                  canDelete: canDelete
+                });
+                
+                return (
+                  <View key={comment.id} style={styles.commentItem}>
+                    <Image
+                      source={{ uri: comment.author?.avatar_url || 'https://via.placeholder.com/32' }}
+                      style={styles.commentAvatar}
+                    />
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentHeader}>
+                        <ThemedText style={styles.commentAuthor}>
+                          {comment.author?.name || 'Unknown User'}
+                        </ThemedText>
+                        <ThemedText style={styles.commentTime}>
+                          {formatCommentTime(comment.creationdate)}
+                        </ThemedText>
+                      </View>
+                      <ThemedText style={styles.commentText}>
+                        {comment.text}
                       </ThemedText>
                     </View>
-                    <ThemedText style={styles.commentText}>
-                      {comment.text}
-                    </ThemedText>
+                    {canDelete && (
+                      <TouchableOpacity
+                        style={styles.deleteCommentButton}
+                        onPress={() => handleDeleteComment(comment.id)}
+                      >
+                        <IconSymbol name="trash" size={14} color="#EF5350" />
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  {user?.id === comment.userid && (
-                    <TouchableOpacity
-                      style={styles.deleteCommentButton}
-                      onPress={() => handleDeleteComment(comment.id)}
-                    >
-                      <IconSymbol name="trash" size={14} color="#EF5350" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))
+                );
+              })
             ) : (
               <View style={styles.emptyCommentsContainer}>
                 <IconSymbol name="bubble.left" size={48} color={textColor + '30'} />
