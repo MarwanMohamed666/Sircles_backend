@@ -403,7 +403,7 @@ export default function HomeScreen() {
         >
           <IconSymbol name="message" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {item.comments?.length || 0}
+            {item.comments?.[0]?.count || 0}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
