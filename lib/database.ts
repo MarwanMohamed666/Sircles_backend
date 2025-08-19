@@ -432,7 +432,7 @@ export const DatabaseService = {
         )
       `)
       .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
-      .order('date', { ascending: true });
+      .order('createdat', { ascending: false });
 
     if (error) {
       return { data: null, error };
@@ -874,7 +874,7 @@ export const DatabaseService = {
     // Get like counts and user like status for each post
     if (posts && posts.length > 0) {
       const postIds = posts.map(post => post.id);
-      
+
       // Get all likes for these posts
       const { data: allLikes } = await supabase
         .from('post_likes')
@@ -882,7 +882,7 @@ export const DatabaseService = {
         .in('postid', postIds);
 
       // Check which posts the current user has liked
-      const userLikes = currentUserId ? 
+      const userLikes = currentUserId ?
         allLikes?.filter(like => like.userid === currentUserId) || [] : [];
       const likedPostIds = new Set(userLikes.map(like => like.postid));
 
@@ -1988,11 +1988,32 @@ export const DatabaseService = {
       const { data, error } = await supabase
         .from('posts')
         .select(`
-          *,
-          author:users!posts_userid_fkey(name, avatar_url),
-          circle:circles!posts_circleid_fkey(name),
-          likes:post_likes(userid),
-          comments(count)
+          id,
+          content,
+          image,
+          createdat,
+          creationdate,
+          author:users!posts_userid_fkey (
+            name,
+            avatar_url
+          ),
+          circle:circles!posts_circleid_fkey (
+            id,
+            name,
+            circle_interests:circle_interests (
+              interests (
+                id,
+                title,
+                category
+              )
+            )
+          ),
+          likes:post_likes (
+            userid
+          ),
+          comments:comments (
+            count
+          )
         `)
         .or(circleIds.length > 0 ? `circleid.is.null,circleid.in.(${circleIds.join(',')})` : 'circleid.is.null')
         .order('creationdate', { ascending: false });

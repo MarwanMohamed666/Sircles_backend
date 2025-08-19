@@ -41,6 +41,7 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [feedItems, setFeedItems] = useState<any[]>([]);
+  const [userInterests, setUserInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,19 +101,76 @@ export default function HomeScreen() {
     }
   };
 
+  const calculateInterestScore = (item: any) => {
+    if (!userInterests.length) return 0;
+
+    let itemInterests: any[] = [];
+    
+    if (item.type === 'post') {
+      // For posts, use circle interests
+      itemInterests = item.circle?.circle_interests?.map((ci: any) => ci.interests) || [];
+    } else if (item.type === 'event') {
+      // For events, use event interests
+      itemInterests = item.event_interests?.map((ei: any) => ei.interests) || [];
+    }
+
+    if (!itemInterests.length) return 0;
+
+    // Calculate number of matching interests
+    const userInterestIds = userInterests.map(ui => ui.id);
+    const matchingInterests = itemInterests.filter(interest => 
+      userInterestIds.includes(interest.id)
+    );
+
+    return matchingInterests.length;
+  };
+
   const combineFeedItems = () => {
     const combined = [
-      ...posts.map(post => ({ ...post, type: 'post', sortDate: new Date(post.createdat || post.creationdate) })),
-      ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.createdat || event.creationdate) }))
+      ...posts.map(post => ({ 
+        ...post, 
+        type: 'post', 
+        sortDate: new Date(post.createdat || post.creationdate),
+        interestScore: calculateInterestScore({ ...post, type: 'post' })
+      })),
+      ...events.map(event => ({ 
+        ...event, 
+        type: 'event', 
+        sortDate: new Date(event.createdat || event.creationdate),
+        interestScore: calculateInterestScore({ ...event, type: 'event' })
+      }))
     ];
 
-    // Sort by creation date (most recent first)
+    // Smart sorting algorithm:
+    // 1. First by interest score (higher = more relevant)
+    // 2. Then by creation date (newer first)
     combined.sort((a, b) => {
+      // If interest scores are different, prioritize higher score
+      if (a.interestScore !== b.interestScore) {
+        return b.interestScore - a.interestScore;
+      }
+      
+      // If interest scores are the same, sort by creation date (newest first)
       return b.sortDate.getTime() - a.sortDate.getTime();
     });
 
     setFeedItems(combined);
     setLoading(false);
+  };
+
+  const loadUserInterests = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await DatabaseService.getUserInterests(user.id);
+      if (error) {
+        console.error('Error loading user interests:', error);
+        return;
+      }
+      setUserInterests(data || []);
+    } catch (error) {
+      console.error('Error loading user interests:', error);
+    }
   };
 
   const loadUserCircles = async () => {
@@ -141,19 +199,19 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadPosts(), loadEvents(), loadUserCircles()]);
+    await Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
     setRefreshing(false);
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      Promise.all([loadPosts(), loadEvents(), loadUserCircles()]);
+      Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
     }
   }, [user]);
 
   useEffect(() => {
     combineFeedItems();
-  }, [posts, events]);
+  }, [posts, events, userInterests]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -287,7 +345,11 @@ export default function HomeScreen() {
   };
 
   const renderEvent = ({ item }: { item: any }) => (
-    <View style={[styles.postCard, { backgroundColor: surfaceColor }]}>
+    <View style={[
+      styles.postCard, 
+      { backgroundColor: surfaceColor },
+      item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
+    ]}>
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>
           <View style={[styles.avatar, { backgroundColor: tintColor }]}>
@@ -299,9 +361,16 @@ export default function HomeScreen() {
             <ThemedText style={styles.userName}>
               {item.circle?.name || 'Unknown Circle'}
             </ThemedText>
-            <ThemedText style={styles.postTime}>
-              Event • {formatTimeAgo(item.createdat || item.creationdate)}
-            </ThemedText>
+            <View style={styles.timeAndInterest}>
+              <ThemedText style={styles.postTime}>
+                Event • {formatTimeAgo(item.createdat || item.creationdate)}
+              </ThemedText>
+              {item.interestScore > 0 && (
+                <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
+                  ⭐ {item.interestScore} match{item.interestScore > 1 ? 'es' : ''}
+                </ThemedText>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -337,8 +406,12 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderPost = ({ item }: { item: Post }) => (
-    <View key={item.id} style={[styles.postCard, { backgroundColor: surfaceColor }]}>
+  const renderPost = ({ item }: { item: Post & { interestScore?: number } }) => (
+    <View key={item.id} style={[
+      styles.postCard, 
+      { backgroundColor: surfaceColor },
+      item.interestScore && item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
+    ]}>
       {/* Post Header */}
       <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
         <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
@@ -357,6 +430,11 @@ export default function HomeScreen() {
               <ThemedText style={styles.postTime}>
                 • {formatTimeAgo(item.creationdate)}
               </ThemedText>
+              {item.interestScore && item.interestScore > 0 && (
+                <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
+                  • ⭐ {item.interestScore}
+                </ThemedText>
+              )}
             </View>
           </View>
         </View>
@@ -737,6 +815,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.5,
     marginLeft: 4,
+  },
+  timeAndInterest: {
+    flexDirection: 'column',
+    gap: 2,
+  },
+  interestIndicator: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
   },
   postContentContainer: {
     marginBottom: 12,
