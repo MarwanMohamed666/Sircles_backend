@@ -43,6 +43,7 @@ export default function PostScreen() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
 
   const loadPost = async () => {
     if (!id) return;
@@ -111,6 +112,50 @@ export default function PostScreen() {
       Alert.alert('Error', 'Failed to create comment');
     } finally {
       setCommentLoading(false);
+    }
+  };
+
+  const handleLikePost = async () => {
+    if (!user?.id || !post?.id || likeLoading) return;
+
+    try {
+      setLikeLoading(true);
+      
+      if (post.userLiked) {
+        // Unlike the post
+        const { error } = await DatabaseService.unlikePost(post.id, user.id);
+        if (error) {
+          console.error('Error unliking post:', error);
+          Alert.alert('Error', 'Failed to unlike post');
+          return;
+        }
+      } else {
+        // Like the post
+        const { error } = await DatabaseService.likePost(post.id, user.id);
+        if (error) {
+          console.error('Error liking post:', error);
+          Alert.alert('Error', 'Failed to like post');
+          return;
+        }
+      }
+
+      // Update the post state immediately for better UX
+      setPost(prevPost => {
+        if (!prevPost) return prevPost;
+        return {
+          ...prevPost,
+          userLiked: !prevPost.userLiked,
+          likes_count: prevPost.userLiked 
+            ? (prevPost.likes_count || 1) - 1 
+            : (prevPost.likes_count || 0) + 1
+        };
+      });
+
+    } catch (error) {
+      console.error('Error handling like:', error);
+      Alert.alert('Error', 'Failed to update like');
+    } finally {
+      setLikeLoading(false);
     }
   };
 
@@ -232,12 +277,23 @@ export default function PostScreen() {
 
             {/* Post Stats */}
             <View style={styles.postStats}>
-              <View style={styles.statItem}>
-                <IconSymbol name="heart" size={16} color={textColor} />
-                <ThemedText style={styles.statText}>
-                  {post.likes?.length || 0} likes
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleLikePost}
+                disabled={likeLoading}
+              >
+                <IconSymbol 
+                  name={post.userLiked ? "heart.fill" : "heart"} 
+                  size={16} 
+                  color={post.userLiked ? "#ff4444" : textColor} 
+                />
+                <ThemedText style={[
+                  styles.statText,
+                  post.userLiked && { color: "#ff4444" }
+                ]}>
+                  {post.likes_count || 0} likes
                 </ThemedText>
-              </View>
+              </TouchableOpacity>
               <View style={styles.statItem}>
                 <IconSymbol name="bubble.left" size={16} color={textColor} />
                 <ThemedText style={styles.statText}>

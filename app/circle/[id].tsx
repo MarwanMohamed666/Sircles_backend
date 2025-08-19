@@ -1431,7 +1431,7 @@ export default function CircleScreen() {
         >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.comments?.length || 0}
+            {post.comments?.[0]?.count || 0}
           </ThemedText>
         </TouchableOpacity>
       </View>
