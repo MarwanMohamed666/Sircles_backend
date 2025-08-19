@@ -103,22 +103,11 @@ export default function HomeScreen() {
   const combineFeedItems = () => {
     const combined = [
       ...posts.map(post => ({ ...post, type: 'post', sortDate: new Date(post.createdat || post.creationdate) })),
-      ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.date) }))
+      ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.createdat || event.creationdate) }))
     ];
 
-    // Sort by date (newest first for posts, upcoming first for events)
+    // Sort by creation date (most recent first)
     combined.sort((a, b) => {
-      if (a.type === 'event' && b.type === 'post') {
-        // Show upcoming events before posts
-        if (new Date(a.date) > new Date()) return -1;
-        return 1;
-      }
-      if (a.type === 'post' && b.type === 'event') {
-        // Show upcoming events before posts
-        if (new Date(b.date) > new Date()) return 1;
-        return -1;
-      }
-      // Same type sorting
       return b.sortDate.getTime() - a.sortDate.getTime();
     });
 
@@ -311,7 +300,7 @@ export default function HomeScreen() {
               {item.circle?.name || 'Unknown Circle'}
             </ThemedText>
             <ThemedText style={styles.postTime}>
-              Event • {new Date(item.date).toLocaleDateString()} at {item.time}
+              Event • {formatTimeAgo(item.createdat || item.creationdate)}
             </ThemedText>
           </View>
         </View>
@@ -319,6 +308,9 @@ export default function HomeScreen() {
 
       <View style={styles.postContent}>
         <ThemedText style={styles.eventTitle}>{item.title}</ThemedText>
+        <ThemedText style={styles.eventDateTime}>
+          📅 {new Date(item.date).toLocaleDateString()} at {item.time}
+        </ThemedText>
         {item.description && (
           <ThemedText style={styles.postText}>{item.description}</ThemedText>
         )}
@@ -762,6 +754,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  eventDateTime: {
+    fontSize: 14,
+    opacity: 0.8,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#FF9800',
   },
   eventLocation: {
     fontSize: 14,
