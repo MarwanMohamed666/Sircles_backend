@@ -2471,84 +2471,139 @@ export const DatabaseService = {
 
   async deleteComment(commentId: string, userId: string) {
     try {
-      console.log('🗑️ DatabaseService.deleteComment called:', { commentId, userId });
+      console.log('🗑️ =========================');
+      console.log('🗑️ DatabaseService.deleteComment ENTRY');
+      console.log('🗑️ Input params:', { commentId, userId });
+      console.log('🗑️ =========================');
       
       // Verify user is authenticated
-      const { data: currentUser } = await supabase.auth.getUser();
-      if (!currentUser.user) {
-        console.error('🗑️ No authenticated user');
+      console.log('🗑️ STEP 1: Checking authentication...');
+      const { data: currentUser, error: authError } = await supabase.auth.getUser();
+      
+      console.log('🗑️ STEP 1 RESULT:', {
+        hasUser: !!currentUser?.user,
+        userId: currentUser?.user?.id,
+        hasAuthError: !!authError,
+        authErrorMessage: authError?.message
+      });
+
+      if (!currentUser.user || authError) {
+        console.error('🗑️ STEP 1 FAILED: No authenticated user');
         return { data: null, error: new Error('Authentication required') };
       }
 
       if (currentUser.user.id !== userId) {
-        console.error('🗑️ User ID mismatch:', { authUserId: currentUser.user.id, providedUserId: userId });
+        console.error('🗑️ STEP 1 FAILED: User ID mismatch:', { 
+          authUserId: currentUser.user.id, 
+          providedUserId: userId 
+        });
         return { data: null, error: new Error('Authentication mismatch') };
       }
 
-      console.log('🗑️ Authentication verified for user:', userId);
+      console.log('🗑️ STEP 1 PASSED: Authentication verified');
 
       // Check if user owns the comment
-      console.log('🗑️ Fetching comment to verify ownership...');
+      console.log('🗑️ STEP 2: Fetching comment to verify ownership...');
       const { data: comment, error: fetchError } = await supabase
         .from('comments')
-        .select('userid, id')
+        .select('userid, id, text')
         .eq('id', commentId)
         .single();
 
-      console.log('🗑️ Comment fetch result:', { comment, fetchError });
+      console.log('🗑️ STEP 2 RESULT:', { 
+        hasComment: !!comment,
+        commentId: comment?.id,
+        commentUserId: comment?.userid,
+        commentText: comment?.text?.substring(0, 30) + '...',
+        hasFetchError: !!fetchError,
+        fetchErrorCode: fetchError?.code,
+        fetchErrorMessage: fetchError?.message,
+        fetchErrorDetails: fetchError?.details
+      });
 
       if (fetchError) {
-        console.error('🗑️ Error fetching comment:', fetchError);
+        console.error('🗑️ STEP 2 FAILED: Error fetching comment:', fetchError);
         return { data: null, error: new Error(`Comment not found: ${fetchError.message}`) };
       }
 
       if (!comment) {
-        console.error('🗑️ Comment not found in database');
+        console.error('🗑️ STEP 2 FAILED: Comment not found in database');
         return { data: null, error: new Error('Comment not found') };
       }
 
       if (comment.userid !== userId) {
-        console.error('🗑️ Permission denied:', { 
+        console.error('🗑️ STEP 2 FAILED: Permission denied:', { 
           commentOwner: comment.userid, 
           currentUser: userId,
-          match: comment.userid === userId 
+          match: comment.userid === userId,
+          ownerType: typeof comment.userid,
+          userType: typeof userId
         });
         return { data: null, error: new Error('You can only delete your own comments') };
       }
 
-      console.log('🗑️ Ownership verified, proceeding with delete...');
+      console.log('🗑️ STEP 2 PASSED: Ownership verified');
 
       // Perform the delete operation
+      console.log('🗑️ STEP 3: Performing delete operation...');
+      console.log('🗑️ STEP 3: Delete conditions:', { id: commentId, userid: userId });
+      
+      const deleteStartTime = Date.now();
       const { data, error } = await supabase
         .from('comments')
         .delete()
         .eq('id', commentId)
         .eq('userid', userId)
         .select('*');
+      
+      const deleteEndTime = Date.now();
+      const deleteDuration = deleteEndTime - deleteStartTime;
 
-      console.log('🗑️ Delete operation result:', { 
+      console.log('🗑️ STEP 3 RESULT:', { 
+        deleteDurationMs: deleteDuration,
         hasData: !!data, 
-        dataLength: data?.length || 0, 
+        dataLength: data?.length || 0,
+        data: data,
         hasError: !!error,
         errorCode: error?.code,
-        errorMessage: error?.message 
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorHint: error?.hint
       });
 
       if (error) {
-        console.error('🗑️ Delete operation failed:', error);
+        console.error('🗑️ STEP 3 FAILED: Delete operation failed:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         return { data: null, error: new Error(`Failed to delete comment: ${error.message}`) };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected by delete operation');
+        console.error('🗑️ STEP 3 FAILED: No rows affected by delete operation');
+        console.log('🗑️ This could mean the comment was already deleted or RLS policy blocked the delete');
         return { data: null, error: new Error('Comment not found or already deleted') };
       }
 
-      console.log('🗑️ Comment deleted successfully:', data[0]);
+      console.log('🗑️ STEP 3 PASSED: Comment deleted successfully');
+      console.log('🗑️ =========================');
+      console.log('🗑️ DELETE OPERATION COMPLETE');
+      console.log('🗑️ Deleted comment:', data[0]);
+      console.log('🗑️ =========================');
+      
       return { data: { success: true, deletedComment: data[0] }, error: null };
 
     } catch (error) {
-      console.error('🗑️ Unexpected error in deleteComment:', error);
+      console.error('🗑️ =========================');
+      console.error('🗑️ UNEXPECTED ERROR in deleteComment');
+      console.error('🗑️ Error object:', error);
+      console.error('🗑️ Error type:', typeof error);
+      console.error('🗑️ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('🗑️ Error stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error('🗑️ =========================');
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
     }
   },

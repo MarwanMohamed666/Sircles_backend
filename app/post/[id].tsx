@@ -190,44 +190,62 @@ export default function PostScreen() {
       return;
     }
 
-    if (deleteLoading) {
-      console.log('🗑️ Delete already in progress, ignoring duplicate call');
+    if (deleteLoading === commentId) {
+      console.log('🗑️ Delete already in progress for this comment, ignoring duplicate call');
       return;
     }
 
-    console.log('🗑️ Starting delete process for comment:', commentId);
+    console.log('🗑️ UI: Starting delete process for comment:', commentId);
 
     Alert.alert(
       'Delete Comment',
       'Are you sure you want to delete this comment?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => {
+            console.log('🗑️ UI: User cancelled deletion');
+          }
+        },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🗑️ UI: User confirmed deletion, setting loading state...');
               setDeleteLoading(commentId);
-              console.log('🗑️ User confirmed deletion, calling DatabaseService...');
               
+              console.log('🗑️ UI: Calling DatabaseService.deleteComment...');
               const { data, error } = await DatabaseService.deleteComment(commentId, user.id);
               
-              console.log('🗑️ Delete result:', { data, error });
+              console.log('🗑️ UI: Delete result received:', { 
+                hasData: !!data, 
+                hasError: !!error,
+                errorMessage: error?.message 
+              });
               
               if (error) {
-                console.error('🗑️ Error from DatabaseService:', error);
+                console.error('🗑️ UI: Error from DatabaseService:', error);
                 Alert.alert('Error', error.message || 'Failed to delete comment');
                 return;
               }
 
-              console.log('🗑️ Delete successful, reloading comments...');
-              await loadComments(); // Reload comments
-              console.log('🗑️ Comments reloaded successfully');
+              if (!data) {
+                console.error('🗑️ UI: No data returned from delete operation');
+                Alert.alert('Error', 'Delete operation failed - no data returned');
+                return;
+              }
+
+              console.log('🗑️ UI: Delete successful, reloading comments...');
+              await loadComments();
+              console.log('🗑️ UI: Comments reloaded successfully');
               
             } catch (error) {
-              console.error('🗑️ Unexpected error in handleDeleteComment:', error);
-              Alert.alert('Error', 'Failed to delete comment');
+              console.error('🗑️ UI: Unexpected error in handleDeleteComment:', error);
+              Alert.alert('Error', `Failed to delete comment: ${error instanceof Error ? error.message : String(error)}`);
             } finally {
+              console.log('🗑️ UI: Clearing loading state...');
               setDeleteLoading(null);
             }
           }
