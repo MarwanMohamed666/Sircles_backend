@@ -2471,55 +2471,85 @@ export const DatabaseService = {
 
   async deleteComment(commentId: string, userId: string) {
     try {
-      console.log('🗑️ Attempting to delete comment:', commentId, 'by user:', userId);
+      console.log('🗑️ DatabaseService.deleteComment called:', { commentId, userId });
       
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
-      if (!currentUser.user || currentUser.user.id !== userId) {
-        console.error('🗑️ Authentication failed');
+      if (!currentUser.user) {
+        console.error('🗑️ No authenticated user');
         return { data: null, error: new Error('Authentication required') };
       }
 
+      if (currentUser.user.id !== userId) {
+        console.error('🗑️ User ID mismatch:', { authUserId: currentUser.user.id, providedUserId: userId });
+        return { data: null, error: new Error('Authentication mismatch') };
+      }
+
+      console.log('🗑️ Authentication verified for user:', userId);
+
       // Check if user owns the comment
+      console.log('🗑️ Fetching comment to verify ownership...');
       const { data: comment, error: fetchError } = await supabase
         .from('comments')
-        .select('userid')
+        .select('userid, id')
         .eq('id', commentId)
         .single();
 
+      console.log('🗑️ Comment fetch result:', { comment, fetchError });
+
       if (fetchError) {
         console.error('🗑️ Error fetching comment:', fetchError);
+        return { data: null, error: new Error(`Comment not found: ${fetchError.message}`) };
+      }
+
+      if (!comment) {
+        console.error('🗑️ Comment not found in database');
         return { data: null, error: new Error('Comment not found') };
       }
 
-      if (!comment || comment.userid !== userId) {
-        console.error('🗑️ Permission denied - comment owner:', comment?.userid, 'current user:', userId);
+      if (comment.userid !== userId) {
+        console.error('🗑️ Permission denied:', { 
+          commentOwner: comment.userid, 
+          currentUser: userId,
+          match: comment.userid === userId 
+        });
         return { data: null, error: new Error('You can only delete your own comments') };
       }
 
-      console.log('🗑️ Deleting comment...');
+      console.log('🗑️ Ownership verified, proceeding with delete...');
+
+      // Perform the delete operation
       const { data, error } = await supabase
         .from('comments')
         .delete()
         .eq('id', commentId)
         .eq('userid', userId)
-        .select();
+        .select('*');
+
+      console.log('🗑️ Delete operation result:', { 
+        hasData: !!data, 
+        dataLength: data?.length || 0, 
+        hasError: !!error,
+        errorCode: error?.code,
+        errorMessage: error?.message 
+      });
 
       if (error) {
-        console.error('🗑️ Error deleting comment:', error);
-        return { data: null, error };
+        console.error('🗑️ Delete operation failed:', error);
+        return { data: null, error: new Error(`Failed to delete comment: ${error.message}`) };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected - comment may not exist');
+        console.error('🗑️ No rows affected by delete operation');
         return { data: null, error: new Error('Comment not found or already deleted') };
       }
 
-      console.log('🗑️ Comment deleted successfully');
-      return { data: { success: true }, error: null };
+      console.log('🗑️ Comment deleted successfully:', data[0]);
+      return { data: { success: true, deletedComment: data[0] }, error: null };
+
     } catch (error) {
-      console.error('🗑️ Error in deleteComment:', error);
-      return { data: null, error: error as Error };
+      console.error('🗑️ Unexpected error in deleteComment:', error);
+      return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
     }
   },
 };

@@ -68,6 +68,7 @@ export default function PostScreen() {
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
   const loadPost = async () => {
     if (!id) return;
@@ -189,6 +190,11 @@ export default function PostScreen() {
       return;
     }
 
+    if (deleteLoading) {
+      console.log('🗑️ Delete already in progress, ignoring duplicate call');
+      return;
+    }
+
     console.log('🗑️ Starting delete process for comment:', commentId);
 
     Alert.alert(
@@ -201,7 +207,9 @@ export default function PostScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setDeleteLoading(commentId);
               console.log('🗑️ User confirmed deletion, calling DatabaseService...');
+              
               const { data, error } = await DatabaseService.deleteComment(commentId, user.id);
               
               console.log('🗑️ Delete result:', { data, error });
@@ -215,9 +223,12 @@ export default function PostScreen() {
               console.log('🗑️ Delete successful, reloading comments...');
               await loadComments(); // Reload comments
               console.log('🗑️ Comments reloaded successfully');
+              
             } catch (error) {
               console.error('🗑️ Unexpected error in handleDeleteComment:', error);
               Alert.alert('Error', 'Failed to delete comment');
+            } finally {
+              setDeleteLoading(null);
             }
           }
         }
@@ -418,8 +429,13 @@ export default function PostScreen() {
                     </View>
                     {canDelete && (
                       <TouchableOpacity
-                        style={styles.deleteCommentButton}
+                        style={[
+                          styles.deleteCommentButton,
+                          deleteLoading === comment.id && styles.deleteCommentButtonDisabled
+                        ]}
                         onPress={() => {
+                          if (deleteLoading === comment.id) return;
+                          
                           console.log('🗑️ Delete button pressed for comment:', comment.id);
                           console.log('🗑️ Button press context:', {
                             userId: user?.id,
@@ -428,9 +444,14 @@ export default function PostScreen() {
                           });
                           handleDeleteComment(comment.id);
                         }}
+                        disabled={deleteLoading === comment.id}
                         testID={`delete-comment-${comment.id}`}
                       >
-                        <IconSymbol name="trash" size={16} color="#EF5350" />
+                        <IconSymbol 
+                          name="trash" 
+                          size={16} 
+                          color={deleteLoading === comment.id ? "#BDBDBD" : "#EF5350"} 
+                        />
                       </TouchableOpacity>
                     )}
                     {/* Temporary debug indicator */}
@@ -670,5 +691,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 28,
     minHeight: 28,
+  },
+  deleteCommentButtonDisabled: {
+    backgroundColor: 'rgba(189, 189, 189, 0.1)',
+    opacity: 0.6,
   },
 });
