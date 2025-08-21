@@ -189,6 +189,7 @@ export default function PostScreen() {
     console.log('🗑️ Parameters:', { commentId, hasUserId: !!user?.id, userId: user?.id });
     console.log('🗑️ Current loading state:', deleteLoading);
     console.log('🗑️ DatabaseService import check:', typeof DatabaseService, !!DatabaseService.deleteComment);
+    console.log('🗑️ Platform check:', Platform.OS);
     console.log('🗑️ ════════════════════════════════════════════════════════════════════════');
 
     if (!user?.id) {
@@ -202,6 +203,52 @@ export default function PostScreen() {
     }
 
     console.log('🗑️ UI VALIDATION PASSED: All checks passed, showing alert dialog');
+    console.log('🗑️ ALERT SETUP: About to show Alert.alert with buttons');
+
+    // Try a simpler approach first - direct execution without alert
+    console.log('🗑️ BYPASSING ALERT: Executing delete directly for debugging');
+    
+    try {
+      console.log('🗑️ 🔴🔴🔴 DIRECT DELETE EXECUTION STARTING 🔴🔴🔴');
+      console.log('🗑️ 🔴 Comment ID to delete:', commentId);
+      console.log('🗑️ 🔴 Current user ID:', user.id);
+
+      // Set loading state immediately
+      console.log('🗑️ 🟡 Setting loading state to:', commentId);
+      setDeleteLoading(commentId);
+
+      console.log('🗑️ 🟢 ABOUT TO CALL DatabaseService.deleteComment...');
+      const callStartTime = Date.now();
+      const result = await DatabaseService.deleteComment(commentId, user.id);
+      const callEndTime = Date.now();
+      const callDuration = callEndTime - callStartTime;
+      
+      console.log('🗑️ 🟢 ✅ DATABASE CALL COMPLETED!');
+      console.log('🗑️ 🟢 Call duration:', callDuration, 'ms');
+      console.log('🗑️ 🟢 Result:', result);
+      
+      const { data, error } = result;
+
+      if (error) {
+        console.error('🗑️ ❌ Delete failed with error:', error);
+        setDeleteLoading(null);
+        Alert.alert('Error', error.message || 'Failed to delete comment');
+        return;
+      }
+
+      console.log('🗑️ ✅ Delete successful! Reloading comments...');
+      await loadComments();
+      setDeleteLoading(null);
+      console.log('🗑️ ✅ Delete process completed successfully!');
+      Alert.alert('Success', 'Comment deleted successfully');
+
+    } catch (error) {
+      console.error('🗑️ ❌ EXCEPTION CAUGHT during delete process:', error);
+      setDeleteLoading(null);
+      Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
+    }
+
+    return; // Skip the alert dialog for now
 
     Alert.alert(
       'Delete Comment',
