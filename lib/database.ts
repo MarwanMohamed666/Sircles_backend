@@ -2470,370 +2470,108 @@ export const DatabaseService = {
   },
 
   async deleteComment(commentId: string, userId: string) {
-    // MAXIMUM ENTRY LOGGING
-    const entryTimestamp = Date.now();
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ 🟢🟢🟢 DATABASE FUNCTION ENTRY: deleteComment() WAS DEFINITELY CALLED! 🟢🟢🟢');
-    console.log('🗑️ 🟢🟢🟢 ENTRY CONFIRMATION #1: Function executed successfully');
-    console.log('🗑️ 🟢🟢🟢 ENTRY CONFIRMATION #2: Entry timestamp:', new Date().toISOString());
-    console.log('🗑️ 🟢🟢🟢 ENTRY CONFIRMATION #3: Function parameters:', { commentId, userId });
-    console.log('🗑️ 🟢🟢🟢 ENTRY CONFIRMATION #4: If you see ANY of these logs, function was invoked');
-    console.log('🗑️ 🟢🟢🟢 ENTRY CONFIRMATION #5: This proves the function call made it through');
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
+    console.log('🗑️ deleteComment called:', { commentId, userId });
     
-    // Immediate checkpoint
-    console.log('🗑️ CHECKPOINT A: Function body started executing');
-    
-    // Test all basic operations work
-    console.log('🗑️ CHECKPOINT B: About to test basic operations...');
-    const testVar = 'test';
-    console.log('🗑️ CHECKPOINT C: Variable assignment works:', testVar);
-    
-    const testObj = { test: 'value', time: entryTimestamp };
-    console.log('🗑️ CHECKPOINT D: Object creation works:', testObj);
-    
-    console.log('🗑️ CHECKPOINT E: Entering try block...');
-
     try {
-      console.log('🗑️ CHECKPOINT F: Inside try block successfully');
-      
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
-      console.log('🗑️ FUNCTION PARAMETERS AND VALIDATION');
-      console.log('🗑️ Input commentId:', commentId, '(type:', typeof commentId, ')');
-      console.log('🗑️ Input userId:', userId, '(type:', typeof userId, ')');
-      console.log('🗑️ CommentId length:', commentId?.length || 'undefined');
-      console.log('🗑️ UserId length:', userId?.length || 'undefined');
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
-      
-      console.log('🗑️ CHECKPOINT G: Parameter validation logging complete');
-      
-      // Test supabase import
-      console.log('🗑️ CHECKPOINT H: Testing supabase availability...');
-      console.log('🗑️ supabase object type:', typeof supabase);
-      console.log('🗑️ supabase.auth type:', typeof supabase?.auth);
-      console.log('🗑️ supabase.auth.getUser type:', typeof supabase?.auth?.getUser);
-      
-      console.log('🗑️ CHECKPOINT I: About to attempt supabase.auth.getUser()...');
-      
       // Verify user is authenticated
-      console.log('🗑️ STEP 1: Starting authentication check...');
-      console.log('🗑️ About to call supabase.auth.getUser()');
-      
-      const authStartTime = Date.now();
-      let authResult;
-      console.log('🗑️ CHECKPOINT J: Entering auth try block...');
-      try {
-        console.log('🗑️ CHECKPOINT K: Calling supabase.auth.getUser() now...');
-        authResult = await supabase.auth.getUser();
-        console.log('🗑️ CHECKPOINT L: supabase.auth.getUser() call completed');
-        const authEndTime = Date.now();
-        console.log('🗑️ supabase.auth.getUser() completed in', authEndTime - authStartTime, 'ms');
-        console.log('🗑️ CHECKPOINT M: Auth result received:', !!authResult);
-      } catch (authException) {
-        console.error('🗑️ CHECKPOINT N: EXCEPTION in supabase.auth.getUser():', authException);
-        console.error('🗑️ Exception type:', typeof authException);
-        console.error('🗑️ Exception message:', authException instanceof Error ? authException.message : String(authException));
-        throw authException;
-      }
-      
-      console.log('🗑️ CHECKPOINT O: About to destructure auth result...');
-      const { data: currentUser, error: authError } = authResult;
-      console.log('🗑️ CHECKPOINT P: Auth result destructured successfully');
-      
-      console.log('🗑️ STEP 1 DETAILED RESULT:', {
-        authCallSuccess: !authError,
-        hasCurrentUserData: !!currentUser,
-        hasUserObject: !!currentUser?.user,
-        authenticatedUserId: currentUser?.user?.id,
-        userIdMatch: currentUser?.user?.id === userId,
-        authErrorExists: !!authError,
-        authErrorMessage: authError?.message,
-        authErrorCode: authError?.code,
-        fullCurrentUser: currentUser,
-        fullAuthError: authError
-      });
-      
-      console.log('🗑️ CHECKPOINT Q: Auth validation logging complete');
-
-      console.log('🗑️ CHECKPOINT R: Starting auth validation checks...');
+      const { data: currentUser, error: authError } = await supabase.auth.getUser();
       
       if (!currentUser?.user || authError) {
-        console.error('🗑️ CHECKPOINT S: AUTHENTICATION FAILED');
-        console.error('🗑️ STEP 1 AUTHENTICATION FAILED');
-        console.error('🗑️ No authenticated user or auth error occurred');
-        console.error('🗑️ Returning authentication error');
+        console.error('🗑️ Authentication failed:', authError);
         return { data: null, error: new Error('Authentication required') };
       }
-      
-      console.log('🗑️ CHECKPOINT T: Auth user exists, checking ID match...');
 
       if (currentUser.user.id !== userId) {
-        console.error('🗑️ CHECKPOINT U: USER ID MISMATCH');
-        console.error('🗑️ STEP 1 USER ID MISMATCH');
-        console.error('🗑️ Authenticated user ID:', currentUser.user.id);
-        console.error('🗑️ Provided user ID:', userId);
-        console.error('🗑️ Returning authentication mismatch error');
+        console.error('🗑️ User ID mismatch');
         return { data: null, error: new Error('Authentication mismatch') };
       }
 
-      console.log('🗑️ CHECKPOINT V: Auth validation passed');
-      console.log('🗑️ STEP 1 SUCCESS: Authentication verified for user:', currentUser.user.id);
+      console.log('🗑️ Auth verified, checking permissions...');
 
-      // Check if user has permission to delete the comment
-      console.log('🗑️ ─────────────────────────────────────────────────────────────');
-      console.log('🗑️ STEP 2: Starting permission verification...');
-      console.log('🗑️ Building complex query to fetch comment and related permissions...');
-      
-      const permissionQueryStartTime = Date.now();
-      let permissionQueryResult;
-      try {
-        permissionQueryResult = await supabase
-          .from('comments')
-          .select(`
-            userid, 
-            id, 
-            text,
-            postid,
-            posts!inner(
-              userid,
-              circleid,
-              circles(
-                creator,
-                circle_admins(userid)
-              )
+      // Get comment and related permissions in one query
+      const { data: commentData, error: fetchError } = await supabase
+        .from('comments')
+        .select(`
+          userid, 
+          id, 
+          text,
+          postid,
+          posts!inner(
+            userid,
+            circleid,
+            circles(
+              creator,
+              circle_admins(userid)
             )
-          `)
-          .eq('id', commentId)
-          .single();
-          
-        const permissionQueryEndTime = Date.now();
-        console.log('🗑️ Permission query completed in', permissionQueryEndTime - permissionQueryStartTime, 'ms');
-      } catch (permissionQueryException) {
-        console.error('🗑️ EXCEPTION in permission query:', permissionQueryException);
-        throw permissionQueryException;
-      }
+          )
+        `)
+        .eq('id', commentId)
+        .single();
 
-      const { data: commentData, error: fetchError } = permissionQueryResult;
-
-      console.log('🗑️ STEP 2 PERMISSION QUERY DETAILED RESULT:', { 
-        querySuccess: !fetchError,
-        hasCommentData: !!commentData,
-        commentExists: !!commentData?.id,
-        fetchedCommentId: commentData?.id,
-        commentUserId: commentData?.userid,
-        commentTextPreview: commentData?.text?.substring(0, 50) + '...',
-        associatedPostId: commentData?.postid,
-        postOwnerUserId: commentData?.posts?.userid,
-        associatedCircleId: commentData?.posts?.circleid,
-        circleCreator: commentData?.posts?.circles?.creator,
-        circleAdmins: commentData?.posts?.circles?.circle_admins,
-        fetchErrorExists: !!fetchError,
-        fetchErrorCode: fetchError?.code,
-        fetchErrorMessage: fetchError?.message,
-        fetchErrorDetails: fetchError?.details,
-        fullCommentData: commentData,
-        fullFetchError: fetchError
-      });
-
-      if (fetchError) {
-        console.error('🗑️ STEP 2 PERMISSION QUERY FAILED');
-        console.error('🗑️ Supabase query error:', fetchError);
-        console.error('🗑️ Returning comment not found error');
-        return { data: null, error: new Error(`Comment not found: ${fetchError.message}`) };
-      }
-
-      if (!commentData || !commentData.id) {
-        console.error('🗑️ STEP 2 COMMENT NOT FOUND');
-        console.error('🗑️ Query succeeded but returned no comment data');
-        console.error('🗑️ This could mean the comment was already deleted or doesn\'t exist');
+      if (fetchError || !commentData) {
+        console.error('🗑️ Comment not found:', fetchError);
         return { data: null, error: new Error('Comment not found') };
       }
 
-      // Detailed permission checking
-      console.log('🗑️ STEP 2B: Analyzing permissions for user to delete comment...');
-      
+      // Check permissions
       let hasPermission = false;
-      let permissionReason = '';
-      let permissionDetails = [];
 
       // 1. Comment owner can delete their own comment
-      const isCommentOwner = commentData.userid === userId;
-      console.log('🗑️ Permission check 1 - Comment owner:', {
-        commentUserId: commentData.userid,
-        requestingUserId: userId,
-        isOwner: isCommentOwner
-      });
-      if (isCommentOwner) {
+      if (commentData.userid === userId) {
         hasPermission = true;
-        permissionReason = 'comment owner';
-        permissionDetails.push('User owns this comment');
+        console.log('🗑️ Permission: comment owner');
       }
 
       // 2. Post owner can delete comments on their post
-      const isPostOwner = commentData.posts?.userid === userId;
-      console.log('🗑️ Permission check 2 - Post owner:', {
-        postUserId: commentData.posts?.userid,
-        requestingUserId: userId,
-        isPostOwner: isPostOwner
-      });
-      if (isPostOwner) {
+      if (commentData.posts?.userid === userId) {
         hasPermission = true;
-        permissionReason = hasPermission ? permissionReason + ' and post owner' : 'post owner';
-        permissionDetails.push('User owns the post this comment is on');
+        console.log('🗑️ Permission: post owner');
       }
 
       // 3. Circle admin or creator can delete comments in their circle
       if (commentData.posts?.circleid) {
         const circle = commentData.posts.circles;
-        const isCircleCreator = circle?.creator === userId;
-        console.log('🗑️ Permission check 3a - Circle creator:', {
-          circleCreator: circle?.creator,
-          requestingUserId: userId,
-          isCircleCreator: isCircleCreator
-        });
-        
-        if (isCircleCreator) {
+        if (circle?.creator === userId) {
           hasPermission = true;
-          permissionReason = hasPermission ? permissionReason + ' and circle creator' : 'circle creator';
-          permissionDetails.push('User created this circle');
+          console.log('🗑️ Permission: circle creator');
         }
 
         const circleAdmins = circle?.circle_admins || [];
-        const isCircleAdmin = circleAdmins.some((admin: any) => admin.userid === userId);
-        console.log('🗑️ Permission check 3b - Circle admin:', {
-          circleAdmins: circleAdmins.map((a: any) => a.userid),
-          requestingUserId: userId,
-          isCircleAdmin: isCircleAdmin
-        });
-        
-        if (isCircleAdmin) {
+        if (circleAdmins.some((admin: any) => admin.userid === userId)) {
           hasPermission = true;
-          permissionReason = hasPermission ? permissionReason + ' and circle admin' : 'circle admin';
-          permissionDetails.push('User is an admin of this circle');
+          console.log('🗑️ Permission: circle admin');
         }
-      } else {
-        console.log('🗑️ Permission check 3 - No circle: Comment is on a general post, no circle permissions apply');
       }
 
-      console.log('🗑️ STEP 2 PERMISSION ANALYSIS COMPLETE:', {
-        finalPermissionStatus: hasPermission,
-        permissionReason: permissionReason,
-        permissionDetails: permissionDetails,
-        allChecks: {
-          isCommentOwner,
-          isPostOwner,
-          isCircleCreator: commentData.posts?.circles?.creator === userId,
-          isCircleAdmin: commentData.posts?.circles?.circle_admins?.some((a: any) => a.userid === userId)
-        }
-      });
-
       if (!hasPermission) {
-        console.error('🗑️ STEP 2 PERMISSION DENIED');
-        console.error('🗑️ User has no valid permission to delete this comment');
-        console.error('🗑️ Returning permission denied error');
+        console.error('🗑️ Permission denied');
         return { data: null, error: new Error('You do not have permission to delete this comment') };
       }
 
-      console.log('🗑️ STEP 2 SUCCESS: Permission verified -', permissionReason);
+      console.log('🗑️ Permission verified, deleting comment...');
 
-      // Try a simple test query first
-      console.log('🗑️ ─────────────────────────────────────────────────────────────');
-      console.log('🗑️ PRE-STEP 3: Testing database connectivity with simple query...');
-      try {
-        const testQuery = await supabase.from('comments').select('id').limit(1);
-        console.log('🗑️ Test query result:', { hasData: !!testQuery.data, hasError: !!testQuery.error });
-      } catch (testError) {
-        console.error('🗑️ Test query failed:', testError);
-      }
-
-      // Perform the delete operation
-      console.log('🗑️ ─────────────────────────────────────────────────────────────');
-      console.log('🗑️ STEP 3: Starting delete operation...');
-      console.log('🗑️ Delete will use conditions: id =', commentId, 'AND userid =', userId);
-      console.log('🗑️ About to call supabase delete with select to return deleted data...');
-      
-      const deleteStartTime = Date.now();
-      let deleteResult;
-      try {
-        deleteResult = await supabase
-          .from('comments')
-          .delete()
-          .eq('id', commentId)
-          .eq('userid', userId)
-          .select('*');
-          
-        const deleteEndTime = Date.now();
-        const deleteDuration = deleteEndTime - deleteStartTime;
-        console.log('🗑️ Supabase delete operation completed in', deleteDuration, 'ms');
-      } catch (deleteException) {
-        console.error('🗑️ EXCEPTION in supabase delete operation:', deleteException);
-        throw deleteException;
-      }
-      
-      const { data, error } = deleteResult;
-
-      console.log('🗑️ STEP 3 DELETE OPERATION DETAILED RESULT:', { 
-        deleteCallSuccess: !error,
-        hasReturnedData: !!data,
-        returnedDataType: typeof data,
-        returnedDataLength: Array.isArray(data) ? data.length : 'not array',
-        returnedData: data,
-        deleteErrorExists: !!error,
-        deleteErrorCode: error?.code,
-        deleteErrorMessage: error?.message,
-        deleteErrorDetails: error?.details,
-        deleteErrorHint: error?.hint,
-        fullDeleteError: error
-      });
+      // Delete the comment
+      const { data, error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .select('*');
 
       if (error) {
-        console.error('🗑️ STEP 3 DELETE OPERATION FAILED');
-        console.error('🗑️ Supabase delete returned error:', error);
-        console.error('🗑️ This could be due to RLS policy or database constraint');
-        console.error('🗑️ Returning delete operation error');
+        console.error('🗑️ Delete failed:', error);
         return { data: null, error: new Error(`Failed to delete comment: ${error.message}`) };
       }
 
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        console.error('🗑️ STEP 3 NO ROWS AFFECTED');
-        console.error('🗑️ Delete operation succeeded but no rows were affected');
-        console.error('🗑️ This suggests the comment was already deleted or RLS policy blocked the operation');
-        console.error('🗑️ Data returned:', data);
+      if (!data || data.length === 0) {
+        console.error('🗑️ No rows affected');
         return { data: null, error: new Error('Comment not found or already deleted') };
       }
 
-      const deletedComment = Array.isArray(data) ? data[0] : data;
-      console.log('🗑️ STEP 3 SUCCESS: Comment deleted successfully');
-      console.log('🗑️ Deleted comment details:', deletedComment);
-      console.log('🗑️ ███████████████████████████████████████████████████████████████████████');
-      console.log('🗑️ DELETE OPERATION COMPLETED SUCCESSFULLY');
-      console.log('🗑️ Comment ID:', deletedComment?.id);
-      console.log('🗑️ Comment text:', deletedComment?.text);
-      console.log('🗑️ Deleted by user:', deletedComment?.userid);
-      console.log('🗑️ ███████████████████████████████████████████████████████████████████████');
-      
-      return { data: { success: true, deletedComment }, error: null };
+      console.log('🗑️ Comment deleted successfully');
+      return { data: { success: true, deletedComment: data[0] }, error: null };
 
     } catch (error) {
-      console.error('🗑️ ███████████████████████████████████████████████████████████████████████');
-      console.error('🗑️ CATASTROPHIC ERROR in deleteComment function');
-      console.error('🗑️ This is an unhandled exception that was caught by the try-catch');
-      console.error('🗑️ Error object type:', typeof error);
-      console.error('🗑️ Error constructor:', error?.constructor?.name);
-      console.error('🗑️ Error message:', error instanceof Error ? error.message : String(error));
-      console.error('🗑️ Error code:', (error as any)?.code);
-      console.error('🗑️ Error stack trace:');
-      if (error instanceof Error && error.stack) {
-        console.error('🗑️', error.stack.split('\n').join('\n🗑️ '));
-      } else {
-        console.error('🗑️ No stack trace available');
-      }
-      console.error('🗑️ Full error object:', error);
-      console.error('🗑️ ███████████████████████████████████████████████████████████████████████');
+      console.error('🗑️ Unexpected error:', error);
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
     }
   },
