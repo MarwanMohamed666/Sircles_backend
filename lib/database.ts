@@ -14,6 +14,7 @@ export const getPosts = (circleId?: string) => DatabaseService.getPosts(circleId
 export const createPost = (post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) => DatabaseService.createPost(post, photoAsset);
 export const getInterests = () => DatabaseService.getInterests();
 export const getUserInterests = (userId: string) => DatabaseService.getUserInterests(userId);
+export const getUserLookFor = (userId: string) => DatabaseService.getUserLookFor(userId);
 export const getInterestsByCategory = () => DatabaseService.getInterestsByCategory();
 export const getUserNotifications = (userId: string) => DatabaseService.getUserNotifications(userId);
 export const markNotificationAsRead = (notificationId: string) => DatabaseService.markNotificationAsRead(notificationId);
@@ -1008,6 +1009,32 @@ export const DatabaseService = {
       return { data: data || [], error: null };
     } catch (error) {
       console.error('Error in getUserInterests:', error);
+      return { data: [], error: null };
+    }
+  },
+
+  async getUserLookFor(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_look_for')
+        .select(`
+          interestid,
+          interests (id, title, category)
+        `)
+        .eq('userid', userId);
+
+      if (error) {
+        // Handle RLS policy errors
+        if (error.code === 'PGRST001' || error.code === '42501') {
+          console.log('RLS policy prevented access to user look_for');
+          return { data: [], error: null };
+        }
+        return { data: null, error };
+      }
+
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Error in getUserLookFor:', error);
       return { data: [], error: null };
     }
   },

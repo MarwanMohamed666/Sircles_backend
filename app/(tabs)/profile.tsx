@@ -44,6 +44,7 @@ export default function ProfileScreen() {
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
+  const [showLookForModal, setShowLookForModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newInterest, setNewInterest] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -75,6 +76,7 @@ export default function ProfileScreen() {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState('');
   const [userInterests, setUserInterests] = useState<{[category: string]: any[]}>({});
+  const [userLookFor, setUserLookFor] = useState<{[category: string]: any[]}>({});
   const [availableInterests, setAvailableInterests] = useState<{[category: string]: any[]}>({});
 
   const genderOptions = ['Male', 'Female', 'Prefer not to say'];
@@ -188,6 +190,59 @@ export default function ProfileScreen() {
       await fetchUserInterests();
     } catch (error) {
       console.error('Error toggling interest:', error);
+      Alert.alert('Error', 'Failed to update interest');
+    }
+  };
+
+  const toggleLookFor = async (interest: any) => {
+    if (!user?.id) return;
+
+    const isSelected = Object.values(userLookFor)
+      .flat()
+      .some(userInt => userInt.id === interest.id);
+
+    try {
+      if (isSelected) {
+        // Remove look_for interest
+        const { error } = await supabase
+          .from('user_look_for')
+          .delete()
+          .eq('userid', user.id)
+          .eq('interestid', interest.id);
+
+        if (error) {
+          console.error('Error removing look_for interest:', error);
+          if (error.code === 'PGRST001' || error.code === '42501') {
+            Alert.alert('Error', 'You do not have permission to remove this interest');
+          } else {
+            Alert.alert('Error', 'Failed to remove interest');
+          }
+          return;
+        }
+      } else {
+        // Add look_for interest
+        const { error } = await supabase
+          .from('user_look_for')
+          .insert({
+            userid: user.id,
+            interestid: interest.id
+          });
+
+        if (error) {
+          console.error('Error adding look_for interest:', error);
+          if (error.code === 'PGRST001' || error.code === '42501') {
+            Alert.alert('Error', 'You do not have permission to add this interest');
+          } else {
+            Alert.alert('Error', 'Failed to add interest');
+          }
+          return;
+        }
+      }
+
+      // Refresh user look_for interests
+      await fetchUserLookFor();
+    } catch (error) {
+      console.error('Error toggling look_for interest:', error);
       Alert.alert('Error', 'Failed to update interest');
     }
   };
@@ -426,6 +481,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (user?.id) {
       fetchUserInterests();
+      fetchUserLookFor();
       checkExistingAvatar();
     }
     fetchAvailableInterests();
@@ -478,6 +534,32 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error fetching user interests:', error);
+    }
+  };
+
+  const fetchUserLookFor = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await DatabaseService.getUserLookFor(user.id);
+      if (error) {
+        console.error('Error fetching user look_for interests:', error);
+      } else if (data) {
+        // Group user look_for interests by category
+        const groupedLookFor: {[category: string]: any[]} = {};
+        data.forEach((item: any) => {
+          if (item.interests) {
+            const category = item.interests.category || 'Other';
+            if (!groupedLookFor[category]) {
+              groupedLookFor[category] = [];
+            }
+            groupedLookFor[category].push(item.interests);
+          }
+        });
+        setUserLookFor(groupedLookFor);
+      }
+    } catch (error) {
+      console.error('Error fetching user look_for interests:', error);
     }
   };
 
@@ -676,6 +758,44 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Looking For Section */}
+        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
+          <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+              {texts.lookingFor || 'Looking For'}
+            </ThemedText>
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: tintColor }]}
+              onPress={() => setShowLookForModal(true)}
+            >
+              <IconSymbol name="pencil" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {Object.entries(userLookFor).map(([category, interests]) => (
+            <View key={category} style={styles.interestCategory}>
+              <ThemedText style={[styles.categoryTitle, isRTL && styles.rtlText]}>
+                {category}
+              </ThemedText>
+              <View style={styles.interestTags}>
+                {interests.map((interest, index) => (
+                  <View key={interest.id} style={[styles.interestTag, { backgroundColor: accentColor + '20' }]}>
+                    <ThemedText style={[styles.interestTagText, { color: accentColor }]}>
+                      {interest.title}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {Object.keys(userLookFor).length === 0 && (
+            <ThemedText style={[styles.emptyInterests, isRTL && styles.rtlText]}>
+              {texts.noLookingForYet || 'No looking for preferences added yet'}
+            </ThemedText>
+          )}
+        </View>
+
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
 
@@ -843,6 +963,74 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
                 onPress={() => setShowInterestModal(false)}
+              >
+                <ThemedText style={{ color: '#fff' }}>
+                  {texts.done || 'Done'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Looking For Modal */}
+      <Modal
+        visible={showLookForModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLookForModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+            <ThemedText type="subtitle" style={styles.modalTitle}>
+              {texts.editLookingFor || 'Edit Looking For'}
+            </ThemedText>
+
+            <View style={styles.formField}>
+              <ThemedText style={styles.fieldLabel}>
+                {texts.selectLookingFor || 'Select what you are looking for'}
+              </ThemedText>
+              <ScrollView style={{ maxHeight: 400 }}>
+                {Object.entries(availableInterests).map(([category, interests]) => (
+                  <View key={category} style={styles.categorySection}>
+                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
+                    <View style={styles.categoryGrid}>
+                      {interests.map((interest) => {
+                        const isSelected = Object.values(userLookFor)
+                          .flat()
+                          .some(userInt => userInt.id === interest.id);
+
+                        return (
+                          <TouchableOpacity
+                            key={interest.id}
+                            style={[
+                              styles.categoryOption,
+                              {
+                                backgroundColor: isSelected ? accentColor : 'transparent',
+                                borderColor: accentColor,
+                              }
+                            ]}
+                            onPress={() => toggleLookFor(interest)}
+                          >
+                            <ThemedText style={[
+                              styles.categoryOptionText,
+                              { color: isSelected ? '#fff' : textColor }
+                            ]}>
+                              {interest.title}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: accentColor }]}
+                onPress={() => setShowLookForModal(false)}
               >
                 <ThemedText style={{ color: '#fff' }}>
                   {texts.done || 'Done'}
