@@ -2470,7 +2470,8 @@ export const DatabaseService = {
   },
 
   async deleteComment(commentId: string, userId: string) {
-    // MULTIPLE IMMEDIATE ENTRY LOGS - These should appear if function is called at all
+    // MAXIMUM ENTRY LOGGING
+    const entryTimestamp = Date.now();
     console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
     console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
     console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
@@ -2484,14 +2485,22 @@ export const DatabaseService = {
     console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
     console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
     
-    console.log('🗑️ ███████████████████████████████████████████████████████████████████████');
-    console.log('🗑️ DATABASE SERVICE: deleteComment FUNCTION CALLED');
-    console.log('🗑️ Timestamp:', new Date().toISOString());
-    console.log('🗑️ Stack trace to this point:');
-    console.log('🗑️', new Error().stack?.split('\n').slice(1, 5).join('\n🗑️ '));
-    console.log('🗑️ ███████████████████████████████████████████████████████████████████████');
+    // Immediate checkpoint
+    console.log('🗑️ CHECKPOINT A: Function body started executing');
+    
+    // Test all basic operations work
+    console.log('🗑️ CHECKPOINT B: About to test basic operations...');
+    const testVar = 'test';
+    console.log('🗑️ CHECKPOINT C: Variable assignment works:', testVar);
+    
+    const testObj = { test: 'value', time: entryTimestamp };
+    console.log('🗑️ CHECKPOINT D: Object creation works:', testObj);
+    
+    console.log('🗑️ CHECKPOINT E: Entering try block...');
 
     try {
+      console.log('🗑️ CHECKPOINT F: Inside try block successfully');
+      
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
       console.log('🗑️ FUNCTION PARAMETERS AND VALIDATION');
       console.log('🗑️ Input commentId:', commentId, '(type:', typeof commentId, ')');
@@ -2500,22 +2509,40 @@ export const DatabaseService = {
       console.log('🗑️ UserId length:', userId?.length || 'undefined');
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
       
+      console.log('🗑️ CHECKPOINT G: Parameter validation logging complete');
+      
+      // Test supabase import
+      console.log('🗑️ CHECKPOINT H: Testing supabase availability...');
+      console.log('🗑️ supabase object type:', typeof supabase);
+      console.log('🗑️ supabase.auth type:', typeof supabase?.auth);
+      console.log('🗑️ supabase.auth.getUser type:', typeof supabase?.auth?.getUser);
+      
+      console.log('🗑️ CHECKPOINT I: About to attempt supabase.auth.getUser()...');
+      
       // Verify user is authenticated
       console.log('🗑️ STEP 1: Starting authentication check...');
       console.log('🗑️ About to call supabase.auth.getUser()');
       
       const authStartTime = Date.now();
       let authResult;
+      console.log('🗑️ CHECKPOINT J: Entering auth try block...');
       try {
+        console.log('🗑️ CHECKPOINT K: Calling supabase.auth.getUser() now...');
         authResult = await supabase.auth.getUser();
+        console.log('🗑️ CHECKPOINT L: supabase.auth.getUser() call completed');
         const authEndTime = Date.now();
         console.log('🗑️ supabase.auth.getUser() completed in', authEndTime - authStartTime, 'ms');
+        console.log('🗑️ CHECKPOINT M: Auth result received:', !!authResult);
       } catch (authException) {
-        console.error('🗑️ EXCEPTION in supabase.auth.getUser():', authException);
+        console.error('🗑️ CHECKPOINT N: EXCEPTION in supabase.auth.getUser():', authException);
+        console.error('🗑️ Exception type:', typeof authException);
+        console.error('🗑️ Exception message:', authException instanceof Error ? authException.message : String(authException));
         throw authException;
       }
       
+      console.log('🗑️ CHECKPOINT O: About to destructure auth result...');
       const { data: currentUser, error: authError } = authResult;
+      console.log('🗑️ CHECKPOINT P: Auth result destructured successfully');
       
       console.log('🗑️ STEP 1 DETAILED RESULT:', {
         authCallSuccess: !authError,
@@ -2529,15 +2556,23 @@ export const DatabaseService = {
         fullCurrentUser: currentUser,
         fullAuthError: authError
       });
+      
+      console.log('🗑️ CHECKPOINT Q: Auth validation logging complete');
 
+      console.log('🗑️ CHECKPOINT R: Starting auth validation checks...');
+      
       if (!currentUser?.user || authError) {
+        console.error('🗑️ CHECKPOINT S: AUTHENTICATION FAILED');
         console.error('🗑️ STEP 1 AUTHENTICATION FAILED');
         console.error('🗑️ No authenticated user or auth error occurred');
         console.error('🗑️ Returning authentication error');
         return { data: null, error: new Error('Authentication required') };
       }
+      
+      console.log('🗑️ CHECKPOINT T: Auth user exists, checking ID match...');
 
       if (currentUser.user.id !== userId) {
+        console.error('🗑️ CHECKPOINT U: USER ID MISMATCH');
         console.error('🗑️ STEP 1 USER ID MISMATCH');
         console.error('🗑️ Authenticated user ID:', currentUser.user.id);
         console.error('🗑️ Provided user ID:', userId);
@@ -2545,6 +2580,7 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication mismatch') };
       }
 
+      console.log('🗑️ CHECKPOINT V: Auth validation passed');
       console.log('🗑️ STEP 1 SUCCESS: Authentication verified for user:', currentUser.user.id);
 
       // Check if user has permission to delete the comment
@@ -2703,6 +2739,16 @@ export const DatabaseService = {
       }
 
       console.log('🗑️ STEP 2 SUCCESS: Permission verified -', permissionReason);
+
+      // Try a simple test query first
+      console.log('🗑️ ─────────────────────────────────────────────────────────────');
+      console.log('🗑️ PRE-STEP 3: Testing database connectivity with simple query...');
+      try {
+        const testQuery = await supabase.from('comments').select('id').limit(1);
+        console.log('🗑️ Test query result:', { hasData: !!testQuery.data, hasError: !!testQuery.error });
+      } catch (testError) {
+        console.error('🗑️ Test query failed:', testError);
+      }
 
       // Perform the delete operation
       console.log('🗑️ ─────────────────────────────────────────────────────────────');
