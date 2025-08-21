@@ -1,4 +1,3 @@
-
 -- Enable RLS on comments table
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 
@@ -62,10 +61,38 @@ CREATE POLICY "Users can update own comments" ON public.comments
     USING (userid = auth.uid())
     WITH CHECK (userid = auth.uid());
 
--- Policy: Users can delete their own comments
-CREATE POLICY "Users can delete own comments" ON public.comments
+-- Policy: Users can delete comments if they are the comment owner, post owner, or circle admin
+CREATE POLICY "Users can delete comments with permissions" ON public.comments
     FOR DELETE
-    USING (userid = auth.uid());
+    USING (
+        -- Comment owner can delete their own comment
+        userid = auth.uid()
+        OR
+        -- Post owner can delete comments on their post
+        EXISTS (
+            SELECT 1 FROM public.posts p
+            WHERE p.id = comments.postid
+            AND p.userid = auth.uid()
+        )
+        OR
+        -- Circle admins can delete comments on posts in their circle
+        EXISTS (
+            SELECT 1 FROM public.posts p
+            JOIN public.circles c ON c.id = p.circleid
+            WHERE p.id = comments.postid
+            AND (
+                -- Circle creator/owner
+                c.creator = auth.uid()
+                OR
+                -- Circle admin
+                EXISTS (
+                    SELECT 1 FROM public.circle_admins ca
+                    WHERE ca.circleid = c.id
+                    AND ca.userid = auth.uid()
+                )
+            )
+        )
+    );
 
 -- Grant necessary permissions
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.comments TO authenticated;

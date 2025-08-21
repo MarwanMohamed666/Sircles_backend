@@ -2502,19 +2502,35 @@ export const DatabaseService = {
 
       console.log('🗑️ STEP 1 PASSED: Authentication verified');
 
-      // Check if user owns the comment
-      console.log('🗑️ STEP 2: Fetching comment to verify ownership...');
-      const { data: comment, error: fetchError } = await supabase
+      // Check if user has permission to delete the comment
+      console.log('🗑️ STEP 2: Fetching comment and related data to verify permissions...');
+      const { data: commentData, error: fetchError } = await supabase
         .from('comments')
-        .select('userid, id, text')
+        .select(`
+          userid, 
+          id, 
+          text,
+          postid,
+          posts!inner(
+            userid,
+            circleid,
+            circles(
+              creator,
+              circle_admins(userid)
+            )
+          )
+        `)
         .eq('id', commentId)
         .single();
 
       console.log('🗑️ STEP 2 RESULT:', { 
-        hasComment: !!comment,
-        commentId: comment?.id,
-        commentUserId: comment?.userid,
-        commentText: comment?.text?.substring(0, 30) + '...',
+        hasComment: !!commentData,
+        commentId: commentData?.id,
+        commentUserId: commentData?.userid,
+        commentText: commentData?.text?.substring(0, 30) + '...',
+        postId: commentData?.postid,
+        postOwnerId: commentData?.posts?.userid,
+        circleId: commentData?.posts?.circleid,
         hasFetchError: !!fetchError,
         fetchErrorCode: fetchError?.code,
         fetchErrorMessage: fetchError?.message,
@@ -2526,23 +2542,53 @@ export const DatabaseService = {
         return { data: null, error: new Error(`Comment not found: ${fetchError.message}`) };
       }
 
-      if (!comment) {
+      if (!commentData) {
         console.error('🗑️ STEP 2 FAILED: Comment not found in database');
         return { data: null, error: new Error('Comment not found') };
       }
 
-      if (comment.userid !== userId) {
-        console.error('🗑️ STEP 2 FAILED: Permission denied:', { 
-          commentOwner: comment.userid, 
-          currentUser: userId,
-          match: comment.userid === userId,
-          ownerType: typeof comment.userid,
-          userType: typeof userId
-        });
-        return { data: null, error: new Error('You can only delete your own comments') };
+      // Check if user has permission to delete this comment
+      let hasPermission = false;
+      let permissionReason = '';
+
+      // 1. Comment owner can delete their own comment
+      if (commentData.userid === userId) {
+        hasPermission = true;
+        permissionReason = 'comment owner';
+      }
+      // 2. Post owner can delete comments on their post
+      else if (commentData.posts?.userid === userId) {
+        hasPermission = true;
+        permissionReason = 'post owner';
+      }
+      // 3. Circle admin or creator can delete comments in their circle
+      else if (commentData.posts?.circleid) {
+        const circle = commentData.posts.circles;
+        if (circle?.creator === userId) {
+          hasPermission = true;
+          permissionReason = 'circle creator';
+        } else if (circle?.circle_admins?.some((admin: any) => admin.userid === userId)) {
+          hasPermission = true;
+          permissionReason = 'circle admin';
+        }
       }
 
-      console.log('🗑️ STEP 2 PASSED: Ownership verified');
+      console.log('🗑️ STEP 2 PERMISSION CHECK:', {
+        userId,
+        commentOwner: commentData.userid,
+        postOwner: commentData.posts?.userid,
+        circleCreator: commentData.posts?.circles?.creator,
+        circleAdmins: commentData.posts?.circles?.circle_admins?.map((a: any) => a.userid) || [],
+        hasPermission,
+        permissionReason
+      });
+
+      if (!hasPermission) {
+        console.error('🗑️ STEP 2 FAILED: Permission denied - user cannot delete this comment');
+        return { data: null, error: new Error('You do not have permission to delete this comment') };
+      }
+
+      console.log('🗑️ STEP 2 PASSED: Permission verified -', permissionReason);
 
       // Perform the delete operation
       console.log('🗑️ STEP 3: Performing delete operation...');
