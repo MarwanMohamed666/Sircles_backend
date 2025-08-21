@@ -219,117 +219,41 @@ export default function PostScreen() {
           style: 'destructive',
           onPress: async () => {
             console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-            console.log('🗑️ 🔴 ALERT CONFIRMATION: User pressed DELETE button');
-            console.log('🗑️ 🔴 Timestamp:', new Date().toISOString());
-            console.log('🗑️ 🔴 Delete confirmation received for comment:', commentId);
-            console.log('🗑️ 🔴 User ID:', user.id);
-            console.log('🗑️ 🔴 About to call DatabaseService.deleteComment...');
-            console.log('🗑️ 🔴 Function reference check:', typeof DatabaseService.deleteComment);
-            console.log('🗑️ 🔴 DatabaseService object:', DatabaseService);
-            console.log('🗑️ 🔴 DatabaseService has deleteComment?', 'deleteComment' in DatabaseService);
-            console.log('🗑️ 🔴 DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
-            console.log('🗑️ 🔴 DatabaseService.deleteComment is function?', typeof DatabaseService.deleteComment === 'function');
+            console.log('🗑️ 🔴🔴🔴 USER CLICKED DELETE - STARTING PROCESS 🔴🔴🔴');
+            console.log('🗑️ 🔴 Alert confirmation timestamp:', new Date().toISOString());
+            console.log('🗑️ 🔴 Comment ID to delete:', commentId);
+            console.log('🗑️ 🔴 Current user ID:', user.id);
             console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
 
-            // Set loading state
-            console.log('🗑️ 🔴 Setting loading state for comment:', commentId);
+            // Set loading state immediately
+            console.log('🗑️ 🟡 Setting loading state...');
             setDeleteLoading(commentId);
-            console.log('🗑️ 🔴 Loading state set, continuing...');
 
             try {
-              console.log('🗑️ 🔴 STEP A: Entering try block for database call');
-              console.log('🗑️ 🔴 Current date/time before call:', new Date().toISOString());
+              console.log('🗑️ 🟢 CALLING DatabaseService.deleteComment...');
+              console.log('🗑️ 🟢 Parameters: commentId =', commentId, ', userId =', user.id);
 
-              // Test if we can access the function at all
-              console.log('🗑️ 🔴 TESTING: Trying to access DatabaseService.deleteComment...');
-              const deleteFunction = DatabaseService.deleteComment;
-              console.log('🗑️ 🔴 TESTING: Function extracted:', typeof deleteFunction);
+              const result = await DatabaseService.deleteComment(commentId, user.id);
               
-              if (!deleteFunction) {
-                console.error('🗑️ 🔴 FATAL: DatabaseService.deleteComment is undefined!');
-                console.error('🗑️ 🔴 Available properties:', Object.getOwnPropertyNames(DatabaseService));
-                console.error('🗑️ 🔴 Available methods:', Object.getOwnPropertyNames(DatabaseService).filter(prop => typeof DatabaseService[prop] === 'function'));
-                throw new Error('Delete function not available');
-              }
-
-              console.log('🗑️ 🔴 STEP B: Function verified, preparing call parameters...');
-              console.log('🗑️ 🔴 Parameter 1 (commentId):', commentId, 'type:', typeof commentId);
-              console.log('🗑️ 🔴 Parameter 2 (userId):', user.id, 'type:', typeof user.id);
-
-              console.log('🗑️ 🔴 STEP C: Making the actual function call...');
-              console.log('🗑️ 🔴 Call timestamp:', new Date().toISOString());
-
-              const callStartTime = Date.now();
-              console.log('🗑️ 🔴 About to invoke: deleteFunction(commentId, user.id)');
-              console.log('🗑️ 🔴 Calling now...');
-
-              let deleteResult;
-              try {
-                console.log('🗑️ 🔴 INVOKING: deleteFunction.call(null, commentId, user.id)');
-                deleteResult = await deleteFunction.call(null, commentId, user.id);
-                console.log('🗑️ 🔴 INVOCATION COMPLETE');
-              } catch (callError) {
-                console.error('🗑️ 🔴 INVOCATION EXCEPTION:', callError);
-                throw callError;
-              }
-
-              const callEndTime = Date.now();
-              console.log('🗑️ 🔴 STEP D: Function call completed successfully in', callEndTime - callStartTime, 'ms');
-              console.log('🗑️ 🔴 Result type:', typeof deleteResult);
-              console.log('🗑️ 🔴 Result is promise?', deleteResult instanceof Promise);
-              console.log('🗑️ 🔴 Raw result:', deleteResult);
-
-              console.log('🗑️ 🔴 STEP E: Processing result...');
-              const { data, error } = deleteResult || {};
-              console.log('🗑️ 🔴 Destructured result - data exists:', !!data);
-              console.log('🗑️ 🔴 Destructured result - error exists:', !!error);
-              console.log('🗑️ 🔴 Data value:', data);
-              console.log('🗑️ 🔴 Error value:', error);
+              console.log('🗑️ 🟢 Database call completed!');
+              console.log('🗑️ 🟢 Result:', result);
+              
+              const { data, error } = result;
 
               if (error) {
-                console.error('🗑️ 🔴 STEP F: Error detected in result');
-                console.error('🗑️ 🔴 Error type:', typeof error);
-                console.error('🗑️ 🔴 Error constructor:', error?.constructor?.name);
-                console.error('🗑️ 🔴 Error message:', error?.message);
-                console.error('🗑️ 🔴 Error code:', error?.code);
-                console.error('🗑️ 🔴 Error details:', error?.details);
-                console.error('🗑️ 🔴 Full error object:', error);
-
+                console.error('🗑️ ❌ Delete failed with error:', error);
                 setDeleteLoading(null);
                 Alert.alert('Error', error.message || 'Failed to delete comment');
                 return;
               }
 
-              console.log('🗑️ 🔴 STEP G: Success! Reloading comments...');
-              console.log('🗑️ 🔴 About to call loadComments()');
-
-              try {
-                await loadComments();
-                console.log('🗑️ 🔴 STEP H: loadComments() completed successfully');
-              } catch (loadError) {
-                console.error('🗑️ 🔴 Error during loadComments():', loadError);
-                throw loadError;
-              }
-
-              console.log('🗑️ 🔴 STEP I: All operations completed successfully');
+              console.log('🗑️ ✅ Delete successful! Reloading comments...');
+              await loadComments();
+              console.log('🗑️ ✅ Comments reloaded successfully');
               setDeleteLoading(null);
 
             } catch (error) {
-              console.error('🗑️ ████████████████████████████████████████████████████████████████');
-              console.error('🗑️ 🔴 CATASTROPHIC ERROR in delete confirmation handler');
-              console.error('🗑️ 🔴 Error timestamp:', new Date().toISOString());
-              console.error('🗑️ 🔴 Error type:', typeof error);
-              console.error('🗑️ 🔴 Error constructor:', error?.constructor?.name);
-              console.error('🗑️ 🔴 Error message:', error instanceof Error ? error.message : String(error));
-              console.error('🗑️ 🔴 Error code:', (error as any)?.code);
-              console.error('🗑️ 🔴 Error details:', (error as any)?.details);
-              if (error instanceof Error && error.stack) {
-                console.error('🗑️ 🔴 Error stack trace:');
-                console.error('🗑️ 🔴', error.stack.split('\n').join('\n🗑️ 🔴 '));
-              }
-              console.error('🗑️ 🔴 Full error object:', error);
-              console.error('🗑️ ████████████████████████████████████████████████████████████████');
-
+              console.error('🗑️ ❌ Exception during delete process:', error);
               setDeleteLoading(null);
               Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
             }
@@ -349,6 +273,19 @@ export default function PostScreen() {
     console.log('🗑️ TESTING: DatabaseService type:', typeof DatabaseService);
     console.log('🗑️ TESTING: DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
     console.log('🗑️ TESTING: Available functions:', Object.getOwnPropertyNames(DatabaseService).filter(prop => typeof DatabaseService[prop] === 'function'));
+    
+    // Test if we can make a basic database call
+    const testDatabaseConnection = async () => {
+      try {
+        console.log('🗑️ TEST: Making test database call...');
+        const testResult = await DatabaseService.getPost(id as string);
+        console.log('🗑️ TEST: Database connection working, result type:', typeof testResult);
+      } catch (testError) {
+        console.error('🗑️ TEST: Database connection test failed:', testError);
+      }
+    };
+    
+    testDatabaseConnection();
   }, [id]);
 
   if (loading) {
