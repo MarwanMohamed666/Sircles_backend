@@ -223,37 +223,73 @@ export default function PostScreen() {
             console.log('🗑️ 🔴 Alert confirmation timestamp:', new Date().toISOString());
             console.log('🗑️ 🔴 Comment ID to delete:', commentId);
             console.log('🗑️ 🔴 Current user ID:', user.id);
+            console.log('🗑️ 🔴 DatabaseService availability check:', {
+              isDefined: typeof DatabaseService !== 'undefined',
+              hasDeleteComment: typeof DatabaseService?.deleteComment === 'function',
+              functionCode: DatabaseService?.deleteComment?.toString?.()?.substring(0, 100) + '...'
+            });
             console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
 
             // Set loading state immediately
-            console.log('🗑️ 🟡 Setting loading state...');
+            console.log('🗑️ 🟡 Setting loading state to:', commentId);
             setDeleteLoading(commentId);
+            console.log('🗑️ 🟡 Loading state set successfully');
 
             try {
-              console.log('🗑️ 🟢 CALLING DatabaseService.deleteComment...');
-              console.log('🗑️ 🟢 Parameters: commentId =', commentId, ', userId =', user.id);
+              console.log('🗑️ 🟢 ABOUT TO CALL DatabaseService.deleteComment...');
+              console.log('🗑️ 🟢 Function type check:', typeof DatabaseService.deleteComment);
+              console.log('🗑️ 🟢 Parameters being passed: commentId =', commentId, ', userId =', user.id);
+              console.log('🗑️ 🟢 Calling function now...');
 
+              const callStartTime = Date.now();
               const result = await DatabaseService.deleteComment(commentId, user.id);
+              const callEndTime = Date.now();
+              const callDuration = callEndTime - callStartTime;
               
-              console.log('🗑️ 🟢 Database call completed!');
-              console.log('🗑️ 🟢 Result:', result);
+              console.log('🗑️ 🟢 ✅ DATABASE CALL COMPLETED SUCCESSFULLY!');
+              console.log('🗑️ 🟢 Call duration:', callDuration, 'ms');
+              console.log('🗑️ 🟢 Result type:', typeof result);
+              console.log('🗑️ 🟢 Result structure:', result);
+              console.log('🗑️ 🟢 Result stringified:', JSON.stringify(result, null, 2));
               
               const { data, error } = result;
 
+              console.log('🗑️ 🟡 Processing result...', {
+                hasData: !!data,
+                hasError: !!error,
+                errorType: typeof error,
+                errorMessage: error?.message
+              });
+
               if (error) {
                 console.error('🗑️ ❌ Delete failed with error:', error);
+                console.error('🗑️ ❌ Error details:', {
+                  message: error.message,
+                  code: error.code,
+                  details: error.details,
+                  stack: error.stack
+                });
                 setDeleteLoading(null);
                 Alert.alert('Error', error.message || 'Failed to delete comment');
                 return;
               }
 
               console.log('🗑️ ✅ Delete successful! Reloading comments...');
+              const reloadStartTime = Date.now();
               await loadComments();
-              console.log('🗑️ ✅ Comments reloaded successfully');
+              const reloadEndTime = Date.now();
+              const reloadDuration = reloadEndTime - reloadStartTime;
+              console.log('🗑️ ✅ Comments reloaded successfully in', reloadDuration, 'ms');
               setDeleteLoading(null);
+              console.log('🗑️ ✅ Delete process completed successfully!');
 
             } catch (error) {
-              console.error('🗑️ ❌ Exception during delete process:', error);
+              console.error('🗑️ ❌ EXCEPTION CAUGHT during delete process:');
+              console.error('🗑️ ❌ Exception type:', typeof error);
+              console.error('🗑️ ❌ Exception constructor:', error?.constructor?.name);
+              console.error('🗑️ ❌ Exception message:', error instanceof Error ? error.message : String(error));
+              console.error('🗑️ ❌ Exception stack:', error instanceof Error ? error.stack : 'No stack available');
+              console.error('🗑️ ❌ Exception object:', error);
               setDeleteLoading(null);
               Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
             }
@@ -268,24 +304,64 @@ export default function PostScreen() {
   useEffect(() => {
     loadPost();
     
-    // Test database function access
-    console.log('🗑️ TESTING: DatabaseService availability on component mount');
-    console.log('🗑️ TESTING: DatabaseService type:', typeof DatabaseService);
-    console.log('🗑️ TESTING: DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
-    console.log('🗑️ TESTING: Available functions:', Object.getOwnPropertyNames(DatabaseService).filter(prop => typeof DatabaseService[prop] === 'function'));
+    // Comprehensive database service testing
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ COMPREHENSIVE DATABASE SERVICE TESTING ON COMPONENT MOUNT');
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ TEST 1: DatabaseService availability');
+    console.log('🗑️ - DatabaseService type:', typeof DatabaseService);
+    console.log('🗑️ - DatabaseService object keys:', Object.keys(DatabaseService));
+    console.log('🗑️ - DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
+    console.log('🗑️ - DatabaseService.deleteComment defined:', DatabaseService.deleteComment !== undefined);
     
-    // Test if we can make a basic database call
-    const testDatabaseConnection = async () => {
+    if (DatabaseService.deleteComment) {
+      console.log('🗑️ - deleteComment function length:', DatabaseService.deleteComment.length);
+      console.log('🗑️ - deleteComment function name:', DatabaseService.deleteComment.name);
+      console.log('🗑️ - deleteComment function preview:', DatabaseService.deleteComment.toString().substring(0, 200) + '...');
+    }
+    
+    console.log('🗑️ TEST 2: Available DatabaseService functions:');
+    Object.getOwnPropertyNames(DatabaseService)
+      .filter(prop => typeof DatabaseService[prop] === 'function')
+      .forEach(funcName => {
+        console.log('🗑️ -', funcName, '(type:', typeof DatabaseService[funcName], ')');
+      });
+    
+    // Test if we can make database calls
+    const runDatabaseTests = async () => {
+      console.log('🗑️ TEST 3: Testing database connectivity...');
+      
       try {
-        console.log('🗑️ TEST: Making test database call...');
+        console.log('🗑️ TEST 3A: Calling getPost...');
         const testResult = await DatabaseService.getPost(id as string);
-        console.log('🗑️ TEST: Database connection working, result type:', typeof testResult);
+        console.log('🗑️ TEST 3A SUCCESS: getPost returned result type:', typeof testResult);
+        console.log('🗑️ TEST 3A SUCCESS: getPost result structure:', Object.keys(testResult || {}));
       } catch (testError) {
-        console.error('🗑️ TEST: Database connection test failed:', testError);
+        console.error('🗑️ TEST 3A FAILED: getPost error:', testError);
       }
+      
+      try {
+        console.log('🗑️ TEST 3B: Testing deleteComment function directly...');
+        console.log('🗑️ TEST 3B: Function exists:', typeof DatabaseService.deleteComment === 'function');
+        
+        // Don't actually call delete, just verify we can reference it
+        const deleteFunc = DatabaseService.deleteComment;
+        console.log('🗑️ TEST 3B SUCCESS: deleteComment function accessible');
+        console.log('🗑️ TEST 3B: Function object:', {
+          name: deleteFunc.name,
+          length: deleteFunc.length,
+          constructor: deleteFunc.constructor.name
+        });
+      } catch (testError) {
+        console.error('🗑️ TEST 3B FAILED: deleteComment access error:', testError);
+      }
+      
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+      console.log('🗑️ DATABASE SERVICE TESTING COMPLETED');
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
     };
     
-    testDatabaseConnection();
+    runDatabaseTests();
   }, [id]);
 
   if (loading) {
