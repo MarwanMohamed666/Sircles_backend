@@ -225,54 +225,69 @@ export default function PostScreen() {
             console.log('🗑️ 🔴 User ID:', user.id);
             console.log('🗑️ 🔴 About to call DatabaseService.deleteComment...');
             console.log('🗑️ 🔴 Function reference check:', typeof DatabaseService.deleteComment);
-            console.log('🗑️ 🔴 DatabaseService object keys:', Object.keys(DatabaseService));
+            console.log('🗑️ 🔴 DatabaseService object:', DatabaseService);
+            console.log('🗑️ 🔴 DatabaseService has deleteComment?', 'deleteComment' in DatabaseService);
+            console.log('🗑️ 🔴 DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
+            console.log('🗑️ 🔴 DatabaseService.deleteComment is function?', typeof DatabaseService.deleteComment === 'function');
             console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
 
             // Set loading state
+            console.log('🗑️ 🔴 Setting loading state for comment:', commentId);
             setDeleteLoading(commentId);
+            console.log('🗑️ 🔴 Loading state set, continuing...');
 
             try {
               console.log('🗑️ 🔴 STEP A: Entering try block for database call');
               console.log('🗑️ 🔴 Current date/time before call:', new Date().toISOString());
 
-              // Verify function exists before calling
-              if (!DatabaseService.deleteComment) {
+              // Test if we can access the function at all
+              console.log('🗑️ 🔴 TESTING: Trying to access DatabaseService.deleteComment...');
+              const deleteFunction = DatabaseService.deleteComment;
+              console.log('🗑️ 🔴 TESTING: Function extracted:', typeof deleteFunction);
+              
+              if (!deleteFunction) {
                 console.error('🗑️ 🔴 FATAL: DatabaseService.deleteComment is undefined!');
-                console.error('🗑️ 🔴 Available functions:', Object.keys(DatabaseService));
+                console.error('🗑️ 🔴 Available properties:', Object.getOwnPropertyNames(DatabaseService));
+                console.error('🗑️ 🔴 Available methods:', Object.getOwnPropertyNames(DatabaseService).filter(prop => typeof DatabaseService[prop] === 'function'));
                 throw new Error('Delete function not available');
               }
 
-              console.log('🗑️ 🔴 STEP B: Function verified, making call...');
-              console.log('🗑️ 🔴 Calling DatabaseService.deleteComment with:', { commentId, userId: user.id });
+              console.log('🗑️ 🔴 STEP B: Function verified, preparing call parameters...');
+              console.log('🗑️ 🔴 Parameter 1 (commentId):', commentId, 'type:', typeof commentId);
+              console.log('🗑️ 🔴 Parameter 2 (userId):', user.id, 'type:', typeof user.id);
+
+              console.log('🗑️ 🔴 STEP C: Making the actual function call...');
+              console.log('🗑️ 🔴 Call timestamp:', new Date().toISOString());
 
               const callStartTime = Date.now();
-              let deleteResult;
+              console.log('🗑️ 🔴 About to invoke: deleteFunction(commentId, user.id)');
+              console.log('🗑️ 🔴 Calling now...');
 
+              let deleteResult;
               try {
-                deleteResult = await DatabaseService.deleteComment(commentId, user.id);
-                const callEndTime = Date.now();
-                console.log('🗑️ 🔴 STEP C: Function call completed in', callEndTime - callStartTime, 'ms');
-                console.log('🗑️ 🔴 Raw result type:', typeof deleteResult);
-                console.log('🗑️ 🔴 Raw result is promise:', deleteResult instanceof Promise);
-                console.log('🗑️ 🔴 Raw result:', deleteResult);
+                console.log('🗑️ 🔴 INVOKING: deleteFunction.call(null, commentId, user.id)');
+                deleteResult = await deleteFunction.call(null, commentId, user.id);
+                console.log('🗑️ 🔴 INVOCATION COMPLETE');
               } catch (callError) {
-                console.error('🗑️ 🔴 EXCEPTION during DatabaseService.deleteComment call:');
-                console.error('🗑️ 🔴 Call error type:', typeof callError);
-                console.error('🗑️ 🔴 Call error message:', callError instanceof Error ? callError.message : String(callError));
-                console.error('🗑️ 🔴 Call error stack:', callError instanceof Error ? callError.stack : 'No stack');
-                console.error('🗑️ 🔴 Full call error:', callError);
+                console.error('🗑️ 🔴 INVOCATION EXCEPTION:', callError);
                 throw callError;
               }
 
-              console.log('🗑️ 🔴 STEP D: Processing result...');
+              const callEndTime = Date.now();
+              console.log('🗑️ 🔴 STEP D: Function call completed successfully in', callEndTime - callStartTime, 'ms');
+              console.log('🗑️ 🔴 Result type:', typeof deleteResult);
+              console.log('🗑️ 🔴 Result is promise?', deleteResult instanceof Promise);
+              console.log('🗑️ 🔴 Raw result:', deleteResult);
+
+              console.log('🗑️ 🔴 STEP E: Processing result...');
               const { data, error } = deleteResult || {};
-              console.log('🗑️ 🔴 Destructured - data exists:', !!data);
-              console.log('🗑️ 🔴 Destructured - error exists:', !!error);
+              console.log('🗑️ 🔴 Destructured result - data exists:', !!data);
+              console.log('🗑️ 🔴 Destructured result - error exists:', !!error);
               console.log('🗑️ 🔴 Data value:', data);
               console.log('🗑️ 🔴 Error value:', error);
 
               if (error) {
-                console.error('🗑️ 🔴 STEP E: Error path detected');
+                console.error('🗑️ 🔴 STEP F: Error detected in result');
                 console.error('🗑️ 🔴 Error type:', typeof error);
                 console.error('🗑️ 🔴 Error constructor:', error?.constructor?.name);
                 console.error('🗑️ 🔴 Error message:', error?.message);
@@ -285,18 +300,18 @@ export default function PostScreen() {
                 return;
               }
 
-              console.log('🗑️ 🔴 STEP F: Success path - reloading comments...');
+              console.log('🗑️ 🔴 STEP G: Success! Reloading comments...');
               console.log('🗑️ 🔴 About to call loadComments()');
 
               try {
                 await loadComments();
-                console.log('🗑️ 🔴 STEP G: loadComments() completed successfully');
+                console.log('🗑️ 🔴 STEP H: loadComments() completed successfully');
               } catch (loadError) {
                 console.error('🗑️ 🔴 Error during loadComments():', loadError);
                 throw loadError;
               }
 
-              console.log('🗑️ 🔴 STEP H: Delete operation completed successfully');
+              console.log('🗑️ 🔴 STEP I: All operations completed successfully');
               setDeleteLoading(null);
 
             } catch (error) {
@@ -316,7 +331,7 @@ export default function PostScreen() {
               console.error('🗑️ ████████████████████████████████████████████████████████████████');
 
               setDeleteLoading(null);
-              Alert.alert('Error', 'Failed to delete comment');
+              Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
             }
           }
         }
@@ -328,6 +343,12 @@ export default function PostScreen() {
 
   useEffect(() => {
     loadPost();
+    
+    // Test database function access
+    console.log('🗑️ TESTING: DatabaseService availability on component mount');
+    console.log('🗑️ TESTING: DatabaseService type:', typeof DatabaseService);
+    console.log('🗑️ TESTING: DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
+    console.log('🗑️ TESTING: Available functions:', Object.getOwnPropertyNames(DatabaseService).filter(prop => typeof DatabaseService[prop] === 'function'));
   }, [id]);
 
   if (loading) {
