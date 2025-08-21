@@ -2470,6 +2470,14 @@ export const DatabaseService = {
   },
 
   async deleteComment(commentId: string, userId: string) {
+    // IMMEDIATE ENTRY LOG - This should appear if function is called at all
+    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
+    console.log('🗑️ 🟢 DATABASE FUNCTION ENTRY: deleteComment() was called successfully!');
+    console.log('🗑️ 🟢 Entry timestamp:', new Date().toISOString());
+    console.log('🗑️ 🟢 Function parameters received:', { commentId, userId });
+    console.log('🗑️ 🟢 If you see this log, the function is definitely being invoked');
+    console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
+    
     console.log('🗑️ ███████████████████████████████████████████████████████████████████████');
     console.log('🗑️ DATABASE SERVICE: deleteComment FUNCTION CALLED');
     console.log('🗑️ Timestamp:', new Date().toISOString());

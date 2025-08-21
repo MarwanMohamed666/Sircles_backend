@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,8 +44,8 @@ const formatCommentTime = (creationdate: string) => {
   } else if (diffInDays < 7) {
     return `${diffInDays}d`;
   } else {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
     });
@@ -76,7 +75,7 @@ export default function PostScreen() {
     try {
       setLoading(true);
       const { data, error } = await DatabaseService.getPost(id as string);
-      
+
       if (error) {
         console.error('Error loading post:', error);
         Alert.alert('Error', 'Failed to load post');
@@ -98,7 +97,7 @@ export default function PostScreen() {
 
     try {
       const { data, error } = await DatabaseService.getPostComments(id as string);
-      
+
       if (error) {
         console.error('Error loading comments:', error);
         return;
@@ -145,7 +144,7 @@ export default function PostScreen() {
 
     try {
       setLikeLoading(true);
-      
+
       if (post.userLiked) {
         // Unlike the post
         const { error } = await DatabaseService.unlikePost(post.id, user.id);
@@ -170,8 +169,8 @@ export default function PostScreen() {
         return {
           ...prevPost,
           userLiked: !prevPost.userLiked,
-          likes_count: prevPost.userLiked 
-            ? (prevPost.likes_count || 1) - 1 
+          likes_count: prevPost.userLiked
+            ? (prevPost.likes_count || 1) - 1
             : (prevPost.likes_count || 0) + 1
         };
       });
@@ -185,15 +184,15 @@ export default function PostScreen() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ ════════════════════════════════════════════════════════════════════════');
     console.log('🗑️ UI FUNCTION ENTRY: handleDeleteComment called');
     console.log('🗑️ Parameters:', { commentId, hasUserId: !!user?.id, userId: user?.id });
     console.log('🗑️ Current loading state:', deleteLoading);
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ DatabaseService import check:', typeof DatabaseService, !!DatabaseService.deleteComment);
+    console.log('🗑️ ════════════════════════════════════════════════════════════════════════');
 
     if (!user?.id) {
       console.error('🗑️ UI VALIDATION FAILED: No user ID available for delete');
-      console.log('🗑️ User object:', user);
       return;
     }
 
@@ -208,117 +207,63 @@ export default function PostScreen() {
       'Delete Comment',
       'Are you sure you want to delete this comment?',
       [
-        { 
-          text: 'Cancel', 
+        {
+          text: 'Cancel',
           style: 'cancel',
           onPress: () => {
             console.log('🗑️ UI USER ACTION: User cancelled deletion via dialog');
           }
         },
         {
-          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            console.log('🗑️ ─────────────────────────────────────────────────────────────');
-            console.log('🗑️ UI DELETE CONFIRMED: User pressed Delete button');
-            console.log('🗑️ About to start async delete operation...');
-            console.log('🗑️ ─────────────────────────────────────────────────────────────');
-            
+            console.log('🗑️ ██████████████████████████████████████████████████████████████');
+            console.log('🗑️ ALERT CONFIRMATION: User pressed DELETE button');
+            console.log('🗑️ About to call DatabaseService.deleteComment...');
+            console.log('🗑️ Calling with params:', { commentId, userId: user.id });
+            console.log('🗑️ ██████████████████████████████████████████████████████████████');
+
             try {
-              console.log('🗑️ UI STEP 1: Setting loading state to prevent duplicate calls');
-              console.log('🗑️ Setting deleteLoading from', deleteLoading, 'to', commentId);
-              setDeleteLoading(commentId);
-              console.log('🗑️ UI STEP 1 COMPLETE: Loading state set');
-              
-              console.log('🗑️ UI STEP 2: About to call DatabaseService.deleteComment');
-              console.log('🗑️ Call parameters:', { 
-                commentId: commentId, 
-                userId: user.id,
-                userIdType: typeof user.id,
-                commentIdType: typeof commentId 
-              });
-              
-              const startTime = Date.now();
-              console.log('🗑️ UI: Making database call at timestamp:', startTime);
-              
-              const result = await DatabaseService.deleteComment(commentId, user.id);
-              
-              const endTime = Date.now();
-              const duration = endTime - startTime;
-              console.log('🗑️ UI STEP 2 COMPLETE: DatabaseService call returned after', duration, 'ms');
-              console.log('🗑️ UI: Raw result object:', result);
-              console.log('🗑️ UI: Result data:', result?.data);
-              console.log('🗑️ UI: Result error:', result?.error);
-              
-              const { data, error } = result;
-              
-              console.log('🗑️ UI STEP 3: Processing database result');
-              console.log('🗑️ Result analysis:', { 
-                hasData: !!data, 
-                hasError: !!error,
-                errorType: typeof error,
-                errorMessage: error?.message,
-                errorCode: error?.code,
-                dataType: typeof data,
-                dataContent: data
-              });
-              
+              console.log('🗑️ STEP A: Entering try block');
+
+              console.log('🗑️ STEP B: About to await DatabaseService.deleteComment...');
+              const deleteResult = await DatabaseService.deleteComment(commentId, user.id);
+              console.log('🗑️ STEP C: DatabaseService.deleteComment returned:', deleteResult);
+
+              const { data, error } = deleteResult;
+              console.log('🗑️ STEP D: Destructured result - data:', data, 'error:', error);
+
               if (error) {
-                console.error('🗑️ UI STEP 3 ERROR: DatabaseService returned error');
-                console.error('🗑️ Error object full details:', {
+                console.error('🗑️ STEP E: Error path - showing error alert');
+                console.error('🗑️ Error details:', {
                   message: error.message,
                   code: error.code,
-                  stack: error.stack,
-                  toString: error.toString(),
-                  constructor: error.constructor.name
+                  details: error.details,
+                  fullError: error
                 });
                 Alert.alert('Error', error.message || 'Failed to delete comment');
                 return;
               }
 
-              if (!data) {
-                console.error('🗑️ UI STEP 3 ERROR: No data returned from delete operation');
-                console.error('🗑️ This suggests the delete operation did not complete successfully');
-                Alert.alert('Error', 'Delete operation failed - no data returned');
-                return;
-              }
-
-              console.log('🗑️ UI STEP 3 SUCCESS: Delete operation completed successfully');
-              console.log('🗑️ Returned data:', data);
-              
-              console.log('🗑️ UI STEP 4: Starting comment refresh');
-              const refreshStartTime = Date.now();
+              console.log('🗑️ STEP F: Success path - about to reload comments');
               await loadComments();
-              const refreshEndTime = Date.now();
-              const refreshDuration = refreshEndTime - refreshStartTime;
-              console.log('🗑️ UI STEP 4 COMPLETE: Comments refreshed in', refreshDuration, 'ms');
-              
-              console.log('🗑️ UI SUCCESS: Entire delete operation completed successfully');
-              
+              console.log('🗑️ STEP G: Comments reloaded successfully');
+
             } catch (error) {
-              console.error('🗑️ ═══════════════════════════════════════════════════════════');
-              console.error('🗑️ UI UNEXPECTED ERROR: Caught exception in delete handler');
-              console.error('🗑️ Error details:', {
-                message: error instanceof Error ? error.message : 'Unknown error',
-                stack: error instanceof Error ? error.stack : 'No stack',
-                type: typeof error,
-                constructor: error?.constructor?.name,
-                stringified: String(error)
-              });
-              console.error('🗑️ ═══════════════════════════════════════════════════════════');
-              Alert.alert('Error', `Failed to delete comment: ${error instanceof Error ? error.message : String(error)}`);
-            } finally {
-              console.log('🗑️ UI CLEANUP: Clearing loading state in finally block');
-              console.log('🗑️ Clearing deleteLoading from', deleteLoading, 'to null');
-              setDeleteLoading(null);
-              console.log('🗑️ UI CLEANUP COMPLETE: Loading state cleared');
-              console.log('🗑️ ═══════════════════════════════════════════════════════════');
+              console.error('🗑️ ████████████████████████████████████████████████');
+              console.error('🗑️ CAUGHT EXCEPTION in Alert onPress handler');
+              console.error('🗑️ Error type:', typeof error);
+              console.error('🗑️ Error message:', error instanceof Error ? error.message : String(error));
+              console.error('🗑️ Error stack:', error instanceof Error ? error.stack : 'No stack');
+              console.error('🗑️ Full error object:', error);
+              console.error('🗑️ ████████████████████████████████████████████████');
+              Alert.alert('Error', 'Failed to delete comment');
             }
           }
         }
       ]
     );
-    
+
     console.log('🗑️ UI FUNCTION EXIT: handleDeleteComment alert dialog displayed');
   };
 
@@ -341,7 +286,7 @@ export default function PostScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={styles.centeredContainer}>
           <ThemedText>Post not found</ThemedText>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.backButton, { backgroundColor: tintColor }]}
             onPress={() => router.back()}
           >
@@ -353,7 +298,7 @@ export default function PostScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -408,15 +353,15 @@ export default function PostScreen() {
 
             {/* Post Stats */}
             <View style={styles.postStats}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.statItem}
                 onPress={handleLikePost}
                 disabled={likeLoading}
               >
-                <IconSymbol 
-                  name={post.userLiked ? "heart.fill" : "heart"} 
-                  size={16} 
-                  color={post.userLiked ? "#ff4444" : textColor} 
+                <IconSymbol
+                  name={post.userLiked ? "heart.fill" : "heart"}
+                  size={16}
+                  color={post.userLiked ? "#ff4444" : textColor}
                 />
                 <ThemedText style={[
                   styles.statText,
@@ -437,7 +382,7 @@ export default function PostScreen() {
           {/* Comments Section */}
           <View style={[styles.commentsSection, { backgroundColor: surfaceColor }]}>
             <ThemedText style={styles.sectionTitle}>Comments ({comments.length})</ThemedText>
-            
+
             {/* Add Comment Input */}
             {user && (
               <View style={[styles.addCommentSection, { backgroundColor: backgroundColor }]}>
@@ -458,7 +403,7 @@ export default function PostScreen() {
                   <TouchableOpacity
                     style={[
                       styles.commentSubmitButton,
-                      { 
+                      {
                         backgroundColor: newComment.trim() ? tintColor : 'transparent',
                         opacity: commentLoading ? 0.6 : 1,
                         transform: [{ scale: newComment.trim() ? 1 : 0.8 }]
@@ -468,10 +413,10 @@ export default function PostScreen() {
                     disabled={!newComment.trim() || commentLoading}
                     activeOpacity={newComment.trim() ? 0.8 : 1}
                   >
-                    <IconSymbol 
-                      name={newComment.trim() ? "paperplane.fill" : "paperplane.fill"} 
-                      size={16} 
-                      color={newComment.trim() ? '#fff' : textColor + '40'} 
+                    <IconSymbol
+                      name={newComment.trim() ? "paperplane.fill" : "paperplane.fill"}
+                      size={16}
+                      color={newComment.trim() ? '#fff' : textColor + '40'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -493,7 +438,7 @@ export default function PostScreen() {
                   userIdMatch: user?.id === comment.userid,
                   authorName: comment.author?.name
                 });
-                
+
                 return (
                   <View key={comment.id} style={styles.commentItem}>
                     <Image
@@ -521,7 +466,7 @@ export default function PostScreen() {
                         ]}
                         onPress={() => {
                           if (deleteLoading === comment.id) return;
-                          
+
                           console.log('🗑️ Delete button pressed for comment:', comment.id);
                           console.log('🗑️ Button press context:', {
                             userId: user?.id,
@@ -533,19 +478,19 @@ export default function PostScreen() {
                         disabled={deleteLoading === comment.id}
                         testID={`delete-comment-${comment.id}`}
                       >
-                        <IconSymbol 
-                          name="trash" 
-                          size={16} 
-                          color={deleteLoading === comment.id ? "#BDBDBD" : "#EF5350"} 
+                        <IconSymbol
+                          name="trash"
+                          size={16}
+                          color={deleteLoading === comment.id ? "#BDBDBD" : "#EF5350"}
                         />
                       </TouchableOpacity>
                     )}
                     {/* Temporary debug indicator */}
                     {__DEV__ && (
-                      <View style={{ 
-                        position: 'absolute', 
-                        top: 0, 
-                        right: 0, 
+                      <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
                         backgroundColor: canDelete ? 'green' : 'red',
                         width: 10,
                         height: 10,
