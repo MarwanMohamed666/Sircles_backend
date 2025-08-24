@@ -550,7 +550,7 @@ export default function HomeScreen() {
         >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {item.comments?.length || 0}
+            {item.comments_count || item.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
 

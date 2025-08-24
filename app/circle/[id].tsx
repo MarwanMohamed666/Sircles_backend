@@ -486,13 +486,8 @@ export default function CircleScreen() {
       // Load posts if user is member or circle is public
       if (isJoined || currentCircle.privacy === 'public') {
         const { data: postsData } = await DatabaseService.getPosts(circleId as string);
-        // Map posts to include userLiked and likes_count
-        const postsWithLikes = postsData.map((post: Post) => ({
-          ...post,
-          likes_count: post.likes?.length || 0,
-          userLiked: post.likes?.some(like => like.user_id === user?.id) || false,
-        }));
-        setPosts(postsWithLikes || []);
+        // Posts already come with proper likes_count and userLiked from database service
+        setPosts(postsData || []);
       }
 
       // Load full member details if user is member or if circle is public
@@ -1114,13 +1109,8 @@ export default function CircleScreen() {
     setLoading(true);
     try {
       const { data: postsData } = await DatabaseService.getPosts(circleId as string);
-      // Map posts to include userLiked and likes_count
-      const postsWithLikes = postsData.map((post: Post) => ({
-        ...post,
-        likes_count: post.likes?.length || 0,
-        userLiked: post.likes?.some(like => like.user_id === user?.id) || false,
-      }));
-      setPosts(postsWithLikes || []);
+      // Posts already come with proper likes_count and userLiked from database service
+      setPosts(postsData || []);
     } catch (error) {
       console.error("Error loading posts:", error);
       Alert.alert("Error", "Failed to load posts.");
@@ -1469,7 +1459,10 @@ export default function CircleScreen() {
             size={20}
             color={post.userLiked ? "#ff4444" : textColor}
           />
-          <ThemedText style={styles.actionText}>
+          <ThemedText style={[
+            styles.actionText,
+            post.userLiked && { color: "#ff4444" }
+          ]}>
             {post.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
@@ -1479,7 +1472,7 @@ export default function CircleScreen() {
         >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.comments?.length || 0}
+            {post.comments_count || post.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
 

@@ -850,14 +850,14 @@ export const DatabaseService = {
       .select(`
         *,
         author:users!posts_userid_fkey(
+          id,
           name,
           avatar_url
         ),
         circle:circles!posts_circleid_fkey(
           id,
           name
-        ),
-        comments:comments(count)
+        )
       `)
       .order('creationdate', { ascending: false });
 
@@ -873,7 +873,7 @@ export const DatabaseService = {
       return { data: posts, error };
     }
 
-    // Get like counts and user like status for each post
+    // Get like counts, comments count, and user like status for each post
     if (posts && posts.length > 0) {
       const postIds = posts.map(post => post.id);
 
@@ -881,6 +881,12 @@ export const DatabaseService = {
       const { data: allLikes } = await supabase
         .from('post_likes')
         .select('postid, userid')
+        .in('postid', postIds);
+
+      // Get comments count for these posts
+      const { data: commentsCount } = await supabase
+        .from('comments')
+        .select('postid')
         .in('postid', postIds);
 
       // Check which posts the current user has liked
@@ -894,10 +900,18 @@ export const DatabaseService = {
         return acc;
       }, {} as Record<string, number>) || {};
 
+      // Calculate comments count for each post
+      const commentsCountMap = commentsCount?.reduce((acc, comment) => {
+        acc[comment.postid] = (acc[comment.postid] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
       const postsWithLikeData = posts.map(post => ({
         ...post,
         likes_count: likeCounts[post.id] || 0,
-        userLiked: likedPostIds.has(post.id)
+        userLiked: likedPostIds.has(post.id),
+        comments_count: commentsCountMap[post.id] || 0,
+        comments: [] // Add empty comments array for compatibility
       }));
 
       return { data: postsWithLikeData, error: null };
@@ -2013,7 +2027,7 @@ export const DatabaseService = {
       const circleIds = userCircles?.map(uc => uc.circleid) || [];
 
       // Get posts from user's circles or general posts (where circleid is null)
-      const { data, error } = await supabase
+      const { data: posts, error } = await supabase
         .from('posts')
         .select(`
           id,
@@ -2021,7 +2035,10 @@ export const DatabaseService = {
           image,
           createdat,
           creationdate,
+          userid,
+          circleid,
           author:users!posts_userid_fkey (
+            id,
             name,
             avatar_url
           ),
@@ -2035,18 +2052,61 @@ export const DatabaseService = {
                 category
               )
             )
-          ),
-          likes:post_likes (
-            userid
-          ),
-          comments:comments (
-            count
           )
         `)
         .or(circleIds.length > 0 ? `circleid.is.null,circleid.in.(${circleIds.join(',')})` : 'circleid.is.null')
         .order('creationdate', { ascending: false });
 
-      return { data: data || [], error };
+      if (error || !posts) {
+        return { data: [], error };
+      }
+
+      // Get likes and comments data separately for better control
+      if (posts.length > 0) {
+        const postIds = posts.map(p => p.id);
+
+        // Get all likes for these posts
+        const { data: allLikes } = await supabase
+          .from('post_likes')
+          .select('postid, userid')
+          .in('postid', postIds);
+
+        // Get comments count for these posts
+        const { data: commentsCount } = await supabase
+          .from('comments')
+          .select('postid')
+          .in('postid', postIds);
+
+        // Check which posts the current user has liked
+        const userLikes = allLikes?.filter(like => like.userid === userId) || [];
+        const likedPostIds = new Set(userLikes.map(like => like.postid));
+
+        // Calculate like counts for each post
+        const likeCounts = allLikes?.reduce((acc, like) => {
+          acc[like.postid] = (acc[like.postid] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
+
+        // Calculate comments count for each post
+        const commentsCountMap = commentsCount?.reduce((acc, comment) => {
+          acc[comment.postid] = (acc[comment.postid] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
+
+        // Transform posts with proper structure
+        const transformedPosts = posts.map(post => ({
+          ...post,
+          likes: allLikes?.filter(like => like.postid === post.id) || [],
+          likes_count: likeCounts[post.id] || 0,
+          userLiked: likedPostIds.has(post.id),
+          comments_count: commentsCountMap[post.id] || 0,
+          comments: [] // Add empty comments array for compatibility
+        }));
+
+        return { data: transformedPosts, error: null };
+      }
+
+      return { data: posts || [], error: null };
     } catch (error) {
       console.error('Error in getHomePagePosts:', error);
       return { data: [], error: error as Error };
