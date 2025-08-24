@@ -18,6 +18,7 @@ interface Post {
   image?: string;
   creationdate: string;
   author: {
+    id: string; // Added id for comparison
     name: string;
     avatar_url?: string;
   } | null;
@@ -51,6 +52,8 @@ export default function HomeScreen() {
   const [selectedCircle, setSelectedCircle] = useState<string>('');
   const [userCircles, setUserCircles] = useState<any[]>([]);
   const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
+  const [editPostContent, setEditPostContent] = useState('');
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -381,6 +384,35 @@ export default function HomeScreen() {
     }
   };
 
+  const handleEditPost = (postId: string, currentContent: string) => {
+    setEditingPost({ id: postId, content: currentContent });
+    setEditPostContent(currentContent);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPost(null);
+    setEditPostContent('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPost || !editPostContent.trim()) return;
+
+    try {
+      const { error } = await DatabaseService.updatePost(editingPost.id, editPostContent.trim());
+      if (error) {
+        Alert.alert('Error', 'Failed to update post');
+        return;
+      }
+
+      Alert.alert('Success', 'Post updated successfully!');
+      setEditingPost(null);
+      setEditPostContent('');
+      await loadPosts();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update post');
+    }
+  };
+
   const renderEvent = ({ item }: { item: any }) => (
     <View style={[
       styles.postCard,
@@ -493,29 +525,44 @@ export default function HomeScreen() {
       )}
 
       {/* Post Actions */}
-      <View style={[styles.postActions, isRTL && styles.postActionsRTL]}>
-        <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]} onPress={() => handleLikePost(item.id)}>
+      <View style={styles.postActions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleLikePost(item.id)}
+          disabled={!user}
+        >
           <IconSymbol
             name={item.userLiked ? "heart.fill" : "heart"}
             size={20}
             color={item.userLiked ? "#ff4444" : textColor}
           />
-          <ThemedText style={[styles.actionText, item.userLiked && { color: "#ff4444" }]}>
+          <ThemedText style={[
+            styles.actionText,
+            item.userLiked && { color: "#ff4444" }
+          ]}>
             {item.likes_count || 0}
           </ThemedText>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.actionButton, isRTL && styles.actionButtonRTL]}
+          style={styles.actionButton}
           onPress={() => router.push(`/post/${item.id}`)}
         >
-          <IconSymbol name="message" size={20} color={textColor} />
+          <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {item.comments?.[0]?.count || 0}
+            {item.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, isRTL && styles.actionButtonRTL]}>
-          <IconSymbol name="square.and.arrow.up" size={20} color={textColor} />
-        </TouchableOpacity>
+
+        {/* Edit button - only show for post owner */}
+        {user?.id === item.author?.id && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleEditPost(item.id, item.content)}
+          >
+            <IconSymbol name="pencil" size={20} color={textColor} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -644,102 +691,135 @@ export default function HomeScreen() {
       <Modal
         visible={showPostModal}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowPostModal(false)}
+        presentationStyle="pageSheet"
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
-              <TouchableOpacity onPress={() => setShowPostModal(false)}>
-                <IconSymbol name="xmark" size={20} color={textColor} />
-              </TouchableOpacity>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor }]}>
+          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={() => {
+              setShowPostModal(false);
+              setSelectedPostImage(null);
+              setNewPostContent('');
+              setSelectedCircle('');
+            }}>
+              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
+            <TouchableOpacity onPress={handleCreatePost} disabled={!newPostContent.trim() || !selectedCircle}>
+              <ThemedText style={[
+                styles.saveButton,
+                { color: newPostContent.trim() && selectedCircle ? tintColor : textColor + '50' }
+              ]}>
+                Post
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalBody}>
+            {/* Circle Selection */}
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.inputLabel}>Select Circle:</ThemedText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.circleSelector}>
+                {userCircles.map((circle) => (
+                  <TouchableOpacity
+                    key={circle.id}
+                    style={[
+                      styles.circleOption,
+                      {
+                        backgroundColor: selectedCircle === circle.id ? tintColor : backgroundColor,
+                        borderColor: tintColor
+                      }
+                    ]}
+                    onPress={() => setSelectedCircle(circle.id)}
+                  >
+                    <ThemedText style={[
+                      styles.circleOptionText,
+                      { color: selectedCircle === circle.id ? '#fff' : textColor }
+                    ]}>
+                      {circle.name}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
-            <View style={styles.modalBody}>
-              {/* Circle Selection */}
-              <View style={styles.inputSection}>
-                <ThemedText style={styles.inputLabel}>Select Circle:</ThemedText>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.circleSelector}>
-                  {userCircles.map((circle) => (
-                    <TouchableOpacity
-                      key={circle.id}
-                      style={[
-                        styles.circleOption,
-                        {
-                          backgroundColor: selectedCircle === circle.id ? tintColor : backgroundColor,
-                          borderColor: tintColor
-                        }
-                      ]}
-                      onPress={() => setSelectedCircle(circle.id)}
-                    >
-                      <ThemedText style={[
-                        styles.circleOptionText,
-                        { color: selectedCircle === circle.id ? '#fff' : textColor }
-                      ]}>
-                        {circle.name}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Post Content Input */}
-              <View style={styles.inputSection}>
-                <ThemedText style={styles.inputLabel}>What's on your mind?</ThemedText>
-                <TextInput
-                  style={[styles.postInput, { backgroundColor: backgroundColor, color: textColor }]}
-                  value={newPostContent}
-                  onChangeText={setNewPostContent}
-                  placeholder="Share your thoughts..."
-                  placeholderTextColor={textColor + '60'}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              {/* Image Picker */}
-              <View style={styles.inputSection}>
-                <ThemedText style={styles.inputLabel}>Add Photo:</ThemedText>
-                <TouchableOpacity onPress={pickImage} style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}>
-                  {selectedPostImage ? (
-                    <View style={styles.selectedImageContainer}>
-                      <Image source={{ uri: selectedPostImage.uri }} style={styles.selectedPostImage} />
-                      <View style={styles.imageOverlay}>
-                        <IconSymbol name="photo" size={24} color="#fff" />
-                        <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <IconSymbol name="photo" size={32} color={tintColor} />
-                      <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>Tap to select a photo</ThemedText>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
+            {/* Post Content Input */}
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.inputLabel}>What's on your mind?</ThemedText>
+              <TextInput
+                style={[styles.postInput, { backgroundColor: backgroundColor, color: textColor }]}
+                value={newPostContent}
+                onChangeText={setNewPostContent}
+                placeholder="Share your thoughts..."
+                placeholderTextColor={textColor + '60'}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
             </View>
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor: backgroundColor }]}
-                onPress={() => {
-                  setShowPostModal(false);
-                  setSelectedPostImage(null);
-                }}
-              >
-                <ThemedText>Cancel</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleCreatePost}
-              >
-                <ThemedText style={{ color: '#fff' }}>Post</ThemedText>
+            {/* Image Picker */}
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.inputLabel}>Add Photo:</ThemedText>
+              <TouchableOpacity onPress={pickImage} style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}>
+                {selectedPostImage ? (
+                  <View style={styles.selectedImageContainer}>
+                    <Image source={{ uri: selectedPostImage.uri }} style={styles.selectedPostImage} />
+                    <View style={styles.imageOverlay}>
+                      <IconSymbol name="photo" size={24} color="#fff" />
+                      <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <IconSymbol name="photo" size={32} color={tintColor} />
+                    <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>Tap to select a photo</ThemedText>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Edit Post Modal */}
+      <Modal
+        visible={!!editingPost}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor }]}>
+          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={handleCancelEdit}>
+              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Edit Post</ThemedText>
+            <TouchableOpacity onPress={handleSaveEdit} disabled={!editPostContent.trim()}>
+              <ThemedText style={[
+                styles.saveButton,
+                { color: editPostContent.trim() ? tintColor : textColor + '50' }
+              ]}>
+                Save
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.inputLabel}>Edit your post</ThemedText>
+              <TextInput
+                style={[styles.postInput, { backgroundColor: surfaceColor, color: textColor }]}
+                value={editPostContent}
+                onChangeText={setEditPostContent}
+                placeholder="What's on your mind?"
+                placeholderTextColor={textColor + '60'}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                autoFocus
+              />
+            </View>
+          </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -1008,17 +1088,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 16,
-    overflow: 'hidden',
+  modalContainer: {
+    flex: 1,
+    paddingTop: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -1026,25 +1105,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  modalBody: {
-    padding: 20,
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
   cancelButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
   },
   inputSection: {
     marginBottom: 20,

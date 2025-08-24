@@ -50,6 +50,7 @@ export const unlikePost = (postId: string, userId: string) => DatabaseService.un
 export const createComment = (postId: string, userId: string, text: string) => DatabaseService.createComment(postId, userId, text);
 export const getPostComments = (postId: string) => DatabaseService.getPostComments(postId);
 export const deleteComment = (commentId: string, userId: string) => DatabaseService.deleteComment(commentId, userId);
+export const updatePost = (postId: string, updates: { content?: string; image?: string }, userId: string) => DatabaseService.updatePost(postId, updates, userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -2493,6 +2494,49 @@ export const DatabaseService = {
     } catch (error) {
       console.error('Error in getPostComments:', error);
       return { data: [], error: error as Error };
+    }
+  },
+
+  async updatePost(postId: string, updates: { content?: string; image?: string }, userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      // Check if user owns the post
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select('userid')
+        .eq('id', postId)
+        .single();
+
+      if (fetchError || !post) {
+        return { data: null, error: new Error('Post not found') };
+      }
+
+      if (post.userid !== userId) {
+        return { data: null, error: new Error('You can only edit your own posts') };
+      }
+
+      // Update the post
+      const { data, error } = await supabase
+        .from('posts')
+        .update(updates)
+        .eq('id', postId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating post:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in updatePost:', error);
+      return { data: null, error: error as Error };
     }
   },
 

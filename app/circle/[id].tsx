@@ -110,6 +110,9 @@ export default function CircleScreen() {
   const [requestSearchQuery, setRequestSearchQuery] = useState('');
 
   const [newPostContent, setNewPostContent] = useState('');
+  const [createPostLoading, setCreatePostLoading] = useState(false);
+  const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
+  const [editPostContent, setEditPostContent] = useState('');
   const [editedCircle, setEditedCircle] = useState({
     name: '',
     description: '',
@@ -803,7 +806,14 @@ export default function CircleScreen() {
                     // Update the local state to show pending
                     console.log('🚀 Setting state for already requested scenario');
                     setHasPendingRequest(true);
-                    setCircle(prev => prev ? { ...prev, hasPendingRequest: true } : null);
+                    setCircle(prev => {
+                      const updated = prev ? { ...prev, hasPendingRequest: true } : null;
+                      console.log('🚀 Circle state updated to:', {
+                        hasPendingRequest: updated?.hasPendingRequest,
+                        isJoined: updated?.isJoined
+                      });
+                      return updated;
+                    });
                     console.log('🚀 State updated for already requested');
                   } else {
                     Alert.alert('Error', 'Failed to send join request');
@@ -1193,6 +1203,7 @@ export default function CircleScreen() {
     }
 
     try {
+      setCreatePostLoading(true);
       const { error } = await DatabaseService.createPost({
         userid: user.id,
         content: newPostContent.trim(),
@@ -1212,6 +1223,8 @@ export default function CircleScreen() {
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post');
+    } finally {
+      setCreatePostLoading(false);
     }
   };
 
@@ -1256,6 +1269,43 @@ export default function CircleScreen() {
     }
   };
 
+  const handleEditPost = (postId: string, content: string) => {
+    setEditingPost({ id: postId, content });
+    setEditPostContent(content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPost(null);
+    setEditPostContent('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPost || !editPostContent.trim()) return;
+
+    try {
+      setLoading(true);
+      const { error } = await DatabaseService.updatePost(editingPost.id, editPostContent.trim());
+
+      if (error) {
+        console.error('Error updating post:', error);
+        Alert.alert('Error', 'Failed to update post');
+        return;
+      }
+
+      // Update the posts state
+      const updatedPosts = posts.map(post =>
+        post.id === editingPost.id ? { ...post, content: editPostContent.trim() } : post
+      );
+      setPosts(updatedPosts);
+
+      handleCancelEdit();
+    } catch (error) {
+      console.error('Error saving post edit:', error);
+      Alert.alert('Error', 'Failed to save post edit');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveChanges = async () => {
     if (!user?.id || !circleId || !circle) {
@@ -1431,9 +1481,19 @@ export default function CircleScreen() {
         >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.comments?.[0]?.count || 0}
+            {post.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
+
+        {/* Edit button - only show for post owner */}
+        {user?.id === post.author?.id && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleEditPost(post.id, post.content)}
+          >
+            <IconSymbol name="pencil" size={20} color={textColor} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -2190,6 +2250,7 @@ export default function CircleScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
                 onPress={handleCreatePost}
+                disabled={createPostLoading || !newPostContent.trim()}
               >
                 <ThemedText style={{ color: '#fff' }}>Post</ThemedText>
               </TouchableOpacity>
@@ -2216,6 +2277,48 @@ export default function CircleScreen() {
         circles={[{ id: circleId as string, name: circle?.name || 'Current Circle' }]}
         editingEvent={editingEvent}
       />
+
+      {/* Edit Post Modal */}
+      <Modal
+        visible={!!editingPost}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor }]}>
+          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={handleCancelEdit}>
+              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Edit Post</ThemedText>
+            <TouchableOpacity onPress={handleSaveEdit} disabled={!editPostContent.trim()}>
+              <ThemedText style={[
+                styles.saveButton,
+                { color: editPostContent.trim() ? tintColor : textColor + '50' }
+              ]}>
+                Save
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.inputSection}>
+              <ThemedText style={styles.inputLabel}>Edit your post</ThemedText>
+              <TextInput
+                style={[styles.postInput, { backgroundColor: surfaceColor, color: textColor }]}
+                value={editPostContent}
+                onChangeText={setEditPostContent}
+                placeholder="What's on your mind?"
+                placeholderTextColor={textColor + '60'}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+                autoFocus
+              />
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
 
       {/* Edit Circle Modal */}
       <Modal
@@ -3350,6 +3453,15 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  // Added for the edit post modal
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  saveButton: {
+    fontSize: 16,
     fontWeight: '600',
   },
 });

@@ -68,6 +68,8 @@ export default function PostScreen() {
   const [commentLoading, setCommentLoading] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editPostContent, setEditPostContent] = useState('');
 
   const loadPost = async () => {
     if (!id) return;
@@ -348,6 +350,51 @@ export default function PostScreen() {
     console.log('🗑️ UI FUNCTION EXIT: handleDeleteComment alert dialog displayed');
   };
 
+  const handleEditPost = () => {
+    if (post?.content) {
+      setEditPostContent(post.content);
+      setIsEditingPost(true);
+    }
+  };
+
+  const handleCancelEditPost = () => {
+    setIsEditingPost(false);
+    setEditPostContent('');
+  };
+
+  const handleSaveEditPost = async () => {
+    if (!user?.id || !post?.id || !editPostContent.trim()) {
+      Alert.alert('Error', 'Please enter post content');
+      return;
+    }
+
+    try {
+      const { error } = await DatabaseService.updatePost(
+        post.id,
+        { content: editPostContent.trim() },
+        user.id
+      );
+
+      if (error) {
+        console.error('Error updating post:', error);
+        Alert.alert('Error', 'Failed to update post');
+        return;
+      }
+
+      // Update the local post state
+      setPost(prevPost => 
+        prevPost ? { ...prevPost, content: editPostContent.trim() } : prevPost
+      );
+
+      setIsEditingPost(false);
+      setEditPostContent('');
+      Alert.alert('Success', 'Post updated successfully');
+    } catch (error) {
+      console.error('Error updating post:', error);
+      Alert.alert('Error', 'Failed to update post');
+    }
+  };
+
   useEffect(() => {
     loadPost();
     
@@ -451,7 +498,22 @@ export default function PostScreen() {
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
             Post
           </ThemedText>
-          <View style={{ width: 24 }} />
+          {user?.id === post?.author?.id && !isEditingPost && (
+            <TouchableOpacity onPress={handleEditPost}>
+              <IconSymbol name="pencil" size={24} color={textColor} />
+            </TouchableOpacity>
+          )}
+          {isEditingPost && (
+            <View style={styles.editActions}>
+              <TouchableOpacity onPress={handleCancelEditPost} style={styles.editActionButton}>
+                <ThemedText style={[styles.editActionText, { color: textColor }]}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveEditPost} style={styles.editActionButton}>
+                <ThemedText style={[styles.editActionText, { color: tintColor }]}>Save</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+          {!user?.id === post?.author?.id && !isEditingPost && <View style={{ width: 24 }} />}
         </View>
 
         <ScrollView style={styles.content}>
@@ -483,7 +545,20 @@ export default function PostScreen() {
 
             {/* Post Content */}
             <View style={styles.postContentContainer}>
-              <ThemedText style={styles.postContent}>{post.content}</ThemedText>
+              {isEditingPost ? (
+                <TextInput
+                  style={[styles.postContentInput, { backgroundColor: backgroundColor, color: textColor }]}
+                  value={editPostContent}
+                  onChangeText={setEditPostContent}
+                  placeholder="What's on your mind?"
+                  placeholderTextColor={textColor + '60'}
+                  multiline
+                  textAlignVertical="top"
+                  autoFocus
+                />
+              ) : (
+                <ThemedText style={styles.postContent}>{post.content}</ThemedText>
+              )}
             </View>
 
             {/* Post Image */}
@@ -866,5 +941,28 @@ const styles = StyleSheet.create({
   deleteCommentButtonDisabled: {
     backgroundColor: 'rgba(189, 189, 189, 0.1)',
     opacity: 0.6,
+  },
+  editActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editActionButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  postContentInput: {
+    fontSize: 16,
+    lineHeight: 24,
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    textAlignVertical: 'top',
   },
 });
