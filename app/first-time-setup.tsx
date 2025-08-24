@@ -69,6 +69,7 @@ export default function FirstTimeSetupScreen() {
         ? prev.filter(id => id !== interestId)
         : [...prev, interestId]
     );
+    // Don't save to database immediately - wait for complete setup
   };
 
   const toggleLookingFor = (lookingForId: string) => {
@@ -77,6 +78,7 @@ export default function FirstTimeSetupScreen() {
         ? prev.filter(id => id !== lookingForId)
         : [...prev, lookingForId]
     );
+    // Don't save to database immediately - wait for complete setup
   };
 
   const handleNextStep = () => {
@@ -114,56 +116,84 @@ export default function FirstTimeSetupScreen() {
     try {
       setSaving(true);
 
-      // Update user's first_login status to false
+      console.log('Starting setup completion...');
+      console.log('Selected interests:', selectedInterests.length);
+      console.log('Selected looking for:', selectedLookingFor.length);
+
+      // Clear any existing preferences first to avoid duplicates
+      try {
+        await supabase
+          .from('user_interests')
+          .delete()
+          .eq('userid', user.id);
+        
+        await supabase
+          .from('user_look_for')
+          .delete()
+          .eq('userid', user.id);
+      } catch (cleanupError) {
+        console.log('Cleanup error (non-critical):', cleanupError);
+      }
+
+      // Save user interests
+      if (selectedInterests.length > 0) {
+        const interestInserts = selectedInterests.map(interestId => ({
+          userid: user.id,
+          interestid: interestId
+        }));
+
+        const { error: interestsError } = await supabase
+          .from('user_interests')
+          .insert(interestInserts);
+
+        if (interestsError) {
+          console.error('Error saving interests:', interestsError);
+          Alert.alert('Error', 'Failed to save interests. Please try again.');
+          return;
+        }
+        console.log('Interests saved successfully');
+      }
+
+      // Save user looking for preferences
+      if (selectedLookingFor.length > 0) {
+        const lookingForInserts = selectedLookingFor.map(lookingForId => ({
+          userid: user.id,
+          interestid: lookingForId
+        }));
+
+        const { error: lookingForError } = await supabase
+          .from('user_look_for')
+          .insert(lookingForInserts);
+
+        if (lookingForError) {
+          console.error('Error saving looking for:', lookingForError);
+          Alert.alert('Error', 'Failed to save looking for preferences. Please try again.');
+          return;
+        }
+        console.log('Looking for preferences saved successfully');
+      }
+
+      // Update user's first_login status to false - do this last
       const { error: updateError } = await updateUserProfile({
         first_login: false
       });
 
       if (updateError) {
-        Alert.alert('Error', 'Failed to update profile');
+        console.error('Error updating first login status:', updateError);
+        Alert.alert('Error', 'Failed to complete setup. Please try again.');
         return;
       }
 
-      // Save user interests
-      for (const interestId of selectedInterests) {
-        const { error } = await DatabaseService.createUserInterest(user.id, interestId);
-        if (error) {
-          console.error('Error saving interest:', error);
-          // Don't fail the setup if duplicate entry (user may have already selected this)
-          if (error.code !== '23505') {
-            Alert.alert('Error', 'Failed to save some preferences');
-            return;
-          }
-        }
-      }
-
-      // Save user looking for preferences
-      for (const lookingForId of selectedLookingFor) {
-        const { error } = await DatabaseService.createUserLookingFor(user.id, lookingForId);
-        if (error) {
-          console.error('Error saving looking for:', error);
-          // Don't fail the setup if duplicate entry (user may have already selected this)
-          if (error.code !== '23505') {
-            Alert.alert('Error', 'Failed to save some preferences');
-            return;
-          }
-        }
-      }
-
-      Alert.alert(
-        'Setup Complete!', 
-        'Welcome to the app! Your preferences have been saved.',
-        [
-          {
-            text: 'Get Started',
-            onPress: () => router.replace('/(tabs)')
-          }
-        ]
-      );
+      console.log('Setup completed successfully, navigating to home...');
+      
+      // Small delay to ensure state updates are processed
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 500);
 
     } catch (error) {
       console.error('Error finishing setup:', error);
-      Alert.alert('Error', 'Failed to complete setup');
+      Alert.alert('Error', 'Failed to complete setup. Please try again.');
     } finally {
       setSaving(false);
     }

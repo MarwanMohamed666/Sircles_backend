@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@/types/database';
+import { useRouter } from 'next/router'; // Assuming Next.js router is used
+
 // Assuming DatabaseService is correctly imported and has the necessary methods
 // import DatabaseService from '@/lib/databaseService'; // Placeholder for actual import
 
@@ -87,6 +89,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const router = useRouter(); // Initialize router
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -112,6 +115,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Check first login status from fetched profile
         if (data.first_login) {
           console.log('User is logging in for the first time. Will be directed to interests selection.');
+          // Check first login status
+          const { data: firstLoginData, error: firstLoginError } = await DatabaseService.checkFirstLogin(authUser.id);
+          console.log('First login check result:', { data: firstLoginData, error: firstLoginError });
+
+          if (firstLoginError) {
+            console.error('Error checking first login:', firstLoginError);
+          }
+
+          if (firstLoginData === true) {
+            console.log('User needs first-time setup, redirecting...');
+            router.replace('/first-time-setup');
+            return;
+          }
+
+          console.log('User has completed setup, proceeding to app...');
         }
       } else {
         // Create user profile if it doesn't exist
@@ -313,7 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔴 AUTH CONTEXT: About to call supabase.auth.signOut()');
       const { error } = await supabase.auth.signOut();
 
-      console.log('🔴 AUTH CONTEXT: supabase.auth.signOut() completed');
+      console.log('🔴 AUTH CONTEXT:supabase.auth.signOut() completed');
       console.log('🔴 AUTH CONTEXT:signOut result:', { error });
 
       if (error) {
