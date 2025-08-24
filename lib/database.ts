@@ -1343,7 +1343,7 @@ export const DatabaseService = {
         const { data: circle } = await supabase
           .from('circles')
           .select('creator, name')
-          .eq('circleid', circleId)
+          .eq('id', circleId)
           .single();
 
         if (circle) {
@@ -2604,11 +2604,11 @@ export const DatabaseService = {
 
   async deleteComment(commentId: string, userId: string) {
     console.log('🗑️ deleteComment called:', { commentId, userId });
-    
+
     try {
       // Verify user is authenticated
       const { data: currentUser, error: authError } = await supabase.auth.getUser();
-      
+
       if (!currentUser?.user || authError) {
         console.error('🗑️ Authentication failed:', authError);
         return { data: null, error: new Error('Authentication required') };
@@ -2625,8 +2625,8 @@ export const DatabaseService = {
       const { data: commentData, error: fetchError } = await supabase
         .from('comments')
         .select(`
-          userid, 
-          id, 
+          userid,
+          id,
           text,
           postid,
           posts!inner(
@@ -2759,6 +2759,40 @@ export const DatabaseService = {
     } catch (error) {
       console.error('Error in updateFirstLogin:', error);
       return { data: null, error: error as Error };
+    }
+  },
+
+  // Create user interest
+  async createUserInterest(userId: string, interestId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_interests')
+        .insert({
+          userid: userId,
+          interestid: interestId
+        });
+
+      return { data, error };
+    } catch (error) {
+      console.error('Error creating user interest:', error);
+      return { data: null, error };
+    }
+  },
+
+  // Create user looking for
+  async createUserLookingFor(userId: string, lookingForOption: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_look_for')
+        .insert({
+          userid: userId,
+          look_for: lookingForOption
+        });
+
+      return { data, error };
+    } catch (error) {
+      console.error('Error creating user looking for:', error);
+      return { data: null, error };
     }
   },
 };

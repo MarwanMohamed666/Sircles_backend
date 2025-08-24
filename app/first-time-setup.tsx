@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/lib/database';
 
 interface Interest {
@@ -22,37 +22,47 @@ interface Interest {
 }
 
 export default function FirstTimeSetupScreen() {
-  const { user } = useAuth();
-  const [availableInterests, setAvailableInterests] = useState<{ [key: string]: Interest[] }>({});
+  const { user, updateUserProfile } = useAuth();
+  const backgroundColor = useThemeColor({}, 'background');
+  const surfaceColor = useThemeColor({}, 'surface');
+  const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'textColor');
+
+  const [interests, setInterests] = useState<Interest[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [selectedLookFor, setSelectedLookFor] = useState<string[]>([]);
+  const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1 = interests, 2 = looking for
 
-  const backgroundColor = useThemeColor({}, 'background');
-  const tintColor = useThemeColor({}, 'tint');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const textColor = useThemeColor({}, 'text');
+  // Predefined looking for options
+  const lookingForOptions = [
+    { id: 'friends', title: 'Friends' },
+    { id: 'networking', title: 'Networking' },
+    { id: 'dating', title: 'Dating' },
+    { id: 'mentorship', title: 'Mentorship' },
+    { id: 'collaboration', title: 'Collaboration' },
+    { id: 'study_partners', title: 'Study Partners' },
+    { id: 'activity_partners', title: 'Activity Partners' },
+    { id: 'professional_development', title: 'Professional Development' },
+  ];
 
   useEffect(() => {
-    fetchInterests();
+    loadInterests();
   }, []);
 
-  const fetchInterests = async () => {
+  const loadInterests = async () => {
     try {
       setLoading(true);
-      const { data, error } = await DatabaseService.getInterestsByCategory();
-      
+      const { data, error } = await DatabaseService.getInterests();
       if (error) {
-        console.error('Error fetching interests:', error);
+        console.error('Error loading interests:', error);
         Alert.alert('Error', 'Failed to load interests');
-        return;
+      } else {
+        setInterests(data || []);
       }
-
-      setAvailableInterests(data || {});
     } catch (error) {
-      console.error('Error in fetchInterests:', error);
+      console.error('Error loading interests:', error);
       Alert.alert('Error', 'Failed to load interests');
     } finally {
       setLoading(false);
@@ -67,183 +77,264 @@ export default function FirstTimeSetupScreen() {
     );
   };
 
-  const toggleLookFor = (interestId: string) => {
-    setSelectedLookFor(prev => 
-      prev.includes(interestId) 
-        ? prev.filter(id => id !== interestId)
-        : [...prev, interestId]
+  const toggleLookingFor = (lookingForId: string) => {
+    setSelectedLookingFor(prev => 
+      prev.includes(lookingForId) 
+        ? prev.filter(id => id !== lookingForId)
+        : [...prev, lookingForId]
     );
   };
 
-  const handleContinue = () => {
+  const handleNextStep = () => {
     if (currentStep === 1) {
       if (selectedInterests.length === 0) {
-        Alert.alert('Please select at least one interest');
+        Alert.alert('Selection Required', 'Please select at least one interest to continue.');
         return;
       }
       setCurrentStep(2);
-    } else {
-      handleFinish();
     }
   };
 
-  const handleFinish = async () => {
-    if (!user?.id) return;
+  const handlePrevStep = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    }
+  };
+
+  const handleFinishSetup = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    if (selectedInterests.length === 0) {
+      Alert.alert('Selection Required', 'Please select at least one interest.');
+      return;
+    }
+
+    if (selectedLookingFor.length === 0) {
+      Alert.alert('Selection Required', 'Please select what you\'re looking for.');
+      return;
+    }
 
     try {
       setSaving(true);
 
-      // Save interests
-      if (selectedInterests.length > 0) {
-        const interestPromises = selectedInterests.map(interestId =>
-          supabase
-            .from('user_interests')
-            .insert({
-              userid: user.id,
-              interestid: interestId
-            })
-        );
-        await Promise.all(interestPromises);
+      // Update user's first_login status to false
+      const { error: updateError } = await updateUserProfile({
+        first_login: false
+      });
+
+      if (updateError) {
+        Alert.alert('Error', 'Failed to update profile');
+        return;
       }
 
-      // Save looking for
-      if (selectedLookFor.length > 0) {
-        const lookForPromises = selectedLookFor.map(interestId =>
-          supabase
-            .from('user_look_for')
-            .insert({
-              userid: user.id,
-              interestid: interestId
-            })
-        );
-        await Promise.all(lookForPromises);
+      // Save user interests
+      for (const interestId of selectedInterests) {
+        const { error } = await DatabaseService.createUserInterest(user.id, interestId);
+        if (error) {
+          console.error('Error saving interest:', error);
+        }
       }
 
-      // Update first_login to false
-      await DatabaseService.updateFirstLogin(user.id);
+      // Save user looking for preferences
+      for (const lookingForId of selectedLookingFor) {
+        const { error } = await DatabaseService.createUserLookingFor(user.id, lookingForId);
+        if (error) {
+          console.error('Error saving looking for:', error);
+        }
+      }
 
-      Alert.alert('Welcome!', 'Your preferences have been saved successfully!', [
-        {
-          text: 'Continue',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]);
+      Alert.alert(
+        'Setup Complete!', 
+        'Welcome to the app! Your preferences have been saved.',
+        [
+          {
+            text: 'Get Started',
+            onPress: () => router.replace('/(tabs)')
+          }
+        ]
+      );
+
     } catch (error) {
-      console.error('Error saving preferences:', error);
-      Alert.alert('Error', 'Failed to save your preferences. Please try again.');
+      console.error('Error finishing setup:', error);
+      Alert.alert('Error', 'Failed to complete setup');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSkip = () => {
-    if (currentStep === 1) {
-      setCurrentStep(2);
-    } else {
-      handleFinish();
-    }
+  const groupInterestsByCategory = () => {
+    const grouped: { [key: string]: Interest[] } = {};
+    interests.forEach(interest => {
+      if (!grouped[interest.category]) {
+        grouped[interest.category] = [];
+      }
+      grouped[interest.category].push(interest);
+    });
+    return grouped;
   };
 
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ThemedText>Loading...</ThemedText>
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.centeredContainer}>
+          <ThemedText>Loading interests...</ThemedText>
         </View>
-      </ThemedView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View style={[styles.logoContainer, { backgroundColor: tintColor }]}>
-            <ThemedText style={[styles.logoText, { color: '#fff' }]}>S</ThemedText>
-          </View>
-          
-          <ThemedText type="title" style={styles.title}>
-            {currentStep === 1 ? 'What are your interests?' : 'What are you looking for?'}
-          </ThemedText>
-          
-          <ThemedText type="subtitle" style={styles.subtitle}>
-            {currentStep === 1 
-              ? 'Select topics that interest you to personalize your experience'
-              : 'Select what you\'re looking for in circles and events'
-            }
-          </ThemedText>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
+        <ThemedText type="title" style={styles.headerTitle}>
+          Welcome! Let's Set Up Your Profile
+        </ThemedText>
+        <ThemedText style={styles.stepIndicator}>
+          Step {currentStep} of 2
+        </ThemedText>
+      </View>
 
-          <View style={styles.stepIndicator}>
-            <View style={[styles.stepDot, { backgroundColor: tintColor }]} />
-            <View style={[styles.stepDot, { backgroundColor: currentStep === 2 ? tintColor : surfaceColor }]} />
-          </View>
-        </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {currentStep === 1 ? (
+          // Step 1: Interests Selection
+          <View style={styles.stepContainer}>
+            <ThemedText type="subtitle" style={styles.stepTitle}>
+              What are you interested in?
+            </ThemedText>
+            <ThemedText style={styles.stepDescription}>
+              Select your interests to help us connect you with relevant circles and events.
+            </ThemedText>
 
-        <View style={[styles.content, { backgroundColor: surfaceColor }]}>
-          {Object.entries(availableInterests).map(([category, interests]) => (
-            <View key={category} style={styles.categorySection}>
-              <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-              <View style={styles.interestsGrid}>
-                {interests.map((interest) => {
-                  const isSelected = currentStep === 1 
-                    ? selectedInterests.includes(interest.id)
-                    : selectedLookFor.includes(interest.id);
-                  
-                  return (
+            {Object.entries(groupInterestsByCategory()).map(([category, categoryInterests]) => (
+              <View key={category} style={styles.categorySection}>
+                <ThemedText style={[styles.categoryTitle, { color: tintColor }]}>
+                  {category}
+                </ThemedText>
+                <View style={styles.interestsGrid}>
+                  {categoryInterests.map((interest) => (
                     <TouchableOpacity
                       key={interest.id}
                       style={[
                         styles.interestChip,
                         {
-                          backgroundColor: isSelected ? tintColor : backgroundColor,
+                          backgroundColor: selectedInterests.includes(interest.id) 
+                            ? tintColor 
+                            : surfaceColor,
                           borderColor: tintColor,
                         }
                       ]}
-                      onPress={() => currentStep === 1 ? toggleInterest(interest.id) : toggleLookFor(interest.id)}
+                      onPress={() => toggleInterest(interest.id)}
                     >
                       <ThemedText style={[
-                        styles.interestChipText,
-                        { color: isSelected ? '#fff' : textColor }
+                        styles.interestText,
+                        {
+                          color: selectedInterests.includes(interest.id) 
+                            ? '#fff' 
+                            : textColor
+                        }
                       ]}>
                         {interest.title}
                       </ThemedText>
                     </TouchableOpacity>
-                  );
-                })}
+                  ))}
+                </View>
               </View>
+            ))}
+
+            <View style={styles.selectionInfo}>
+              <ThemedText style={styles.selectionCount}>
+                {selectedInterests.length} interest{selectedInterests.length !== 1 ? 's' : ''} selected
+              </ThemedText>
             </View>
-          ))}
-        </View>
+          </View>
+        ) : (
+          // Step 2: Looking For Selection
+          <View style={styles.stepContainer}>
+            <ThemedText type="subtitle" style={styles.stepTitle}>
+              What are you looking for?
+            </ThemedText>
+            <ThemedText style={styles.stepDescription}>
+              Help others understand what kind of connections you're seeking.
+            </ThemedText>
+
+            <View style={styles.lookingForGrid}>
+              {lookingForOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.lookingForChip,
+                    {
+                      backgroundColor: selectedLookingFor.includes(option.id) 
+                        ? tintColor 
+                        : surfaceColor,
+                      borderColor: tintColor,
+                    }
+                  ]}
+                  onPress={() => toggleLookingFor(option.id)}
+                >
+                  <ThemedText style={[
+                    styles.lookingForText,
+                    {
+                      color: selectedLookingFor.includes(option.id) 
+                        ? '#fff' 
+                        : textColor
+                    }
+                  ]}>
+                    {option.title}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.selectionInfo}>
+              <ThemedText style={styles.selectionCount}>
+                {selectedLookingFor.length} option{selectedLookingFor.length !== 1 ? 's' : ''} selected
+              </ThemedText>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: surfaceColor }]}>
-        <TouchableOpacity
-          style={[styles.skipButton]}
-          onPress={handleSkip}
-          disabled={saving}
-        >
-          <ThemedText style={[styles.skipButtonText, { color: textColor }]}>
-            Skip
-          </ThemedText>
-        </TouchableOpacity>
+      {/* Bottom Actions */}
+      <View style={[styles.bottomActions, { backgroundColor: surfaceColor }]}>
+        {currentStep === 2 && (
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: tintColor }]}
+            onPress={handlePrevStep}
+          >
+            <ThemedText style={[styles.backButtonText, { color: tintColor }]}>
+              Back
+            </ThemedText>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[
-            styles.continueButton,
-            { 
+            styles.nextButton,
+            {
               backgroundColor: tintColor,
-              opacity: saving ? 0.7 : 1
+              opacity: saving ? 0.7 : 1,
+              flex: currentStep === 1 ? 1 : 0.7
             }
           ]}
-          onPress={handleContinue}
-          disabled={saving}
+          onPress={currentStep === 1 ? handleNextStep : handleFinishSetup}
+          disabled={saving || (currentStep === 1 && selectedInterests.length === 0) || (currentStep === 2 && selectedLookingFor.length === 0)}
         >
-          <ThemedText style={[styles.continueButtonText, { color: '#fff' }]}>
-            {saving ? 'Saving...' : currentStep === 1 ? 'Continue' : 'Finish'}
+          <ThemedText style={styles.nextButtonText}>
+            {saving 
+              ? 'Saving...' 
+              : currentStep === 1 
+                ? 'Next' 
+                : 'Complete Setup'
+            }
           </ThemedText>
         </TouchableOpacity>
       </View>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -251,55 +342,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 20,
-    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 16,
+    elevation: 2,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-  },
-  title: {
-    textAlign: 'center',
+  headerTitle: {
+    fontSize: 20,
     marginBottom: 8,
-  },
-  subtitle: {
     textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
   },
   stepIndicator: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
   },
   content: {
-    marginHorizontal: 16,
-    borderRadius: 12,
+    flex: 1,
     padding: 20,
-    marginBottom: 100,
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepContainer: {
+    paddingBottom: 100, // Space for bottom actions
+  },
+  stepTitle: {
+    fontSize: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  stepDescription: {
+    fontSize: 16,
+    opacity: 0.7,
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 24,
   },
   categorySection: {
     marginBottom: 24,
@@ -319,41 +399,67 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
+    marginBottom: 8,
   },
-  interestChipText: {
+  interestText: {
     fontSize: 14,
     fontWeight: '500',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  lookingForGrid: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    paddingBottom: 40,
+    flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 20,
   },
-  skipButton: {
-    flex: 1,
+  lookingForChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 2,
+    marginBottom: 12,
+    minWidth: '45%',
+    alignItems: 'center',
+  },
+  lookingForText: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  selectionInfo: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  selectionCount: {
+    fontSize: 14,
+    opacity: 0.6,
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    padding: 20,
+    paddingTop: 16,
+    gap: 12,
+    elevation: 8,
+  },
+  backButton: {
+    flex: 0.3,
     paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
   },
-  skipButtonText: {
+  backButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
-  continueButton: {
-    flex: 2,
+  nextButton: {
     paddingVertical: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
   },
-  continueButtonText: {
+  nextButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -111,9 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(data);
         // Check first login status from fetched profile
         if (data.first_login) {
-          // Logic to navigate to interests selection page would go here
-          // For now, we'll just log it
-          console.log('User is logging in for the first time. Directing to interests selection.');
+          console.log('User is logging in for the first time. Will be directed to interests selection.');
         }
       } else {
         // Create user profile if it doesn't exist
