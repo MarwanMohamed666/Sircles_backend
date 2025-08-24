@@ -129,6 +129,11 @@ export default function FirstTimeSetupScreen() {
         const { error } = await DatabaseService.createUserInterest(user.id, interestId);
         if (error) {
           console.error('Error saving interest:', error);
+          // Don't fail the setup if duplicate entry (user may have already selected this)
+          if (error.code !== '23505') {
+            Alert.alert('Error', 'Failed to save some preferences');
+            return;
+          }
         }
       }
 
@@ -137,6 +142,11 @@ export default function FirstTimeSetupScreen() {
         const { error } = await DatabaseService.createUserLookingFor(user.id, lookingForId);
         if (error) {
           console.error('Error saving looking for:', error);
+          // Don't fail the setup if duplicate entry (user may have already selected this)
+          if (error.code !== '23505') {
+            Alert.alert('Error', 'Failed to save some preferences');
+            return;
+          }
         }
       }
 

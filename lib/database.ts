@@ -2765,12 +2765,18 @@ export const DatabaseService = {
   // Create user interest
   async createUserInterest(userId: string, interestId: string) {
     try {
+      // Use upsert to handle duplicates gracefully
       const { data, error } = await supabase
         .from('user_interests')
-        .insert({
-          userid: userId,
-          interestid: interestId
-        });
+        .upsert(
+          {
+            userid: userId,
+            interestid: interestId
+          },
+          {
+            onConflict: 'userid,interestid'
+          }
+        );
 
       return { data, error };
     } catch (error) {
@@ -2782,12 +2788,18 @@ export const DatabaseService = {
   // Create user looking for
   async createUserLookingFor(userId: string, interestId: string) {
     try {
+      // Use upsert to handle duplicates gracefully
       const { data, error } = await supabase
         .from('user_look_for')
-        .insert({
-          userid: userId,
-          interestid: interestId
-        });
+        .upsert(
+          {
+            userid: userId,
+            interestid: interestId
+          },
+          {
+            onConflict: 'userid,interestid'
+          }
+        );
 
       return { data, error };
     } catch (error) {
