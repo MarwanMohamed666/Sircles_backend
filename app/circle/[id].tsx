@@ -1268,11 +1268,15 @@ export default function CircleScreen() {
   };
 
   const handleSavePostEdit = async () => {
-    if (!editingPost || !editPostContent.trim()) return;
+    if (!editingPost || !editPostContent.trim() || !user?.id) return;
 
     try {
       setLoading(true);
-      const { error } = await DatabaseService.updatePost(editingPost.id, editPostContent.trim());
+      const { error } = await DatabaseService.updatePost(
+        editingPost.id,
+        { content: editPostContent.trim() },
+        user.id
+      );
 
       if (error) {
         console.error('Error updating post:', error);
@@ -1289,7 +1293,7 @@ export default function CircleScreen() {
       handleCancelEdit();
     } catch (error) {
       console.error('Error saving post edit:', error);
-      Alert.alert('Error', 'Failed to save post edit');
+      Alert.alert('Error', 'Failed to update post');
     } finally {
       setLoading(false);
     }

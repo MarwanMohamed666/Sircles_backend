@@ -395,10 +395,14 @@ export default function HomeScreen() {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingPost || !editPostContent.trim()) return;
+    if (!editingPost || !editPostContent.trim() || !user?.id) return;
 
     try {
-      const { error } = await DatabaseService.updatePost(editingPost.id, editPostContent.trim());
+      const { error } = await DatabaseService.updatePost(
+        editingPost.id, 
+        { content: editPostContent.trim() }, 
+        user.id
+      );
       if (error) {
         Alert.alert('Error', 'Failed to update post');
         return;
