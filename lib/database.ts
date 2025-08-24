@@ -51,6 +51,8 @@ export const createComment = (postId: string, userId: string, text: string) => D
 export const getPostComments = (postId: string) => DatabaseService.getPostComments(postId);
 export const deleteComment = (commentId: string, userId: string) => DatabaseService.deleteComment(commentId, userId);
 export const updatePost = (postId: string, updates: { content?: string; image?: string }, userId: string) => DatabaseService.updatePost(postId, updates, userId);
+export const checkFirstLogin = (userId: string) => DatabaseService.checkFirstLogin(userId);
+export const updateFirstLogin = (userId: string) => DatabaseService.updateFirstLogin(userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -2704,6 +2706,59 @@ export const DatabaseService = {
     } catch (error) {
       console.error('🗑️ Unexpected error:', error);
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+    }
+  },
+
+  async checkFirstLogin(userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('first_login')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking first login:', error);
+        return { data: null, error };
+      }
+
+      return { data: data?.first_login || false, error: null };
+    } catch (error) {
+      console.error('Error in checkFirstLogin:', error);
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updateFirstLogin(userId: string) {
+    try {
+      // Verify user is authenticated
+      const { data: currentUser } = await supabase.auth.getUser();
+      if (!currentUser.user || currentUser.user.id !== userId) {
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ first_login: false })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating first login:', error);
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error in updateFirstLogin:', error);
+      return { data: null, error: error as Error };
     }
   },
 };

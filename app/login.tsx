@@ -18,7 +18,7 @@ import { Colors } from '@/constants/Colors';
 
 export default function LoginScreen() {
   const { texts, toggleLanguage, language, isRTL } = useLanguage();
-  const { signIn, checkUserExists } = useAuth();
+  const { signIn, checkUserExists, checkFirstLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -41,7 +41,7 @@ export default function LoginScreen() {
       // If no password is provided, check if user exists and handle first-time setup
       if (!password) {
         const { exists, error: checkError } = await checkUserExists(email);
-        
+
         if (checkError) {
           Alert.alert('Error', 'Failed to check user status');
           setLoading(false);
@@ -101,7 +101,14 @@ export default function LoginScreen() {
         if (email === 'admin@example.com') {
           router.replace('/admin');
         } else {
-          router.replace('/(tabs)');
+          // Check if this is first login
+          const { data: isFirstLogin } = await checkFirstLogin();
+
+          if (isFirstLogin) {
+            router.replace('/first-time-setup');
+          } else {
+            router.replace('/(tabs)');
+          }
         }
       }
     } catch (error) {

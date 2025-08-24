@@ -2,17 +2,67 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@/types/database';
+// Assuming DatabaseService is correctly imported and has the necessary methods
+// import DatabaseService from '@/lib/databaseService'; // Placeholder for actual import
+
+// Dummy DatabaseService for demonstration purposes if not provided
+const DatabaseService = {
+  updateUser: async (userId: string, updates: Partial<User>) => {
+    console.log(`DatabaseService.updateUser called for ${userId} with`, updates);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 100));
+    // Simulate returning a user object similar to what supabase might return
+    const dummyUser: User = {
+      id: userId,
+      email: `${userId}@example.com`,
+      name: 'Dummy User',
+      phone: null,
+      dob: null,
+      gender: null,
+      address_apartment: null,
+      address_building: null,
+      address_block: null,
+      avatar_url: null,
+      creationdate: new Date().toISOString(),
+      first_login: false, // Defaulting to false for simulation
+      ...updates
+    };
+    return { data: dummyUser, error: null };
+  },
+  checkFirstLogin: async (userId: string) => {
+    console.log(`DatabaseService.checkFirstLogin called for ${userId}`);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 100));
+    // Simulate checking the first_login column
+    // In a real scenario, this would query the 'users' table for the user and return the 'first_login' value.
+    // For this example, let's assume we fetch the user profile and check it.
+    const { data, error } = await supabase
+      .from('users')
+      .select('first_login')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+        console.error('Error checking first login:', error);
+        return { data: false, error: error };
+    }
+
+    return { data: data?.first_login || false, error: null };
+  }
+};
+
 
 interface AuthContextType {
   user: AuthUser | null;
   userProfile: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ data: { session: Session | null; user: AuthUser } | null; error: any }>;
+  signUp: (email: string, password: string) => Promise<{ data: { session: Session | null; user: AuthUser } | null; error: any }>;
   signOut: () => Promise<void>;
   updateUserProfile: (profile: Partial<User>) => Promise<{ error: any }>;
   checkUserExists: (email: string) => Promise<{ exists: boolean; error: any }>;
+  checkFirstLogin: () => Promise<{ data: boolean; error: any }>; // Added checkFirstLogin
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,11 +70,12 @@ const AuthContext = createContext<AuthContextType>({
   userProfile: null,
   session: null,
   loading: true,
-  signIn: async () => ({ error: null }),
-  signUp: async () => ({ error: null }),
+  signIn: async () => ({ data: { session: null, user: null as any }, error: null }),
+  signUp: async () => ({ data: { session: null, user: null as any }, error: null }),
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
   checkUserExists: async () => ({ exists: false, error: null }),
+  checkFirstLogin: async () => ({ data: false, error: null }), // Default value
 });
 
 export const useAuth = () => {
@@ -41,8 +92,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (authUser: AuthUser) => {
+  // Function to load user profile and check first login status
+  const loadUserAndCheckLogin = async (authUser: AuthUser) => {
     try {
+      // Fetch user profile first
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -56,10 +109,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data) {
         setUserProfile(data);
+        // Check first login status from fetched profile
+        if (data.first_login) {
+          // Logic to navigate to interests selection page would go here
+          // For now, we'll just log it
+          console.log('User is logging in for the first time. Directing to interests selection.');
+        }
       } else {
         // Create user profile if it doesn't exist
-        const newProfile = {
-          id: authUser.id, // Use auth.uid() directly as the user ID
+        const newProfile: User = {
+          id: authUser.id,
           email: authUser.email || '',
           name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
           phone: null,
@@ -70,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           address_block: null,
           avatar_url: null,
           creationdate: new Date().toISOString(),
+          first_login: true, // Mark as first login if profile is newly created
         };
 
         const { data: insertedUser, error: insertError } = await supabase
@@ -82,33 +142,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error creating user profile:', insertError);
         } else {
           setUserProfile(insertedUser);
+          console.log('New user profile created. Directing to interests selection.');
         }
       }
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      console.error('Error in loadUserAndCheckLogin:', error);
     }
   };
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user);
-      }
-      setLoading(false);
-    });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+  useEffect(() => {
+    const fetchSession = async () => {
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session?.user) {
+          setUser(session.user);
+          await loadUserAndCheckLogin(session.user); // Call the combined function
+        } else {
+          setUser(null);
+          setUserProfile(null);
+        }
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        setUser(null);
+        setUserProfile(null);
+        setSession(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
       if (session?.user) {
-        fetchUserProfile(session.user);
+        setUser(session.user);
+        loadUserAndCheckLogin(session.user); // Call the combined function
       } else {
+        setUser(null);
         setUserProfile(null);
       }
       setLoading(false);
@@ -117,12 +191,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Mock loadUser function if it's intended to be used elsewhere, otherwise integrate logic directly
+  const loadUser = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching user profile in loadUser:', error);
+        return;
+      }
+
+      if (data) {
+        setUserProfile(data);
+        // Check first login status here as well if needed, or rely on loadUserAndCheckLogin
+        if (data.first_login) {
+          console.log('User logging in again, first_login is true.');
+          // Logic to redirect to interests page
+        }
+      }
+    } catch (error) {
+      console.error('Error in loadUser:', error);
+    }
+  };
+
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+
+    if (!error && data.user) {
+      // loadUser(data.user.id); // Original call, now superseded by loadUserAndCheckLogin in useEffect
+      await loadUserAndCheckLogin(data.user); // Ensure profile and first login check happens
+    }
+
+    return { data, error };
   };
 
   const signUp = async (email: string, password: string) => {
@@ -131,11 +239,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
     });
 
-    return { error };
+    // If signup is successful, create the user profile and set first_login to true
+    if (!error && data.user) {
+      try {
+        const newProfile: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+          phone: null,
+          dob: null,
+          gender: null,
+          address_apartment: null,
+          address_building: null,
+          address_block: null,
+          avatar_url: null,
+          creationdate: new Date().toISOString(),
+          first_login: true, // Mark as first login
+        };
+
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert(newProfile);
+
+        if (insertError) {
+          console.error('Error creating user profile after signup:', insertError);
+          // Handle error appropriately, maybe return an error to the caller
+          return { data, error: insertError };
+        }
+      } catch (e) {
+        console.error('Exception creating user profile after signup:', e);
+        return { data, error: e };
+      }
+    }
+
+    return { data, error };
   };
 
   const updateUserProfile = async (profile: Partial<User>) => {
-    if (!user || !userProfile) return { error: new Error('No user logged in') };
+    if (!user?.id) return { error: new Error('No user logged in') };
 
     try {
       const { data, error } = await supabase
@@ -159,23 +300,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Function to check the first login status using the new DatabaseService method
+  const checkFirstLogin = async () => {
+    if (!user?.id) return { data: false, error: new Error('No user logged in') };
+    // Ensure DatabaseService is correctly imported and checkFirstLogin is available
+    return await DatabaseService.checkFirstLogin(user.id);
+  };
+
+
   const signOut = async () => {
-    console.log('🔴 AUTH CONTEXT: signOut function called');
-    
+    console.log('🔴 AUTH CONTEXT:signOut function called');
+
     try {
       console.log('🔴 AUTH CONTEXT: About to call supabase.auth.signOut()');
       const { error } = await supabase.auth.signOut();
-      
+
       console.log('🔴 AUTH CONTEXT: supabase.auth.signOut() completed');
-      console.log('🔴 AUTH CONTEXT: signOut result:', { error });
-      
+      console.log('🔴 AUTH CONTEXT:signOut result:', { error });
+
       if (error) {
         console.error('🔴 AUTH CONTEXT ERROR: Supabase signOut error:', error);
         throw error;
       }
-      
-      console.log('🔴 AUTH CONTEXT: signOut successful, clearing state');
-      
+
+      console.log('🔴 AUTH CONTEXT:signOut successful, clearing state');
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+
     } catch (error) {
       console.error('🔴 AUTH CONTEXT CATCH: Error signing out:', error);
       console.log('🔴 AUTH CONTEXT: Setting user/profile/session to null due to error');
@@ -219,6 +371,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     updateUserProfile,
     checkUserExists,
+    checkFirstLogin, // Export checkFirstLogin
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
