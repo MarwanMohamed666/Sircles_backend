@@ -2780,13 +2780,13 @@ export const DatabaseService = {
   },
 
   // Create user looking for
-  async createUserLookingFor(userId: string, lookingForOption: string) {
+  async createUserLookingFor(userId: string, interestId: string) {
     try {
       const { data, error } = await supabase
         .from('user_look_for')
         .insert({
           userid: userId,
-          look_for: lookingForOption
+          interestid: interestId
         });
 
       return { data, error };

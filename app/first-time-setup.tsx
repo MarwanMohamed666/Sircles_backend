@@ -34,17 +34,8 @@ export default function FirstTimeSetupScreen() {
   const [saving, setSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1 = interests, 2 = looking for
 
-  // Predefined looking for options
-  const lookingForOptions = [
-    { id: 'friends', title: 'Friends' },
-    { id: 'networking', title: 'Networking' },
-    { id: 'dating', title: 'Dating' },
-    { id: 'mentorship', title: 'Mentorship' },
-    { id: 'collaboration', title: 'Collaboration' },
-    { id: 'study_partners', title: 'Study Partners' },
-    { id: 'activity_partners', title: 'Activity Partners' },
-    { id: 'professional_development', title: 'Professional Development' },
-  ];
+  // Use interests for looking for section too
+  const [lookingForInterests, setLookingForInterests] = useState<{[category: string]: Interest[]}>({});
 
   useEffect(() => {
     loadInterests();
@@ -59,6 +50,9 @@ export default function FirstTimeSetupScreen() {
         Alert.alert('Error', 'Failed to load interests');
       } else {
         setInterests(data || []);
+        // Use same interests for looking for section
+        const grouped = groupInterestsByCategory(data || []);
+        setLookingForInterests(grouped);
       }
     } catch (error) {
       console.error('Error loading interests:', error);
@@ -139,7 +133,12 @@ export default function FirstTimeSetupScreen() {
 
       // Save user looking for preferences
       for (const lookingForId of selectedLookingFor) {
-        const { error } = await DatabaseService.createUserLookingFor(user.id, lookingForId);
+        const { error } = await supabase
+          .from('user_look_for')
+          .insert({
+            userid: user.id,
+            interestid: lookingForId
+          });
         if (error) {
           console.error('Error saving looking for:', error);
         }
@@ -164,9 +163,9 @@ export default function FirstTimeSetupScreen() {
     }
   };
 
-  const groupInterestsByCategory = () => {
+  const groupInterestsByCategory = (interestsList?: Interest[]) => {
     const grouped: { [key: string]: Interest[] } = {};
-    interests.forEach(interest => {
+    (interestsList || interests).forEach(interest => {
       if (!grouped[interest.category]) {
         grouped[interest.category] = [];
       }
@@ -260,34 +259,41 @@ export default function FirstTimeSetupScreen() {
               Help others understand what kind of connections you're seeking.
             </ThemedText>
 
-            <View style={styles.lookingForGrid}>
-              {lookingForOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.lookingForChip,
-                    {
-                      backgroundColor: selectedLookingFor.includes(option.id) 
-                        ? tintColor 
-                        : surfaceColor,
-                      borderColor: tintColor,
-                    }
-                  ]}
-                  onPress={() => toggleLookingFor(option.id)}
-                >
-                  <ThemedText style={[
-                    styles.lookingForText,
-                    {
-                      color: selectedLookingFor.includes(option.id) 
-                        ? '#fff' 
-                        : textColor
-                    }
-                  ]}>
-                    {option.title}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {Object.entries(lookingForInterests).map(([category, categoryInterests]) => (
+              <View key={category} style={styles.categorySection}>
+                <ThemedText style={[styles.categoryTitle, { color: tintColor }]}>
+                  {category}
+                </ThemedText>
+                <View style={styles.interestsGrid}>
+                  {categoryInterests.map((interest) => (
+                    <TouchableOpacity
+                      key={interest.id}
+                      style={[
+                        styles.interestChip,
+                        {
+                          backgroundColor: selectedLookingFor.includes(interest.id) 
+                            ? tintColor 
+                            : surfaceColor,
+                          borderColor: tintColor,
+                        }
+                      ]}
+                      onPress={() => toggleLookingFor(interest.id)}
+                    >
+                      <ThemedText style={[
+                        styles.interestText,
+                        {
+                          color: selectedLookingFor.includes(interest.id) 
+                            ? '#fff' 
+                            : textColor
+                        }
+                      ]}>
+                        {interest.title}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
 
             <View style={styles.selectionInfo}>
               <ThemedText style={styles.selectionCount}>
@@ -404,26 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  lookingForGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  lookingForChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    borderWidth: 2,
-    marginBottom: 12,
-    minWidth: '45%',
-    alignItems: 'center',
-  },
-  lookingForText: {
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  
   selectionInfo: {
     marginTop: 20,
     alignItems: 'center',
