@@ -161,10 +161,8 @@ export default function CircleScreen() {
     }
   };
 
-  // Placeholder for handleSaveEdit, assuming it's defined elsewhere or needs to be implemented.
-  // For now, we'll use a dummy function to avoid errors.
-  const handleSaveEdit = async () => {
-    // This function needs to be implemented to save the edited circle data
+  // Function to save circle changes
+  const handleSaveCircleChanges = async () => {
     console.log('Saving edited circle data...');
     await handleSaveChanges();
   };
@@ -1279,7 +1277,7 @@ export default function CircleScreen() {
     setEditPostContent('');
   };
 
-  const handleSaveEdit = async () => {
+  const handleSavePostEdit = async () => {
     if (!editingPost || !editPostContent.trim()) return;
 
     try {
@@ -2290,7 +2288,7 @@ export default function CircleScreen() {
               <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
             </TouchableOpacity>
             <ThemedText style={styles.modalTitle}>Edit Post</ThemedText>
-            <TouchableOpacity onPress={handleSaveEdit} disabled={!editPostContent.trim()}>
+            <TouchableOpacity onPress={handleSavePostEdit} disabled={!editPostContent.trim()}>
               <ThemedText style={[
                 styles.saveButton,
                 { color: editPostContent.trim() ? tintColor : textColor + '50' }
@@ -2455,7 +2453,7 @@ export default function CircleScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleSaveEdit}
+                onPress={handleSaveCircleChanges}
               >
                 <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Save Changes</ThemedText>
               </TouchableOpacity>
