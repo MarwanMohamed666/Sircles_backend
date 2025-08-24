@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@/types/database';
-import { useRouter } from 'next/router'; // Assuming Next.js router is used
+import { router } from 'expo-router';
 
 // Assuming DatabaseService is correctly imported and has the necessary methods
 // import DatabaseService from '@/lib/databaseService'; // Placeholder for actual import
@@ -89,7 +89,6 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const router = useRouter(); // Initialize router
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
