@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { DatabaseService } from '@/lib/database';
+import { supabase } from '@/lib/supabase';
 
 interface Interest {
   id: string;
@@ -133,12 +134,7 @@ export default function FirstTimeSetupScreen() {
 
       // Save user looking for preferences
       for (const lookingForId of selectedLookingFor) {
-        const { error } = await supabase
-          .from('user_look_for')
-          .insert({
-            userid: user.id,
-            interestid: lookingForId
-          });
+        const { error } = await DatabaseService.createUserLookingFor(user.id, lookingForId);
         if (error) {
           console.error('Error saving looking for:', error);
         }
