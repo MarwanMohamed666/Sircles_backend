@@ -267,14 +267,14 @@ export default function PostScreen() {
     console.log('🗑️ ═══════════════════════════════════════════════════════════');
     console.log('🗑️ FRONTEND DELETE POST HANDLER STARTED');
     console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    
+
     console.log('🗑️ STEP 0: Initial checks');
     console.log('🗑️ - user exists:', !!user);
     console.log('🗑️ - user.id:', user?.id);
     console.log('🗑️ - post exists:', !!post);
     console.log('🗑️ - post.id:', post?.id);
     console.log('🗑️ - deletePostLoading:', deletePostLoading);
-    
+
     if (!user?.id || !post?.id || deletePostLoading) {
       console.log('🗑️ STEP 0 FAILED: Prerequisites not met');
       console.log('🗑️ - Missing user.id:', !user?.id);
@@ -288,17 +288,17 @@ export default function PostScreen() {
     try {
       console.log('🗑️ STEP 1: Setting loading state and calling delete service');
       setDeletePostLoading(true);
-      
+
       console.log('🗑️ - About to call DatabaseService.deletePost');
       console.log('🗑️ - Post ID:', post.id);
       console.log('🗑️ - User ID:', user.id);
       console.log('🗑️ - DatabaseService type:', typeof DatabaseService);
       console.log('🗑️ - deletePost function type:', typeof DatabaseService.deletePost);
-      
+
       const startTime = Date.now();
       const { data, error } = await DatabaseService.deletePost(post.id, user.id);
       const endTime = Date.now();
-      
+
       console.log('🗑️ STEP 1 RESULT: Delete service call completed');
       console.log('🗑️ - Call duration:', endTime - startTime, 'ms');
       console.log('🗑️ - Returned data:', data);
@@ -312,7 +312,7 @@ export default function PostScreen() {
         console.error('🗑️ - Error message:', error.message);
         console.error('🗑️ - Error stack:', error.stack);
         setDeletePostLoading(false);
-        
+
         // Show user-friendly error
         console.log('🗑️ - Not showing alert as requested');
         return;
@@ -340,14 +340,14 @@ export default function PostScreen() {
       console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       console.error('🗑️ - Error object:', error);
       console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      
+
       setDeletePostLoading(false);
     }
   };
 
   useEffect(() => {
     loadPost();
-    
+
     // Comprehensive database service testing
     console.log('🗑️ ═══════════════════════════════════════════════════════════');
     console.log('🗑️ COMPREHENSIVE DATABASE SERVICE TESTING ON COMPONENT MOUNT');
@@ -357,24 +357,24 @@ export default function PostScreen() {
     console.log('🗑️ - DatabaseService object keys:', Object.keys(DatabaseService));
     console.log('🗑️ - DatabaseService.deleteComment type:', typeof DatabaseService.deleteComment);
     console.log('🗑️ - DatabaseService.deleteComment defined:', DatabaseService.deleteComment !== undefined);
-    
+
     if (DatabaseService.deleteComment) {
       console.log('🗑️ - deleteComment function length:', DatabaseService.deleteComment.length);
       console.log('🗑️ - deleteComment function name:', DatabaseService.deleteComment.name);
       console.log('🗑️ - deleteComment function preview:', DatabaseService.deleteComment.toString().substring(0, 200) + '...');
     }
-    
+
     console.log('🗑️ TEST 2: Available DatabaseService functions:');
     Object.getOwnPropertyNames(DatabaseService)
       .filter(prop => typeof DatabaseService[prop] === 'function')
       .forEach(funcName => {
         console.log('🗑️ -', funcName, '(type:', typeof DatabaseService[funcName], ')');
       });
-    
+
     // Test if we can make database calls
     const runDatabaseTests = async () => {
       console.log('🗑️ TEST 3: Testing database connectivity...');
-      
+
       try {
         console.log('🗑️ TEST 3A: Calling getPost...');
         const testResult = await DatabaseService.getPost(id as string);
@@ -383,11 +383,11 @@ export default function PostScreen() {
       } catch (testError) {
         console.error('🗑️ TEST 3A FAILED: getPost error:', testError);
       }
-      
+
       try {
         console.log('🗑️ TEST 3B: Testing deleteComment function directly...');
         console.log('🗑️ TEST 3B: Function exists:', typeof DatabaseService.deleteComment === 'function');
-        
+
         // Don't actually call delete, just verify we can reference it
         const deleteFunc = DatabaseService.deleteComment;
         console.log('🗑️ TEST 3B SUCCESS: deleteComment function accessible');
@@ -399,12 +399,12 @@ export default function PostScreen() {
       } catch (testError) {
         console.error('🗑️ TEST 3B FAILED: deleteComment access error:', testError);
       }
-      
+
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
       console.log('🗑️ DATABASE SERVICE TESTING COMPLETED');
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
     };
-    
+
     runDatabaseTests();
   }, [id]);
 
@@ -455,14 +455,33 @@ export default function PostScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={handleDeletePost} 
-                style={styles.headerActionButton}
+                style={[styles.headerActionButton, {
+                  minWidth: 60,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: deletePostLoading ? 'rgba(0,0,0,0.1)' : 'rgba(239, 83, 80, 0.1)',
+                  borderRadius: 8,
+                  marginLeft: 8,
+                  flexDirection: 'row',
+                  gap: 4
+                }]}
                 disabled={deletePostLoading}
+                activeOpacity={0.7}
+                testID="delete-post-button"
               >
                 <IconSymbol 
                   name="trash" 
-                  size={24} 
+                  size={20} 
                   color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
                 />
+                <ThemedText style={{
+                  fontSize: 10,
+                  color: deletePostLoading ? "#BDBDBD" : "#EF5350",
+                  fontWeight: 'bold'
+                }}>
+                  DEL
+                </ThemedText>
               </TouchableOpacity>
             </View>
           )}
