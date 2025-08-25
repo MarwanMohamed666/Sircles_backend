@@ -2722,38 +2722,24 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication required') };
       }
 
-      if (currentUser.user.id !== userId) {
-        console.error('🗑️ User ID mismatch');
-        return { data: null, error: new Error('Authentication mismatch') };
-      }
+      console.log('🗑️ User authenticated:', currentUser.user.id);
 
-      console.log('🗑️ Auth verified, attempting delete with RLS policies...');
-
-      // The RLS policies will handle permission checking, so we can directly attempt the delete
+      // Simple delete - let RLS handle permissions
       const { data, error } = await supabase
         .from('posts')
         .delete()
         .eq('id', postId)
         .select('*');
 
+      console.log('🗑️ Delete result:', { data, error, postId });
+
       if (error) {
         console.error('🗑️ Delete failed:', error);
-        
-        // Check for specific permission errors
-        if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('RLS')) {
-          return { data: null, error: new Error('You do not have permission to delete this post') };
-        }
-        
-        // Check for post not found
-        if (error.code === 'PGRST116') {
-          return { data: null, error: new Error('Post not found') };
-        }
-        
-        return { data: null, error: new Error(`Failed to delete post: ${error.message}`) };
+        return { data: null, error: new Error('Failed to delete post. You may not have permission or the post may not exist.') };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected - post may not exist or no permission');
+        console.error('🗑️ No rows affected');
         return { data: null, error: new Error('Post not found or you do not have permission to delete it') };
       }
 

@@ -273,7 +273,8 @@ export default function PostScreen() {
       const { data, error } = await DatabaseService.deletePost(post.id, user.id);
 
       if (error) {
-        console.error('🗑️ Error deleting post:', error);
+        console.error('🗑️ Error deleting post:', error.message);
+        setDeletePostLoading(false);
         return;
       }
 
@@ -281,7 +282,6 @@ export default function PostScreen() {
       router.back();
     } catch (error) {
       console.error('🗑️ Error deleting post:', error);
-    } finally {
       setDeletePostLoading(false);
     }
   };
