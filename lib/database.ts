@@ -2727,61 +2727,9 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication mismatch') };
       }
 
-      console.log('🗑️ Auth verified, checking permissions...');
+      console.log('🗑️ Auth verified, attempting delete with RLS policies...');
 
-      // Get post and related permissions in one query
-      const { data: postData, error: fetchError } = await supabase
-        .from('posts')
-        .select(`
-          userid,
-          id,
-          content,
-          circleid,
-          circles(
-            creator,
-            circle_admins(userid)
-          )
-        `)
-        .eq('id', postId)
-        .single();
-
-      if (fetchError || !postData) {
-        console.error('🗑️ Post not found:', fetchError);
-        return { data: null, error: new Error('Post not found') };
-      }
-
-      // Check permissions
-      let hasPermission = false;
-
-      // 1. Post owner can delete their own post
-      if (postData.userid === userId) {
-        hasPermission = true;
-        console.log('🗑️ Permission: post owner');
-      }
-
-      // 2. Circle admin or creator can delete posts in their circle
-      if (postData.circleid) {
-        const circle = postData.circles;
-        if (circle?.creator === userId) {
-          hasPermission = true;
-          console.log('🗑️ Permission: circle creator');
-        }
-
-        const circleAdmins = circle?.circle_admins || [];
-        if (circleAdmins.some((admin: any) => admin.userid === userId)) {
-          hasPermission = true;
-          console.log('🗑️ Permission: circle admin');
-        }
-      }
-
-      if (!hasPermission) {
-        console.error('🗑️ Permission denied');
-        return { data: null, error: new Error('You do not have permission to delete this post') };
-      }
-
-      console.log('🗑️ Permission verified, deleting post...');
-
-      // Delete the post (cascade will handle related data like comments, likes, etc.)
+      // The RLS policies will handle permission checking, so we can directly attempt the delete
       const { data, error } = await supabase
         .from('posts')
         .delete()
@@ -2790,12 +2738,15 @@ export const DatabaseService = {
 
       if (error) {
         console.error('🗑️ Delete failed:', error);
+        if (error.code === '42501' || error.message.includes('permission denied')) {
+          return { data: null, error: new Error('You do not have permission to delete this post') };
+        }
         return { data: null, error: new Error(`Failed to delete post: ${error.message}`) };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected');
-        return { data: null, error: new Error('Post not found or already deleted') };
+        console.error('🗑️ No rows affected - post may not exist or no permission');
+        return { data: null, error: new Error('Post not found or you do not have permission to delete it') };
       }
 
       console.log('🗑️ Post deleted successfully');

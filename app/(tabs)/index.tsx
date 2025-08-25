@@ -435,7 +435,7 @@ export default function HomeScreen() {
           onPress: async () => {
             try {
               setDeletePostLoading(postId);
-              const { error } = await DatabaseService.deletePost(postId, user.id);
+              const { data, error } = await DatabaseService.deletePost(postId, user.id);
 
               if (error) {
                 console.error('Error deleting post:', error);
@@ -443,8 +443,12 @@ export default function HomeScreen() {
                 return;
               }
 
-              // Remove the post from the local state
+              // Remove the post from both posts and feedItems state
               setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+              setFeedItems(prevItems => prevItems.filter(item => 
+                !(item.type === 'post' && item.id === postId)
+              ));
+              
               Alert.alert('Success', 'Post deleted successfully');
             } catch (error) {
               console.error('Error deleting post:', error);
