@@ -482,10 +482,15 @@ export default function ProfileScreen() {
     if (user?.id) {
       fetchUserInterests();
       fetchUserLookFor();
-      checkExistingAvatar();
     }
     fetchAvailableInterests();
   }, [user]);
+
+  useEffect(() => {
+    if (user?.id) {
+      checkExistingAvatar();
+    }
+  }, [user?.id, userProfile?.avatar]);
 
   const checkExistingAvatar = async () => {
     if (!user?.id) return;
@@ -576,6 +581,13 @@ export default function ProfileScreen() {
     }
   };
 
+  // Handle redirect when no user
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [loading, user]);
+
   // Show loading if auth is still loading
   if (loading) {
     return (
@@ -587,10 +599,15 @@ export default function ProfileScreen() {
     );
   }
 
-  // If no user, redirect to login
+  // If no user, show loading (redirect will happen in useEffect)
   if (!user) {
-    router.replace('/login');
-    return null;
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ThemedText>Redirecting...</ThemedText>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
