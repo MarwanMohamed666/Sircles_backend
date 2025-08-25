@@ -187,168 +187,35 @@ export default function PostScreen() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    console.log('🗑️ ════════════════════════════════════════════════════════════════════════');
-    console.log('🗑️ UI FUNCTION ENTRY: handleDeleteComment called');
-    console.log('🗑️ Parameters:', { commentId, hasUserId: !!user?.id, userId: user?.id });
-    console.log('🗑️ Current loading state:', deleteLoading);
-    console.log('🗑️ DatabaseService import check:', typeof DatabaseService, !!DatabaseService.deleteComment);
-    console.log('🗑️ Platform check:', Platform.OS);
-    console.log('🗑️ ════════════════════════════════════════════════════════════════════════');
-
     if (!user?.id) {
-      console.error('🗑️ UI VALIDATION FAILED: No user ID available for delete');
+      console.error('🗑️ No user ID available for delete');
       return;
     }
 
     if (deleteLoading === commentId) {
-      console.log('🗑️ UI DUPLICATE CALL: Delete already in progress for this comment, ignoring duplicate call');
+      console.log('🗑️ Delete already in progress for this comment, ignoring duplicate call');
       return;
     }
 
-    console.log('🗑️ UI VALIDATION PASSED: All checks passed, showing alert dialog');
-    console.log('🗑️ ALERT SETUP: About to show Alert.alert with buttons');
-
-    // Try a simpler approach first - direct execution without alert
-    console.log('🗑️ BYPASSING ALERT: Executing delete directly for debugging');
-    
     try {
-      console.log('🗑️ 🔴🔴🔴 DIRECT DELETE EXECUTION STARTING 🔴🔴🔴');
-      console.log('🗑️ 🔴 Comment ID to delete:', commentId);
-      console.log('🗑️ 🔴 Current user ID:', user.id);
-
-      // Set loading state immediately
-      console.log('🗑️ 🟡 Setting loading state to:', commentId);
+      console.log('🗑️ Deleting comment:', commentId);
       setDeleteLoading(commentId);
 
-      console.log('🗑️ 🟢 ABOUT TO CALL DatabaseService.deleteComment...');
-      const callStartTime = Date.now();
-      const result = await DatabaseService.deleteComment(commentId, user.id);
-      const callEndTime = Date.now();
-      const callDuration = callEndTime - callStartTime;
-      
-      console.log('🗑️ 🟢 ✅ DATABASE CALL COMPLETED!');
-      console.log('🗑️ 🟢 Call duration:', callDuration, 'ms');
-      console.log('🗑️ 🟢 Result:', result);
-      
-      const { data, error } = result;
+      const { data, error } = await DatabaseService.deleteComment(commentId, user.id);
 
       if (error) {
-        console.error('🗑️ ❌ Delete failed with error:', error);
+        console.error('🗑️ Delete failed with error:', error);
         setDeleteLoading(null);
-        Alert.alert('Error', error.message || 'Failed to delete comment');
         return;
       }
 
-      console.log('🗑️ ✅ Delete successful! Reloading comments...');
+      console.log('🗑️ Comment deleted successfully, reloading comments...');
       await loadComments();
       setDeleteLoading(null);
-      console.log('🗑️ ✅ Delete process completed successfully!');
-      Alert.alert('Success', 'Comment deleted successfully');
-
     } catch (error) {
-      console.error('🗑️ ❌ EXCEPTION CAUGHT during delete process:', error);
+      console.error('🗑️ Exception during delete process:', error);
       setDeleteLoading(null);
-      Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
     }
-
-    return; // Skip the alert dialog for now
-
-    Alert.alert(
-      'Delete Comment',
-      'Are you sure you want to delete this comment?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            console.log('🗑️ UI USER ACTION: User cancelled deletion via dialog');
-          }
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-            console.log('🗑️ 🔴🔴🔴 USER CLICKED DELETE - STARTING PROCESS 🔴🔴🔴');
-            console.log('🗑️ 🔴 Alert confirmation timestamp:', new Date().toISOString());
-            console.log('🗑️ 🔴 Comment ID to delete:', commentId);
-            console.log('🗑️ 🔴 Current user ID:', user.id);
-            console.log('🗑️ 🔴 DatabaseService availability check:', {
-              isDefined: typeof DatabaseService !== 'undefined',
-              hasDeleteComment: typeof DatabaseService?.deleteComment === 'function',
-              functionCode: DatabaseService?.deleteComment?.toString?.()?.substring(0, 100) + '...'
-            });
-            console.log('🗑️ ████████████████████████████████████████████████████████████████████████████████████');
-
-            // Set loading state immediately
-            console.log('🗑️ 🟡 Setting loading state to:', commentId);
-            setDeleteLoading(commentId);
-            console.log('🗑️ 🟡 Loading state set successfully');
-
-            try {
-              console.log('🗑️ 🟢 ABOUT TO CALL DatabaseService.deleteComment...');
-              console.log('🗑️ 🟢 Function type check:', typeof DatabaseService.deleteComment);
-              console.log('🗑️ 🟢 Parameters being passed: commentId =', commentId, ', userId =', user.id);
-              console.log('🗑️ 🟢 Calling function now...');
-
-              const callStartTime = Date.now();
-              const result = await DatabaseService.deleteComment(commentId, user.id);
-              const callEndTime = Date.now();
-              const callDuration = callEndTime - callStartTime;
-              
-              console.log('🗑️ 🟢 ✅ DATABASE CALL COMPLETED SUCCESSFULLY!');
-              console.log('🗑️ 🟢 Call duration:', callDuration, 'ms');
-              console.log('🗑️ 🟢 Result type:', typeof result);
-              console.log('🗑️ 🟢 Result structure:', result);
-              console.log('🗑️ 🟢 Result stringified:', JSON.stringify(result, null, 2));
-              
-              const { data, error } = result;
-
-              console.log('🗑️ 🟡 Processing result...', {
-                hasData: !!data,
-                hasError: !!error,
-                errorType: typeof error,
-                errorMessage: error?.message
-              });
-
-              if (error) {
-                console.error('🗑️ ❌ Delete failed with error:', error);
-                console.error('🗑️ ❌ Error details:', {
-                  message: error.message,
-                  code: error.code,
-                  details: error.details,
-                  stack: error.stack
-                });
-                setDeleteLoading(null);
-                Alert.alert('Error', error.message || 'Failed to delete comment');
-                return;
-              }
-
-              console.log('🗑️ ✅ Delete successful! Reloading comments...');
-              const reloadStartTime = Date.now();
-              await loadComments();
-              const reloadEndTime = Date.now();
-              const reloadDuration = reloadEndTime - reloadStartTime;
-              console.log('🗑️ ✅ Comments reloaded successfully in', reloadDuration, 'ms');
-              setDeleteLoading(null);
-              console.log('🗑️ ✅ Delete process completed successfully!');
-
-            } catch (error) {
-              console.error('🗑️ ❌ EXCEPTION CAUGHT during delete process:');
-              console.error('🗑️ ❌ Exception type:', typeof error);
-              console.error('🗑️ ❌ Exception constructor:', error?.constructor?.name);
-              console.error('🗑️ ❌ Exception message:', error instanceof Error ? error.message : String(error));
-              console.error('🗑️ ❌ Exception stack:', error instanceof Error ? error.stack : 'No stack available');
-              console.error('🗑️ ❌ Exception object:', error);
-              setDeleteLoading(null);
-              Alert.alert('Error', 'Failed to delete comment: ' + (error instanceof Error ? error.message : String(error)));
-            }
-          }
-        }
-      ]
-    );
-
-    console.log('🗑️ UI FUNCTION EXIT: handleDeleteComment alert dialog displayed');
   };
 
   const handleEditPost = () => {
@@ -399,44 +266,24 @@ export default function PostScreen() {
   const handleDeletePost = async () => {
     if (!user?.id || !post?.id || deletePostLoading) return;
 
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setDeletePostLoading(true);
-              const { error } = await DatabaseService.deletePost(post.id, user.id);
+    try {
+      setDeletePostLoading(true);
+      console.log('🗑️ Deleting post:', post.id, 'by user:', user.id);
+      
+      const { data, error } = await DatabaseService.deletePost(post.id, user.id);
 
-              if (error) {
-                console.error('Error deleting post:', error);
-                Alert.alert('Error', error.message || 'Failed to delete post');
-                return;
-              }
+      if (error) {
+        console.error('🗑️ Error deleting post:', error);
+        return;
+      }
 
-              Alert.alert('Success', 'Post deleted successfully', [
-                {
-                  text: 'OK',
-                  onPress: () => router.back()
-                }
-              ]);
-            } catch (error) {
-              console.error('Error deleting post:', error);
-              Alert.alert('Error', 'Failed to delete post');
-            } finally {
-              setDeletePostLoading(false);
-            }
-          }
-        }
-      ]
-    );
+      console.log('🗑️ Post deleted successfully, navigating back');
+      router.back();
+    } catch (error) {
+      console.error('🗑️ Error deleting post:', error);
+    } finally {
+      setDeletePostLoading(false);
+    }
   };
 
   useEffect(() => {
