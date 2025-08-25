@@ -50,6 +50,7 @@ export const unlikePost = (postId: string, userId: string) => DatabaseService.un
 export const createComment = (postId: string, userId: string, text: string) => DatabaseService.createComment(postId, userId, text);
 export const getPostComments = (postId: string) => DatabaseService.getPostComments(postId);
 export const deleteComment = (commentId: string, userId: string) => DatabaseService.deleteComment(commentId, userId);
+export const deletePost = (postId: string, userId: string) => DatabaseService.deletePost(postId, userId);
 export const updatePost = (postId: string, updates: { content?: string; image?: string }, userId: string) => DatabaseService.updatePost(postId, updates, userId);
 export const checkFirstLogin = (userId: string) => DatabaseService.checkFirstLogin(userId);
 export const updateFirstLogin = (userId: string) => DatabaseService.updateFirstLogin(userId);
@@ -2702,6 +2703,103 @@ export const DatabaseService = {
 
       console.log('🗑️ Comment deleted successfully');
       return { data: { success: true, deletedComment: data[0] }, error: null };
+
+    } catch (error) {
+      console.error('🗑️ Unexpected error:', error);
+      return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+    }
+  },
+
+  async deletePost(postId: string, userId: string) {
+    console.log('🗑️ deletePost called:', { postId, userId });
+
+    try {
+      // Verify user is authenticated
+      const { data: currentUser, error: authError } = await supabase.auth.getUser();
+
+      if (!currentUser?.user || authError) {
+        console.error('🗑️ Authentication failed:', authError);
+        return { data: null, error: new Error('Authentication required') };
+      }
+
+      if (currentUser.user.id !== userId) {
+        console.error('🗑️ User ID mismatch');
+        return { data: null, error: new Error('Authentication mismatch') };
+      }
+
+      console.log('🗑️ Auth verified, checking permissions...');
+
+      // Get post and related permissions in one query
+      const { data: postData, error: fetchError } = await supabase
+        .from('posts')
+        .select(`
+          userid,
+          id,
+          content,
+          circleid,
+          circles(
+            creator,
+            circle_admins(userid)
+          )
+        `)
+        .eq('id', postId)
+        .single();
+
+      if (fetchError || !postData) {
+        console.error('🗑️ Post not found:', fetchError);
+        return { data: null, error: new Error('Post not found') };
+      }
+
+      // Check permissions
+      let hasPermission = false;
+
+      // 1. Post owner can delete their own post
+      if (postData.userid === userId) {
+        hasPermission = true;
+        console.log('🗑️ Permission: post owner');
+      }
+
+      // 2. Circle admin or creator can delete posts in their circle
+      if (postData.circleid) {
+        const circle = postData.circles;
+        if (circle?.creator === userId) {
+          hasPermission = true;
+          console.log('🗑️ Permission: circle creator');
+        }
+
+        const circleAdmins = circle?.circle_admins || [];
+        if (circleAdmins.some((admin: any) => admin.userid === userId)) {
+          hasPermission = true;
+          console.log('🗑️ Permission: circle admin');
+        }
+      }
+
+      if (!hasPermission) {
+        console.error('🗑️ Permission denied');
+        return { data: null, error: new Error('You do not have permission to delete this post') };
+      }
+
+      console.log('🗑️ Permission verified, deleting post...');
+
+      // Delete the post (cascade will handle related data like comments, likes, etc.)
+      const { data, error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .select('*');
+
+      if (error) {
+        console.error('🗑️ Delete failed:', error);
+        return { data: null, error: new Error(`Failed to delete post: ${error.message}`) };
+      }
+
+      if (!data || data.length === 0) {
+        console.error('🗑️ No rows affected');
+        return { data: null, error: new Error('Post not found or already deleted') };
+      }
+
+      console.log('🗑️ Post deleted successfully');
+      return { data: { success: true, deletedPost: data[0] }, error: null };
 
     } catch (error) {
       console.error('🗑️ Unexpected error:', error);

@@ -54,6 +54,7 @@ export default function HomeScreen() {
   const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
   const [editPostContent, setEditPostContent] = useState('');
+  const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -385,7 +386,7 @@ export default function HomeScreen() {
   };
 
   const handleEditPost = (postId: string, currentContent: string) => {
-    setEditingPost({ id: postId, content: currentContent });
+    setEditingPost(postId);
     setEditPostContent(currentContent);
   };
 
@@ -399,8 +400,8 @@ export default function HomeScreen() {
 
     try {
       const { error } = await DatabaseService.updatePost(
-        editingPost.id, 
-        { content: editPostContent.trim() }, 
+        editingPost.id,
+        { content: editPostContent.trim() },
         user.id
       );
       if (error) {
@@ -415,6 +416,46 @@ export default function HomeScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to update post');
     }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!user?.id || deletePostLoading === postId) return;
+
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletePostLoading(postId);
+              const { error } = await DatabaseService.deletePost(postId, user.id);
+
+              if (error) {
+                console.error('Error deleting post:', error);
+                Alert.alert('Error', error.message || 'Failed to delete post');
+                return;
+              }
+
+              // Remove the post from the local state
+              setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+              Alert.alert('Success', 'Post deleted successfully');
+            } catch (error) {
+              console.error('Error deleting post:', error);
+              Alert.alert('Error', 'Failed to delete post');
+            } finally {
+              setDeletePostLoading(null);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderEvent = ({ item }: { item: any }) => (
@@ -511,9 +552,31 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
-        <TouchableOpacity>
-          <IconSymbol name="ellipsis" size={20} color={textColor} />
-        </TouchableOpacity>
+        <View style={styles.postActions}>
+          {/* Edit button - only show for post owner */}
+          {user?.id === item.author?.id && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleEditPost(item.id, item.content)}
+            >
+              <IconSymbol name="pencil" size={20} color={textColor} />
+            </TouchableOpacity>
+          )}
+          {/* Delete button - show for post owner or admin */}
+          {(user?.id === item.author?.id || (item.circle && userCircles.some(c => c.id === item.circle.id && c.role === 'admin'))) && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleDeletePost(item.id)}
+              disabled={deletePostLoading === item.id}
+            >
+              {deletePostLoading === item.id ? (
+                <ThemedText style={{color: 'red'}}>Deleting...</ThemedText>
+              ) : (
+                <IconSymbol name="trash" size={20} color="#EF5350" />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Post Content */}
@@ -558,15 +621,6 @@ export default function HomeScreen() {
           </ThemedText>
         </TouchableOpacity>
 
-        {/* Edit button - only show for post owner */}
-        {user?.id === item.author?.id && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditPost(item.id, item.content)}
-          >
-            <IconSymbol name="pencil" size={20} color={textColor} />
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );

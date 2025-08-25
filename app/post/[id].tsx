@@ -70,6 +70,7 @@ export default function PostScreen() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editPostContent, setEditPostContent] = useState('');
+  const [deletePostLoading, setDeletePostLoading] = useState(false);
 
   const loadPost = async () => {
     if (!id) return;
@@ -395,6 +396,49 @@ export default function PostScreen() {
     }
   };
 
+  const handleDeletePost = async () => {
+    if (!user?.id || !post?.id || deletePostLoading) return;
+
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletePostLoading(true);
+              const { error } = await DatabaseService.deletePost(post.id, user.id);
+
+              if (error) {
+                console.error('Error deleting post:', error);
+                Alert.alert('Error', error.message || 'Failed to delete post');
+                return;
+              }
+
+              Alert.alert('Success', 'Post deleted successfully', [
+                {
+                  text: 'OK',
+                  onPress: () => router.back()
+                }
+              ]);
+            } catch (error) {
+              console.error('Error deleting post:', error);
+              Alert.alert('Error', 'Failed to delete post');
+            } finally {
+              setDeletePostLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   useEffect(() => {
     loadPost();
     
@@ -499,9 +543,22 @@ export default function PostScreen() {
             Post
           </ThemedText>
           {user?.id === post?.author?.id && !isEditingPost && (
-            <TouchableOpacity onPress={handleEditPost}>
-              <IconSymbol name="pencil" size={24} color={textColor} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
+                <IconSymbol name="pencil" size={24} color={textColor} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleDeletePost} 
+                style={styles.headerActionButton}
+                disabled={deletePostLoading}
+              >
+                <IconSymbol 
+                  name="trash" 
+                  size={24} 
+                  color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
+                />
+              </TouchableOpacity>
+            </View>
           )}
           {isEditingPost && (
             <View style={styles.editActions}>
@@ -964,5 +1021,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     textAlignVertical: 'top',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionButton: {
+    padding: 4,
   },
 });
