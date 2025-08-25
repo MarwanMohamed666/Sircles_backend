@@ -30,5 +30,24 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'replit-app'
     }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  },
+  db: {
+    schema: 'public'
   }
 })
+
+// Test connectivity on initialization
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('❌ Supabase connection test failed:', error);
+  } else {
+    console.log('✅ Supabase connection test successful');
+  }
+}).catch(err => {
+  console.error('❌ Supabase connection test threw error:', err);
+});

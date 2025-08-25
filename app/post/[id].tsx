@@ -266,85 +266,89 @@ export default function PostScreen() {
   };
 
   const handleDeletePost = async () => {
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    console.log('🗑️ FRONTEND DELETE POST HANDLER STARTED');
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-
-    console.log('🗑️ STEP 0: Initial checks');
-    console.log('🗑️ - user exists:', !!user);
-    console.log('🗑️ - user.id:', user?.id);
-    console.log('🗑️ - post exists:', !!post);
-    console.log('🗑️ - post.id:', post?.id);
-    console.log('🗑️ - deletePostLoading:', deletePostLoading);
+    console.log('🗑️ DELETE POST: Starting delete process');
 
     if (!user?.id || !post?.id || deletePostLoading) {
-      console.log('🗑️ STEP 0 FAILED: Prerequisites not met');
-      console.log('🗑️ - Missing user.id:', !user?.id);
-      console.log('🗑️ - Missing post.id:', !post?.id);
-      console.log('🗑️ - Already loading:', deletePostLoading);
+      console.log('🗑️ DELETE POST: Prerequisites not met');
       return;
     }
 
-    console.log('🗑️ STEP 0 PASSED: All prerequisites met');
+    // Show confirmation dialog
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletePostLoading(true);
+              console.log('🗑️ DELETE POST: User confirmed, proceeding with delete');
 
-    try {
-      console.log('🗑️ STEP 1: Setting loading state and calling delete service');
-      setDeletePostLoading(true);
+              // First test basic connectivity
+              try {
+                console.log('🗑️ DELETE POST: Testing Supabase connectivity...');
+                const { data: testUser } = await supabase.auth.getUser();
+                console.log('🗑️ DELETE POST: Auth test successful:', !!testUser);
+              } catch (connectError) {
+                console.error('🗑️ DELETE POST: Connectivity test failed:', connectError);
+                setDeletePostLoading(false);
+                Alert.alert(
+                  'Connection Error',
+                  'Unable to connect to the server. Please check your internet connection and try again.'
+                );
+                return;
+              }
 
-      console.log('🗑️ - About to call DatabaseService.deletePost');
-      console.log('🗑️ - Post ID:', post.id);
-      console.log('🗑️ - User ID:', user.id);
-      console.log('🗑️ - DatabaseService type:', typeof DatabaseService);
-      console.log('🗑️ - deletePost function type:', typeof DatabaseService.deletePost);
+              console.log('🗑️ DELETE POST: Calling delete service...');
+              const { data, error } = await DatabaseService.deletePost(post.id, user.id);
 
-      const startTime = Date.now();
-      const { data, error } = await DatabaseService.deletePost(post.id, user.id);
-      const endTime = Date.now();
+              if (error) {
+                console.error('🗑️ DELETE POST: Service error:', error);
+                setDeletePostLoading(false);
+                
+                // Handle specific error types
+                if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+                  Alert.alert(
+                    'Network Error',
+                    'Unable to connect to the server. Please check your internet connection and try again.'
+                  );
+                } else if (error.message?.includes('permission')) {
+                  Alert.alert(
+                    'Permission Denied',
+                    'You do not have permission to delete this post.'
+                  );
+                } else {
+                  Alert.alert(
+                    'Delete Failed',
+                    'Failed to delete the post. Please try again.'
+                  );
+                }
+                return;
+              }
 
-      console.log('🗑️ STEP 1 RESULT: Delete service call completed');
-      console.log('🗑️ - Call duration:', endTime - startTime, 'ms');
-      console.log('🗑️ - Returned data:', data);
-      console.log('🗑️ - Returned error:', error);
-      console.log('🗑️ - Error message:', error?.message);
-      console.log('🗑️ - Error type:', typeof error);
+              console.log('🗑️ DELETE POST: Success, navigating back');
+              setDeletePostLoading(false);
+              Alert.alert('Success', 'Post deleted successfully');
+              router.back();
 
-      if (error) {
-        console.error('🗑️ STEP 1 FAILED: Delete service returned error');
-        console.error('🗑️ - Error object:', error);
-        console.error('🗑️ - Error message:', error.message);
-        console.error('🗑️ - Error stack:', error.stack);
-        setDeletePostLoading(false);
-
-        // Show user-friendly error
-        console.log('🗑️ - Not showing alert as requested');
-        return;
-      }
-
-      console.log('🗑️ STEP 1 PASSED: Delete service successful');
-      console.log('🗑️ - Success data:', data);
-
-      console.log('🗑️ STEP 2: Navigating back to previous screen');
-      console.log('🗑️ - About to call router.back()');
-      router.back();
-      console.log('🗑️ STEP 2 PASSED: Navigation initiated');
-
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
-      console.log('🗑️ FRONTEND DELETE POST HANDLER COMPLETED SUCCESSFULLY');
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
-
-    } catch (error) {
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      console.error('🗑️ FRONTEND DELETE POST HANDLER FAILED WITH EXCEPTION');
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      console.error('🗑️ EXCEPTION DETAILS:');
-      console.error('🗑️ - Error type:', typeof error);
-      console.error('🗑️ - Error message:', error instanceof Error ? error.message : String(error));
-      console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('🗑️ - Error object:', error);
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
-
-      setDeletePostLoading(false);
-    }
+            } catch (error) {
+              console.error('🗑️ DELETE POST: Unexpected error:', error);
+              setDeletePostLoading(false);
+              Alert.alert(
+                'Error',
+                'An unexpected error occurred. Please try again.'
+              );
+            }
+          }
+        }
+      ]
+    );
   };
 
   useEffect(() => {
