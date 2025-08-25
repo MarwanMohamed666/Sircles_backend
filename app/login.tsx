@@ -1,12 +1,12 @@
+
 import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Image,
-  Switch,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,20 +14,17 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { Colors } from '@/constants/Colors';
 
 export default function LoginScreen() {
   const { texts, toggleLanguage, language, isRTL } = useLanguage();
   const { signIn, checkUserExists, checkFirstLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
-  const tintColor = useThemeColor({}, 'tint');
-  const surfaceColor = useThemeColor({}, 'surface');
+  const textColor = useThemeColor({}, 'text');
 
   const handleLogin = async () => {
     if (!email) {
@@ -119,206 +116,203 @@ export default function LoginScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { direction: isRTL ? 'rtl' : 'ltr' }]}>
-      {/* Language Toggle */}
-      <View style={[styles.languageToggle, isRTL && styles.languageToggleRTL]}>
-        <TouchableOpacity
-          style={[styles.langButton, { backgroundColor: surfaceColor }]}
-          onPress={toggleLanguage}
-        >
-          <ThemedText style={styles.langText}>
-            {language === 'en' ? 'العربية' : 'English'}
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={[styles.logoContainer, { backgroundColor: tintColor }]}>
-          <ThemedText style={[styles.logoText, { color: '#fff' }]}>S</ThemedText>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <ThemedView style={styles.content}>
+        {/* Language Toggle */}
+        <View style={styles.languageToggle}>
+          <TouchableOpacity
+            style={styles.langButton}
+            onPress={toggleLanguage}
+          >
+            <ThemedText style={styles.langText}>
+              {language === 'en' ? 'العربية' : 'English'}
+            </ThemedText>
+          </TouchableOpacity>
         </View>
 
-        {/* App Title */}
-        <ThemedText type="title" style={styles.title}>
-          {texts.appName}
-        </ThemedText>
-
-        <ThemedText type="subtitle" style={styles.welcomeText}>
-          {texts.welcome}
-        </ThemedText>
+        {/* Header with House Icon and Branding */}
+        <View style={styles.header}>
+          <View style={styles.houseIcon}>
+            <ThemedText style={styles.houseText}>🏠</ThemedText>
+          </View>
+          <ThemedText style={styles.brandTitle}>Sircles</ThemedText>
+          <ThemedText style={styles.tagline}>Your Community, Your Space</ThemedText>
+        </View>
 
         {/* Login Form */}
         <View style={styles.form}>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: surfaceColor, textAlign: isRTL ? 'right' : 'left' }
-            ]}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-
-          <View style={styles.passwordContainer}>
+          <View style={styles.inputContainer}>
             <TextInput
-              style={[
-                styles.input,
-                styles.passwordInput,
-                { backgroundColor: surfaceColor, textAlign: isRTL ? 'right' : 'left' }
-              ]}
-              placeholder={password ? texts.password : "Password (leave empty for new users)"}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
+              style={[styles.input, { color: textColor }]}
+              placeholder="Username"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
-            <TouchableOpacity
-              style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <ThemedText>{showPassword ? '👁️' : '👁️‍🗨️'}</ThemedText>
-            </TouchableOpacity>
+            <View style={styles.underline} />
           </View>
 
-          {/* Remember Me */}
-          <View style={[styles.rememberRow, isRTL && styles.rememberRowRTL]}>
-            <Switch
-              value={rememberMe}
-              onValueChange={setRememberMe}
-              trackColor={{ false: '#767577', true: tintColor }}
-              thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
-            />
-            <ThemedText style={styles.rememberText}>{texts.rememberMe}</ThemedText>
+          <View style={styles.inputContainer}>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, { color: textColor }]}
+                placeholder="Password"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <ThemedText style={styles.eyeText}>👁️</ThemedText>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.underline} />
           </View>
 
           {/* Forgot Password */}
-          <TouchableOpacity style={[styles.forgotPassword, isRTL && styles.forgotPasswordRTL]}>
-            <ThemedText style={[styles.forgotText, { color: tintColor }]}>
-              {texts.forgotPassword}
-            </ThemedText>
+          <TouchableOpacity style={styles.forgotPassword}>
+            <ThemedText style={styles.forgotText}>Forget Password?</ThemedText>
           </TouchableOpacity>
 
-          {/* Login Button */}
+          {/* Sign In Button */}
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: tintColor, opacity: loading ? 0.7 : 1 }]}
+            style={[styles.signInButton, { opacity: loading ? 0.7 : 1 }]}
             onPress={handleLogin}
             disabled={loading}
           >
-            <ThemedText style={[styles.loginButtonText, { color: '#fff' }]}>
-              {loading ? 'Signing in...' : texts.login}
+            <ThemedText style={styles.signInButtonText}>
+              {loading ? 'Signing in...' : 'Sign in'}
             </ThemedText>
           </TouchableOpacity>
         </View>
-      </View>
-    </ThemedView>
+
+        {/* Community Illustration */}
+        <View style={styles.illustrationContainer}>
+          <ThemedText style={styles.illustration}>🌳🏠🌿👥</ThemedText>
+          <ThemedText style={styles.illustrationText}>Join your community</ThemedText>
+        </View>
+      </ThemedView>
+    </SafeAreaView>
   );
 }
-
-
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 32,
     paddingTop: 60,
   },
   languageToggle: {
     alignItems: 'flex-end',
     marginBottom: 20,
   },
-  languageToggleRTL: {
-    alignItems: 'flex-start',
-  },
   langButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   langText: {
     fontSize: 14,
     fontWeight: '500',
   },
-  content: {
-    flex: 1,
+  header: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 80,
+  },
+  houseIcon: {
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+  houseText: {
+    fontSize: 40,
   },
-  logoText: {
-    fontSize: 36,
+  brandTitle: {
+    fontSize: 32,
     fontWeight: 'bold',
-  },
-  title: {
+    color: '#2d5a3d',
     marginBottom: 8,
   },
-  welcomeText: {
-    marginBottom: 40,
+  tagline: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   form: {
-    width: '100%',
-    maxWidth: 300,
+    marginBottom: 60,
+  },
+  inputContainer: {
+    marginBottom: 32,
   },
   input: {
-    height: 50,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
     fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
   },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 16,
-    top: 15,
-  },
-  eyeButtonRTL: {
-    right: 'auto',
-    left: 16,
-  },
-  rememberRow: {
+  passwordWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  rememberRowRTL: {
-    flexDirection: 'row-reverse',
+  passwordInput: {
+    flex: 1,
   },
-  rememberText: {
-    marginLeft: 8,
-    fontSize: 14,
+  eyeIcon: {
+    padding: 8,
+  },
+  eyeText: {
+    fontSize: 16,
+  },
+  underline: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginTop: 4,
   },
   forgotPassword: {
     alignItems: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordRTL: {
-    alignItems: 'flex-start',
+    marginBottom: 40,
   },
   forgotText: {
     fontSize: 14,
+    color: '#999',
   },
-  loginButton: {
-    height: 50,
-    borderRadius: 8,
+  signInButton: {
+    backgroundColor: '#2d5a3d',
+    paddingVertical: 16,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loginButtonText: {
+  signInButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  illustrationContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 40,
+  },
+  illustration: {
+    fontSize: 40,
+    marginBottom: 16,
+  },
+  illustrationText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 });
