@@ -266,10 +266,16 @@ export default function PostScreen() {
   };
 
   const handleDeletePost = async () => {
-    console.log('🗑️ DELETE POST: Starting delete process');
+    console.log('🗑️ DELETE POST: Button pressed - starting delete process');
 
-    if (!user?.id || !post?.id || deletePostLoading) {
-      console.log('🗑️ DELETE POST: Prerequisites not met');
+    if (!user?.id || !post?.id) {
+      console.log('🗑️ DELETE POST: Missing user or post ID');
+      Alert.alert('Error', 'Cannot delete post - missing required data');
+      return;
+    }
+
+    if (deletePostLoading) {
+      console.log('🗑️ DELETE POST: Already deleting, ignoring');
       return;
     }
 
@@ -288,62 +294,25 @@ export default function PostScreen() {
           onPress: async () => {
             try {
               setDeletePostLoading(true);
-              console.log('🗑️ DELETE POST: User confirmed, proceeding with delete');
+              console.log('🗑️ DELETE POST: User confirmed, calling DatabaseService.deletePost');
 
-              // First test basic connectivity
-              try {
-                console.log('🗑️ DELETE POST: Testing Supabase connectivity...');
-                const { data: testUser } = await supabase.auth.getUser();
-                console.log('🗑️ DELETE POST: Auth test successful:', !!testUser);
-              } catch (connectError) {
-                console.error('🗑️ DELETE POST: Connectivity test failed:', connectError);
-                setDeletePostLoading(false);
-                Alert.alert(
-                  'Connection Error',
-                  'Unable to connect to the server. Please check your internet connection and try again.'
-                );
-                return;
-              }
-
-              console.log('🗑️ DELETE POST: Calling delete service...');
               const { data, error } = await DatabaseService.deletePost(post.id, user.id);
 
               if (error) {
-                console.error('🗑️ DELETE POST: Service error:', error);
-                setDeletePostLoading(false);
-                
-                // Handle specific error types
-                if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-                  Alert.alert(
-                    'Network Error',
-                    'Unable to connect to the server. Please check your internet connection and try again.'
-                  );
-                } else if (error.message?.includes('permission')) {
-                  Alert.alert(
-                    'Permission Denied',
-                    'You do not have permission to delete this post.'
-                  );
-                } else {
-                  Alert.alert(
-                    'Delete Failed',
-                    'Failed to delete the post. Please try again.'
-                  );
-                }
+                console.error('🗑️ DELETE POST: Error returned:', error);
+                Alert.alert('Error', error.message || 'Failed to delete post');
                 return;
               }
 
               console.log('🗑️ DELETE POST: Success, navigating back');
-              setDeletePostLoading(false);
               Alert.alert('Success', 'Post deleted successfully');
               router.back();
 
             } catch (error) {
-              console.error('🗑️ DELETE POST: Unexpected error:', error);
+              console.error('🗑️ DELETE POST: Exception caught:', error);
+              Alert.alert('Error', 'Failed to delete post');
+            } finally {
               setDeletePostLoading(false);
-              Alert.alert(
-                'Error',
-                'An unexpected error occurred. Please try again.'
-              );
             }
           }
         }
