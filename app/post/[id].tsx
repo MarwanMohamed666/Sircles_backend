@@ -264,24 +264,83 @@ export default function PostScreen() {
   };
 
   const handleDeletePost = async () => {
-    if (!user?.id || !post?.id || deletePostLoading) return;
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ FRONTEND DELETE POST HANDLER STARTED');
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    
+    console.log('🗑️ STEP 0: Initial checks');
+    console.log('🗑️ - user exists:', !!user);
+    console.log('🗑️ - user.id:', user?.id);
+    console.log('🗑️ - post exists:', !!post);
+    console.log('🗑️ - post.id:', post?.id);
+    console.log('🗑️ - deletePostLoading:', deletePostLoading);
+    
+    if (!user?.id || !post?.id || deletePostLoading) {
+      console.log('🗑️ STEP 0 FAILED: Prerequisites not met');
+      console.log('🗑️ - Missing user.id:', !user?.id);
+      console.log('🗑️ - Missing post.id:', !post?.id);
+      console.log('🗑️ - Already loading:', deletePostLoading);
+      return;
+    }
+
+    console.log('🗑️ STEP 0 PASSED: All prerequisites met');
 
     try {
+      console.log('🗑️ STEP 1: Setting loading state and calling delete service');
       setDeletePostLoading(true);
-      console.log('🗑️ Deleting post:', post.id, 'by user:', user.id);
       
+      console.log('🗑️ - About to call DatabaseService.deletePost');
+      console.log('🗑️ - Post ID:', post.id);
+      console.log('🗑️ - User ID:', user.id);
+      console.log('🗑️ - DatabaseService type:', typeof DatabaseService);
+      console.log('🗑️ - deletePost function type:', typeof DatabaseService.deletePost);
+      
+      const startTime = Date.now();
       const { data, error } = await DatabaseService.deletePost(post.id, user.id);
+      const endTime = Date.now();
+      
+      console.log('🗑️ STEP 1 RESULT: Delete service call completed');
+      console.log('🗑️ - Call duration:', endTime - startTime, 'ms');
+      console.log('🗑️ - Returned data:', data);
+      console.log('🗑️ - Returned error:', error);
+      console.log('🗑️ - Error message:', error?.message);
+      console.log('🗑️ - Error type:', typeof error);
 
       if (error) {
-        console.error('🗑️ Error deleting post:', error.message);
+        console.error('🗑️ STEP 1 FAILED: Delete service returned error');
+        console.error('🗑️ - Error object:', error);
+        console.error('🗑️ - Error message:', error.message);
+        console.error('🗑️ - Error stack:', error.stack);
         setDeletePostLoading(false);
+        
+        // Show user-friendly error
+        console.log('🗑️ - Not showing alert as requested');
         return;
       }
 
-      console.log('🗑️ Post deleted successfully, navigating back');
+      console.log('🗑️ STEP 1 PASSED: Delete service successful');
+      console.log('🗑️ - Success data:', data);
+
+      console.log('🗑️ STEP 2: Navigating back to previous screen');
+      console.log('🗑️ - About to call router.back()');
       router.back();
+      console.log('🗑️ STEP 2 PASSED: Navigation initiated');
+
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+      console.log('🗑️ FRONTEND DELETE POST HANDLER COMPLETED SUCCESSFULLY');
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+
     } catch (error) {
-      console.error('🗑️ Error deleting post:', error);
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      console.error('🗑️ FRONTEND DELETE POST HANDLER FAILED WITH EXCEPTION');
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      console.error('🗑️ EXCEPTION DETAILS:');
+      console.error('🗑️ - Error type:', typeof error);
+      console.error('🗑️ - Error message:', error instanceof Error ? error.message : String(error));
+      console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('🗑️ - Error object:', error);
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      
       setDeletePostLoading(false);
     }
   };

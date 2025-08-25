@@ -2711,44 +2711,219 @@ export const DatabaseService = {
   },
 
   async deletePost(postId: string, userId: string) {
-    console.log('🗑️ deletePost called:', { postId, userId });
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ DELETE POST FUNCTION STARTED');
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ STEP 0: Initial parameters');
+    console.log('🗑️ - postId:', postId);
+    console.log('🗑️ - userId:', userId);
+    console.log('🗑️ - postId type:', typeof postId);
+    console.log('🗑️ - userId type:', typeof userId);
+    console.log('🗑️ - postId length:', postId?.length);
+    console.log('🗑️ - userId length:', userId?.length);
 
     try {
+      console.log('🗑️ STEP 1: Starting authentication check...');
+      
       // Verify user is authenticated
       const { data: currentUser, error: authError } = await supabase.auth.getUser();
 
+      console.log('🗑️ STEP 1 RESULT: Authentication check completed');
+      console.log('🗑️ - hasCurrentUser:', !!currentUser);
+      console.log('🗑️ - hasCurrentUserUser:', !!currentUser?.user);
+      console.log('🗑️ - currentUserId:', currentUser?.user?.id);
+      console.log('🗑️ - authError:', authError);
+      console.log('🗑️ - authErrorMessage:', authError?.message);
+      console.log('🗑️ - authErrorCode:', authError?.code);
+
       if (!currentUser?.user || authError) {
-        console.error('🗑️ Authentication failed:', authError);
+        console.error('🗑️ STEP 1 FAILED: Authentication failed');
+        console.error('🗑️ - Missing user object:', !currentUser?.user);
+        console.error('🗑️ - Has auth error:', !!authError);
+        console.error('🗑️ - Auth error details:', authError);
         return { data: null, error: new Error('Authentication required') };
       }
 
-      console.log('🗑️ User authenticated:', currentUser.user.id);
+      console.log('🗑️ STEP 1 PASSED: User authenticated');
+      console.log('🗑️ - Authenticated user ID:', currentUser.user.id);
+      console.log('🗑️ - Provided user ID:', userId);
+      console.log('🗑️ - IDs match:', currentUser.user.id === userId);
 
-      // Simple delete - let RLS handle permissions
+      console.log('🗑️ STEP 2: Fetching post details for permission check...');
+      
+      // Get post details first to understand permissions
+      const { data: postDetails, error: fetchError } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          userid,
+          content,
+          circleid,
+          creationdate,
+          circles:circleid(
+            id,
+            name,
+            creator,
+            circle_admins(userid)
+          )
+        `)
+        .eq('id', postId)
+        .single();
+
+      console.log('🗑️ STEP 2 RESULT: Post details fetch completed');
+      console.log('🗑️ - hasPostDetails:', !!postDetails);
+      console.log('🗑️ - fetchError:', fetchError);
+      console.log('🗑️ - fetchErrorCode:', fetchError?.code);
+      console.log('🗑️ - fetchErrorMessage:', fetchError?.message);
+      
+      if (postDetails) {
+        console.log('🗑️ - Post owner ID:', postDetails.userid);
+        console.log('🗑️ - Post circle ID:', postDetails.circleid);
+        console.log('🗑️ - Post content length:', postDetails.content?.length);
+        console.log('🗑️ - Post creation date:', postDetails.creationdate);
+        
+        if (postDetails.circles) {
+          console.log('🗑️ - Circle name:', postDetails.circles.name);
+          console.log('🗑️ - Circle creator:', postDetails.circles.creator);
+          console.log('🗑️ - Circle admins:', postDetails.circles.circle_admins);
+        }
+      }
+
+      if (fetchError || !postDetails) {
+        console.error('🗑️ STEP 2 FAILED: Post not found or fetch error');
+        console.error('🗑️ - Error details:', fetchError);
+        return { data: null, error: new Error(`Post not found: ${fetchError?.message || 'Unknown error'}`) };
+      }
+
+      console.log('🗑️ STEP 2 PASSED: Post details fetched successfully');
+
+      console.log('🗑️ STEP 3: Checking permissions...');
+      
+      let hasPermission = false;
+      let permissionReason = 'none';
+
+      // Check if user owns the post
+      if (postDetails.userid === currentUser.user.id) {
+        hasPermission = true;
+        permissionReason = 'post_owner';
+        console.log('🗑️ - Permission granted: User is post owner');
+      }
+
+      // Check circle permissions if post is in a circle
+      if (!hasPermission && postDetails.circleid && postDetails.circles) {
+        console.log('🗑️ - Checking circle permissions...');
+        console.log('🗑️ - Circle creator:', postDetails.circles.creator);
+        console.log('🗑️ - Current user:', currentUser.user.id);
+        
+        // Check if user is circle creator
+        if (postDetails.circles.creator === currentUser.user.id) {
+          hasPermission = true;
+          permissionReason = 'circle_creator';
+          console.log('🗑️ - Permission granted: User is circle creator');
+        }
+
+        // Check if user is circle admin
+        if (!hasPermission && postDetails.circles.circle_admins) {
+          const isAdmin = postDetails.circles.circle_admins.some(
+            (admin: any) => admin.userid === currentUser.user.id
+          );
+          if (isAdmin) {
+            hasPermission = true;
+            permissionReason = 'circle_admin';
+            console.log('🗑️ - Permission granted: User is circle admin');
+          }
+        }
+      }
+
+      console.log('🗑️ STEP 3 RESULT: Permission check completed');
+      console.log('🗑️ - hasPermission:', hasPermission);
+      console.log('🗑️ - permissionReason:', permissionReason);
+
+      if (!hasPermission) {
+        console.error('🗑️ STEP 3 FAILED: Permission denied');
+        console.error('🗑️ - User ID:', currentUser.user.id);
+        console.error('🗑️ - Post owner ID:', postDetails.userid);
+        console.error('🗑️ - Circle ID:', postDetails.circleid);
+        console.error('🗑️ - Circle creator:', postDetails.circles?.creator);
+        return { data: null, error: new Error('You do not have permission to delete this post') };
+      }
+
+      console.log('🗑️ STEP 3 PASSED: Permission check successful');
+
+      console.log('🗑️ STEP 4: Attempting to delete post...');
+      console.log('🗑️ - Post ID to delete:', postId);
+      console.log('🗑️ - Using RLS with authenticated user:', currentUser.user.id);
+
+      // Perform the delete
       const { data, error } = await supabase
         .from('posts')
         .delete()
         .eq('id', postId)
         .select('*');
 
-      console.log('🗑️ Delete result:', { data, error, postId });
+      console.log('🗑️ STEP 4 RESULT: Delete operation completed');
+      console.log('🗑️ - hasData:', !!data);
+      console.log('🗑️ - dataLength:', data?.length || 0);
+      console.log('🗑️ - hasError:', !!error);
+      console.log('🗑️ - errorCode:', error?.code);
+      console.log('🗑️ - errorMessage:', error?.message);
+      console.log('🗑️ - errorDetails:', error?.details);
+      console.log('🗑️ - errorHint:', error?.hint);
+
+      if (data && data.length > 0) {
+        console.log('🗑️ - Deleted post details:', {
+          id: data[0].id,
+          content: data[0].content?.substring(0, 50) + '...',
+          userid: data[0].userid,
+          circleid: data[0].circleid
+        });
+      }
 
       if (error) {
-        console.error('🗑️ Delete failed:', error);
-        return { data: null, error: new Error('Failed to delete post. You may not have permission or the post may not exist.') };
+        console.error('🗑️ STEP 4 FAILED: Delete operation failed');
+        console.error('🗑️ - Full error object:', JSON.stringify(error, null, 2));
+        return { 
+          data: null, 
+          error: new Error(`Failed to delete post: ${error.message} (Code: ${error.code})`) 
+        };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected');
-        return { data: null, error: new Error('Post not found or you do not have permission to delete it') };
+        console.error('🗑️ STEP 4 FAILED: No rows affected by delete');
+        console.error('🗑️ - This could indicate:');
+        console.error('🗑️   1. Post ID does not exist');
+        console.error('🗑️   2. RLS policy is blocking the delete');
+        console.error('🗑️   3. Post was already deleted');
+        console.error('🗑️ - Post ID attempted:', postId);
+        console.error('🗑️ - User ID:', currentUser.user.id);
+        return { 
+          data: null, 
+          error: new Error('Post not found or already deleted') 
+        };
       }
 
-      console.log('🗑️ Post deleted successfully');
+      console.log('🗑️ STEP 4 PASSED: Delete operation successful');
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+      console.log('🗑️ DELETE POST FUNCTION COMPLETED SUCCESSFULLY');
+      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+      
       return { data: { success: true, deletedPost: data[0] }, error: null };
 
     } catch (error) {
-      console.error('🗑️ Unexpected error:', error);
-      return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      console.error('🗑️ DELETE POST FUNCTION FAILED WITH EXCEPTION');
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      console.error('🗑️ EXCEPTION DETAILS:');
+      console.error('🗑️ - Error type:', typeof error);
+      console.error('🗑️ - Error message:', error instanceof Error ? error.message : String(error));
+      console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('🗑️ - Error object:', error);
+      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      
+      return { 
+        data: null, 
+        error: error instanceof Error ? error : new Error(String(error)) 
+      };
     }
   },
 
