@@ -429,34 +429,16 @@ export default function PostScreen() {
                 <IconSymbol name="pencil" size={24} color={textColor} />
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={handleDeletePost} 
-                style={[styles.headerActionButton, {
-                  minWidth: 60,
-                  minHeight: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: deletePostLoading ? 'rgba(0,0,0,0.1)' : 'rgba(239, 83, 80, 0.1)',
-                  borderRadius: 8,
-                  marginLeft: 8,
-                  flexDirection: 'row',
-                  gap: 4
-                }]}
+                onPress={handleDeletePost}
+                style={styles.deletePostButton}
                 disabled={deletePostLoading}
-                activeOpacity={0.7}
                 testID="delete-post-button"
               >
                 <IconSymbol 
                   name="trash" 
-                  size={20} 
+                  size={16} 
                   color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
                 />
-                <ThemedText style={{
-                  fontSize: 10,
-                  color: deletePostLoading ? "#BDBDBD" : "#EF5350",
-                  fontWeight: 'bold'
-                }}>
-                  DEL
-                </ThemedText>
               </TouchableOpacity>
             </View>
           )}
@@ -929,5 +911,15 @@ const styles = StyleSheet.create({
   },
   headerActionButton: {
     padding: 4,
+  },
+  deletePostButton: {
+    padding: 6,
+    marginLeft: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(239, 83, 80, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 28,
+    minHeight: 28,
   },
 });
