@@ -26,6 +26,8 @@ interface Post {
     id: string;
     name: string;
   };
+  userLiked?: boolean;
+  likes_count?: number;
 }
 
 const formatCommentTime = (creationdate: string) => {
