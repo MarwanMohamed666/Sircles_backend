@@ -2727,78 +2727,9 @@ export const DatabaseService = {
         return { data: null, error: new Error('Authentication mismatch') };
       }
 
-      console.log('🗑️ Auth verified, checking post and permissions...');
+      console.log('🗑️ Auth verified, attempting delete with RLS policies...');
 
-      // First, get the post to check ownership and circle admin status
-      const { data: postData, error: fetchError } = await supabase
-        .from('posts')
-        .select(`
-          id,
-          userid,
-          circleid,
-          content,
-          circles!posts_circleid_fkey(
-            id,
-            name,
-            creator
-          )
-        `)
-        .eq('id', postId)
-        .single();
-
-      if (fetchError || !postData) {
-        console.error('🗑️ Post not found:', fetchError);
-        return { data: null, error: new Error('Post not found') };
-      }
-
-      console.log('🗑️ Post found:', {
-        postId: postData.id,
-        postUserId: postData.userid,
-        circleId: postData.circleid,
-        currentUserId: userId
-      });
-
-      // Check if user can delete this post
-      let canDelete = false;
-
-      // 1. Post owner can delete their own post
-      if (postData.userid === userId) {
-        canDelete = true;
-        console.log('🗑️ Permission granted: Post owner');
-      }
-
-      // 2. Circle admin or creator can delete posts in their circle
-      if (!canDelete && postData.circleid) {
-        // Check if user is circle creator
-        if (postData.circles?.creator === userId) {
-          canDelete = true;
-          console.log('🗑️ Permission granted: Circle creator');
-        }
-
-        // Check if user is circle admin
-        if (!canDelete) {
-          const { data: adminData } = await supabase
-            .from('circle_admins')
-            .select('userid')
-            .eq('circleid', postData.circleid)
-            .eq('userid', userId)
-            .single();
-
-          if (adminData) {
-            canDelete = true;
-            console.log('🗑️ Permission granted: Circle admin');
-          }
-        }
-      }
-
-      if (!canDelete) {
-        console.error('🗑️ Permission denied - user cannot delete this post');
-        return { data: null, error: new Error('You do not have permission to delete this post') };
-      }
-
-      console.log('🗑️ Permission verified, attempting delete...');
-
-      // Delete the post
+      // The RLS policies will handle permission checking, so we can directly attempt the delete
       const { data, error } = await supabase
         .from('posts')
         .delete()
@@ -2806,13 +2737,24 @@ export const DatabaseService = {
         .select('*');
 
       if (error) {
-        console.error('🗑️ Delete operation failed:', error);
+        console.error('🗑️ Delete failed:', error);
+        
+        // Check for specific permission errors
+        if (error.code === '42501' || error.message.includes('permission denied') || error.message.includes('RLS')) {
+          return { data: null, error: new Error('You do not have permission to delete this post') };
+        }
+        
+        // Check for post not found
+        if (error.code === 'PGRST116') {
+          return { data: null, error: new Error('Post not found') };
+        }
+        
         return { data: null, error: new Error(`Failed to delete post: ${error.message}`) };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected - post may have been deleted already');
-        return { data: null, error: new Error('Post not found or already deleted') };
+        console.error('🗑️ No rows affected - post may not exist or no permission');
+        return { data: null, error: new Error('Post not found or you do not have permission to delete it') };
       }
 
       console.log('🗑️ Post deleted successfully');
