@@ -423,7 +423,7 @@ export default function PostScreen() {
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
             Post
           </ThemedText>
-          {user?.id === post?.author?.id && !isEditingPost && (
+          {user?.id === post?.userid && !isEditingPost && (
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
                 <IconSymbol name="pencil" size={24} color={textColor} />
