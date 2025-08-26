@@ -471,10 +471,27 @@ export default function PostScreen() {
                 <IconSymbol name="pencil" size={24} color={textColor} />
               </TouchableOpacity>
               <TouchableOpacity 
-                onPress={handleDeletePost}
-                style={styles.deletePostButton}
+                onPress={() => {
+                  console.log('🗑️ DELETE BUTTON TOUCHED - Platform:', Platform.OS);
+                  console.log('🗑️ DELETE BUTTON TOUCHED - User Agent:', typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A');
+                  handleDeletePost();
+                }}
+                onPressIn={() => console.log('🗑️ BUTTON PRESS IN DETECTED')}
+                onPressOut={() => console.log('🗑️ BUTTON PRESS OUT DETECTED')}
+                style={[
+                  styles.deletePostButton,
+                  Platform.OS === 'web' && {
+                    cursor: 'pointer',
+                    backgroundColor: 'rgba(239, 83, 80, 0.2)',
+                    borderWidth: 2,
+                    borderColor: '#EF5350'
+                  }
+                ]}
                 disabled={deletePostLoading}
                 activeOpacity={0.6}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Delete post"
               >
                 <IconSymbol 
                   name="trash" 
@@ -963,5 +980,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 48,
     minHeight: 48,
+    // Web-specific fixes
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+      },
+    }),
   },
 });
