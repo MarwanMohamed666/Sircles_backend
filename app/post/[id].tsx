@@ -465,61 +465,25 @@ export default function PostScreen() {
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
             Post
           </ThemedText>
-          {(() => {
-            const canEdit = user?.id === post?.userid;
-            console.log('🗑️ BUTTON VISIBILITY CHECK:');
-            console.log('🗑️ - user?.id:', user?.id);
-            console.log('🗑️ - post?.userid:', post?.userid);
-            console.log('🗑️ - post?.author?.id:', post?.author?.id);
-            console.log('🗑️ - canEdit (user?.id === post?.userid):', canEdit);
-            console.log('🗑️ - isEditingPost:', isEditingPost);
-            console.log('🗑️ - showButtons:', canEdit && !isEditingPost);
-            
-            return canEdit && !isEditingPost ? (
-              <View style={styles.headerActions}>
-                <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
-                  <IconSymbol name="pencil" size={24} color={textColor} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => {
-                    console.log('🗑️ ======================== BUTTON CLICK DETECTED ========================');
-                    console.log('🗑️ DELETE BUTTON CLICKED - About to call handleDeletePost');
-                    console.log('🗑️ Click event fired at:', new Date().toISOString());
-                    handleDeletePost();
-                  }}
-                  onPressIn={() => {
-                    console.log('🗑️ BUTTON PRESS IN DETECTED');
-                  }}
-                  onPressOut={() => {
-                    console.log('🗑️ BUTTON PRESS OUT DETECTED');
-                  }}
-                  style={[
-                    styles.deletePostButton,
-                    __DEV__ && { 
-                      borderWidth: 3, 
-                      borderColor: 'red',
-                      backgroundColor: 'rgba(255, 0, 0, 0.3)' // More visible debug background
-                    }
-                  ]}
-                  disabled={deletePostLoading}
-                  testID="delete-post-button"
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <IconSymbol 
-                    name="trash" 
-                    size={16} 
-                    color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
-                  />
-                  {__DEV__ && (
-                    <ThemedText style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}>
-                      DELETE
-                    </ThemedText>
-                  )}
-                </TouchableOpacity>
-              </View>
-            ) : null;
-          })()}
+          {user?.id === post?.userid && !isEditingPost && (
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
+                <IconSymbol name="pencil" size={24} color={textColor} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleDeletePost}
+                style={styles.deletePostButton}
+                disabled={deletePostLoading}
+                activeOpacity={0.6}
+              >
+                <IconSymbol 
+                  name="trash" 
+                  size={18} 
+                  color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
+                />
+              </TouchableOpacity>
+            </View>
+          )}
           {isEditingPost && (
             <View style={styles.editActions}>
               <TouchableOpacity onPress={handleCancelEditPost} style={styles.editActionButton}>
@@ -991,13 +955,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   deletePostButton: {
-    padding: 8,
+    padding: 12,
     marginLeft: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: 'rgba(239, 83, 80, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 48,
+    minHeight: 48,
   },
 });
