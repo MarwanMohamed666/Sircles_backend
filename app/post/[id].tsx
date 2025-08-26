@@ -72,7 +72,8 @@ export default function PostScreen() {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editPostContent, setEditPostContent] = useState('');
-  const [deletePostLoading, setDeletePostLoading] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+  
 
   const loadPost = async () => {
     if (!id) return;
@@ -273,94 +274,40 @@ export default function PostScreen() {
     }
   };
 
-  const handleDeletePost = async () => {
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    console.log('🗑️ DELETE POST BUTTON PRESSED - COMPREHENSIVE DEBUG');
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    console.log('🗑️ Button press detected - starting delete process');
-    
-    // Log current user data
-    console.log('🗑️ CURRENT USER DATA:');
-    console.log('🗑️ - user object exists:', !!user);
-    console.log('🗑️ - user.id:', user?.id);
-    console.log('🗑️ - user.id type:', typeof user?.id);
-    console.log('🗑️ - full user object:', JSON.stringify(user, null, 2));
-    
-    // Log current post data
-    console.log('🗑️ CURRENT POST DATA:');
-    console.log('🗑️ - post object exists:', !!post);
-    console.log('🗑️ - post.id:', post?.id);
-    console.log('🗑️ - post.userid:', post?.userid);
-    console.log('🗑️ - post.author exists:', !!post?.author);
-    console.log('🗑️ - post.author.id:', post?.author?.id);
-    console.log('🗑️ - full post object:', JSON.stringify(post, null, 2));
-    
-    // Log permission check results
-    console.log('🗑️ PERMISSION CHECKS:');
-    console.log('🗑️ - user?.id === post?.userid:', user?.id === post?.userid);
-    console.log('🗑️ - user?.id === post?.author?.id:', user?.id === post?.author?.id);
-    console.log('🗑️ - ID comparison details:', {
-      userId: user?.id,
-      postUserId: post?.userid,
-      postAuthorId: post?.author?.id,
-      userIdType: typeof user?.id,
-      postUserIdType: typeof post?.userid,
-      postAuthorIdType: typeof post?.author?.id
-    });
+  const handleDeletePost = () => {
+    setIsDeletingPost(true);
+  };
 
+  const handleCancelDeletePost = () => {
+    setIsDeletingPost(false);
+  };
+
+  const handleConfirmDeletePost = async () => {
     if (!user?.id || !post?.id) {
-      console.log('🗑️ DELETE POST: Missing user or post ID');
-      console.log('🗑️ - Missing user ID:', !user?.id);
-      console.log('🗑️ - Missing post ID:', !post?.id);
       Alert.alert('Error', 'Cannot delete post - missing required data');
       return;
     }
 
-    if (deletePostLoading) {
-      console.log('🗑️ DELETE POST: Already deleting, ignoring');
-      return;
+    try {
+      const { data, error } = await DatabaseService.deletePost(post.id, user.id);
+
+      if (error) {
+        console.error('Error deleting post:', error);
+        Alert.alert('Error', error.message || 'Failed to delete post');
+        return;
+      }
+
+      Alert.alert('Success', 'Post deleted successfully');
+      router.back();
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      Alert.alert('Error', 'Failed to delete post');
+    } finally {
+      setIsDeletingPost(false);
     }
-
-    // Show confirmation dialog
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setDeletePostLoading(true);
-              console.log('🗑️ DELETE POST: User confirmed, calling DatabaseService.deletePost');
-
-              const { data, error } = await DatabaseService.deletePost(post.id, user.id);
-
-              if (error) {
-                console.error('🗑️ DELETE POST: Error returned:', error);
-                Alert.alert('Error', error.message || 'Failed to delete post');
-                return;
-              }
-
-              console.log('🗑️ DELETE POST: Success, navigating back');
-              Alert.alert('Success', 'Post deleted successfully');
-              router.back();
-
-            } catch (error) {
-              console.error('🗑️ DELETE POST: Exception caught:', error);
-              Alert.alert('Error', 'Failed to delete post');
-            } finally {
-              setDeletePostLoading(false);
-            }
-          }
-        }
-      ]
-    );
   };
+
+  
 
   useEffect(() => {
     loadPost();
@@ -465,38 +412,13 @@ export default function PostScreen() {
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
             Post
           </ThemedText>
-          {user?.id === post?.userid && !isEditingPost && (
+          {user?.id === post?.userid && !isEditingPost && !isDeletingPost && (
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
                 <IconSymbol name="pencil" size={24} color={textColor} />
               </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => {
-                  console.log('🗑️ DELETE BUTTON PRESSED - All platforms');
-                  console.log('🗑️ Platform:', Platform.OS);
-                  if (!deletePostLoading) {
-                    handleDeletePost();
-                  }
-                }}
-                style={[
-                  styles.deletePostButton,
-                  Platform.OS === 'web' && {
-                    cursor: 'pointer',
-                    borderWidth: 2,
-                    borderColor: '#EF5350',
-                  }
-                ]}
-                disabled={deletePostLoading}
-                activeOpacity={0.6}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel="Delete post"
-              >
-                <IconSymbol 
-                  name="trash" 
-                  size={18} 
-                  color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
-                />
+              <TouchableOpacity onPress={handleDeletePost} style={styles.headerActionButton}>
+                <IconSymbol name="trash" size={24} color="#EF5350" />
               </TouchableOpacity>
             </View>
           )}
@@ -510,7 +432,17 @@ export default function PostScreen() {
               </TouchableOpacity>
             </View>
           )}
-          {user?.id !== post?.author?.id && !isEditingPost && <View style={{ width: 24 }} />}
+          {isDeletingPost && (
+            <View style={styles.editActions}>
+              <TouchableOpacity onPress={handleCancelDeletePost} style={styles.editActionButton}>
+                <ThemedText style={[styles.editActionText, { color: textColor }]}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleConfirmDeletePost} style={styles.editActionButton}>
+                <ThemedText style={[styles.editActionText, { color: '#EF5350' }]}>Delete</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+          {user?.id !== post?.userid && !isEditingPost && !isDeletingPost && <View style={{ width: 24 }} />}
         </View>
 
         <ScrollView style={styles.content}>
@@ -553,6 +485,15 @@ export default function PostScreen() {
                   textAlignVertical="top"
                   autoFocus
                 />
+              ) : isDeletingPost ? (
+                <View style={styles.deleteConfirmationContainer}>
+                  <ThemedText style={[styles.deleteConfirmationText, { color: '#EF5350' }]}>
+                    Are you sure you want to delete this post?
+                  </ThemedText>
+                  <ThemedText style={[styles.deleteWarningText, { color: textColor }]}>
+                    This action cannot be undone.
+                  </ThemedText>
+                </View>
               ) : (
                 <ThemedText style={styles.postContent}>{post.content}</ThemedText>
               )}
@@ -970,24 +911,21 @@ const styles = StyleSheet.create({
   headerActionButton: {
     padding: 4,
   },
-  deletePostButton: {
-    padding: 12,
-    marginLeft: 8,
-    borderRadius: 8,
+  deleteConfirmationContainer: {
+    padding: 16,
     backgroundColor: 'rgba(239, 83, 80, 0.1)',
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 48,
-    minHeight: 48,
-    // Web-specific fixes
-    ...Platform.select({
-      web: {
-        cursor: 'pointer',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
-      },
-    }),
+  },
+  deleteConfirmationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  deleteWarningText: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
   },
 });
