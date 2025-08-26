@@ -452,7 +452,7 @@ export default function PostScreen() {
               </TouchableOpacity>
             </View>
           )}
-          {!user?.id === post?.author?.id && !isEditingPost && <View style={{ width: 24 }} />}
+          {user?.id !== post?.author?.id && !isEditingPost && <View style={{ width: 24 }} />}
         </View>
 
         <ScrollView style={styles.content}>
