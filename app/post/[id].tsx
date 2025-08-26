@@ -73,8 +73,6 @@ export default function PostScreen() {
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editPostContent, setEditPostContent] = useState('');
   const [isDeletingPost, setIsDeletingPost] = useState(false);
-  
-
   const loadPost = async () => {
     if (!id) return;
 
@@ -289,7 +287,7 @@ export default function PostScreen() {
     }
 
     try {
-      const { data, error } = await DatabaseService.deletePost(post.id, user.id);
+      const { error } = await DatabaseService.deletePost(post.id, user.id);
 
       if (error) {
         console.error('Error deleting post:', error);
@@ -306,6 +304,8 @@ export default function PostScreen() {
       setIsDeletingPost(false);
     }
   };
+
+  
 
   
 
