@@ -482,15 +482,29 @@ export default function PostScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   onPress={() => {
+                    console.log('🗑️ ======================== BUTTON CLICK DETECTED ========================');
                     console.log('🗑️ DELETE BUTTON CLICKED - About to call handleDeletePost');
+                    console.log('🗑️ Click event fired at:', new Date().toISOString());
                     handleDeletePost();
+                  }}
+                  onPressIn={() => {
+                    console.log('🗑️ BUTTON PRESS IN DETECTED');
+                  }}
+                  onPressOut={() => {
+                    console.log('🗑️ BUTTON PRESS OUT DETECTED');
                   }}
                   style={[
                     styles.deletePostButton,
-                    __DEV__ && { borderWidth: 2, borderColor: 'red' } // Debug border
+                    __DEV__ && { 
+                      borderWidth: 3, 
+                      borderColor: 'red',
+                      backgroundColor: 'rgba(255, 0, 0, 0.3)' // More visible debug background
+                    }
                   ]}
                   disabled={deletePostLoading}
                   testID="delete-post-button"
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <IconSymbol 
                     name="trash" 
@@ -498,7 +512,9 @@ export default function PostScreen() {
                     color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
                   />
                   {__DEV__ && (
-                    <ThemedText style={{ fontSize: 8, color: 'red' }}>DEL</ThemedText>
+                    <ThemedText style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}>
+                      DELETE
+                    </ThemedText>
                   )}
                 </TouchableOpacity>
               </View>
@@ -975,13 +991,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   deletePostButton: {
-    padding: 6,
+    padding: 8,
     marginLeft: 8,
-    borderRadius: 4,
+    borderRadius: 6,
     backgroundColor: 'rgba(239, 83, 80, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 28,
-    minHeight: 28,
+    minWidth: 44,
+    minHeight: 44,
   },
 });
