@@ -470,69 +470,34 @@ export default function PostScreen() {
               <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
                 <IconSymbol name="pencil" size={24} color={textColor} />
               </TouchableOpacity>
-              {Platform.OS === 'web' ? (
-                <div
-                  onClick={() => {
-                    console.log('🗑️ WEB DELETE BUTTON CLICKED');
-                    if (!deletePostLoading) {
-                      handleDeletePost();
-                    }
-                  }}
-                  onMouseDown={() => console.log('🗑️ WEB BUTTON MOUSE DOWN')}
-                  onMouseUp={() => console.log('🗑️ WEB BUTTON MOUSE UP')}
-                  style={{
-                    padding: 12,
-                    marginLeft: 8,
-                    borderRadius: 8,
-                    backgroundColor: 'rgba(239, 83, 80, 0.2)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 48,
-                    minHeight: 48,
-                    cursor: deletePostLoading ? 'not-allowed' : 'pointer',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                    MozUserSelect: 'none',
-                    msUserSelect: 'none',
-                    border: '2px solid #EF5350',
-                    display: 'flex',
-                    opacity: deletePostLoading ? 0.6 : 1,
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!deletePostLoading) {
-                      e.currentTarget.style.backgroundColor = 'rgba(239, 83, 80, 0.3)';
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(239, 83, 80, 0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  <IconSymbol 
-                    name="trash" 
-                    size={18} 
-                    color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
-                  />
-                </div>
-              ) : (
-                <TouchableOpacity 
-                  onPress={handleDeletePost}
-                  style={styles.deletePostButton}
-                  disabled={deletePostLoading}
-                  activeOpacity={0.6}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete post"
-                >
+              <TouchableOpacity 
+                onPress={() => {
+                  console.log('🗑️ DELETE BUTTON PRESSED - All platforms');
+                  console.log('🗑️ Platform:', Platform.OS);
+                  if (!deletePostLoading) {
+                    handleDeletePost();
+                  }
+                }}
+                style={[
+                  styles.deletePostButton,
+                  Platform.OS === 'web' && {
+                    cursor: 'pointer',
+                    borderWidth: 2,
+                    borderColor: '#EF5350',
+                  }
+                ]}
+                disabled={deletePostLoading}
+                activeOpacity={0.6}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Delete post"
+              >
                 <IconSymbol 
-                    name="trash" 
-                    size={18} 
-                    color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
-                  />
-                </TouchableOpacity>
-              )}
+                  name="trash" 
+                  size={18} 
+                  color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
+                />
+              </TouchableOpacity>
             </View>
           )}
           {isEditingPost && (
