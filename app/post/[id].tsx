@@ -88,6 +88,14 @@ export default function PostScreen() {
       }
 
       setPost(data);
+      console.log('🗑️ POST LOADED SUCCESSFULLY:');
+      console.log('🗑️ - Post ID:', data?.id);
+      console.log('🗑️ - Post userid:', data?.userid);
+      console.log('🗑️ - Post author exists:', !!data?.author);
+      console.log('🗑️ - Post author ID:', data?.author?.id);
+      console.log('🗑️ - Current user ID:', user?.id);
+      console.log('🗑️ - User can delete (userid match):', user?.id === data?.userid);
+      console.log('🗑️ - User can delete (author match):', user?.id === data?.author?.id);
       await loadComments();
     } catch (error) {
       console.error('Error loading post:', error);
@@ -266,10 +274,44 @@ export default function PostScreen() {
   };
 
   const handleDeletePost = async () => {
-    console.log('🗑️ DELETE POST: Button pressed - starting delete process');
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ DELETE POST BUTTON PRESSED - COMPREHENSIVE DEBUG');
+    console.log('🗑️ ═══════════════════════════════════════════════════════════');
+    console.log('🗑️ Button press detected - starting delete process');
+    
+    // Log current user data
+    console.log('🗑️ CURRENT USER DATA:');
+    console.log('🗑️ - user object exists:', !!user);
+    console.log('🗑️ - user.id:', user?.id);
+    console.log('🗑️ - user.id type:', typeof user?.id);
+    console.log('🗑️ - full user object:', JSON.stringify(user, null, 2));
+    
+    // Log current post data
+    console.log('🗑️ CURRENT POST DATA:');
+    console.log('🗑️ - post object exists:', !!post);
+    console.log('🗑️ - post.id:', post?.id);
+    console.log('🗑️ - post.userid:', post?.userid);
+    console.log('🗑️ - post.author exists:', !!post?.author);
+    console.log('🗑️ - post.author.id:', post?.author?.id);
+    console.log('🗑️ - full post object:', JSON.stringify(post, null, 2));
+    
+    // Log permission check results
+    console.log('🗑️ PERMISSION CHECKS:');
+    console.log('🗑️ - user?.id === post?.userid:', user?.id === post?.userid);
+    console.log('🗑️ - user?.id === post?.author?.id:', user?.id === post?.author?.id);
+    console.log('🗑️ - ID comparison details:', {
+      userId: user?.id,
+      postUserId: post?.userid,
+      postAuthorId: post?.author?.id,
+      userIdType: typeof user?.id,
+      postUserIdType: typeof post?.userid,
+      postAuthorIdType: typeof post?.author?.id
+    });
 
     if (!user?.id || !post?.id) {
       console.log('🗑️ DELETE POST: Missing user or post ID');
+      console.log('🗑️ - Missing user ID:', !user?.id);
+      console.log('🗑️ - Missing post ID:', !post?.id);
       Alert.alert('Error', 'Cannot delete post - missing required data');
       return;
     }
@@ -423,25 +465,45 @@ export default function PostScreen() {
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>
             Post
           </ThemedText>
-          {user?.id === post?.userid && !isEditingPost && (
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
-                <IconSymbol name="pencil" size={24} color={textColor} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={handleDeletePost}
-                style={styles.deletePostButton}
-                disabled={deletePostLoading}
-                testID="delete-post-button"
-              >
-                <IconSymbol 
-                  name="trash" 
-                  size={16} 
-                  color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
-                />
-              </TouchableOpacity>
-            </View>
-          )}
+          {(() => {
+            const canEdit = user?.id === post?.userid;
+            console.log('🗑️ BUTTON VISIBILITY CHECK:');
+            console.log('🗑️ - user?.id:', user?.id);
+            console.log('🗑️ - post?.userid:', post?.userid);
+            console.log('🗑️ - post?.author?.id:', post?.author?.id);
+            console.log('🗑️ - canEdit (user?.id === post?.userid):', canEdit);
+            console.log('🗑️ - isEditingPost:', isEditingPost);
+            console.log('🗑️ - showButtons:', canEdit && !isEditingPost);
+            
+            return canEdit && !isEditingPost ? (
+              <View style={styles.headerActions}>
+                <TouchableOpacity onPress={handleEditPost} style={styles.headerActionButton}>
+                  <IconSymbol name="pencil" size={24} color={textColor} />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => {
+                    console.log('🗑️ DELETE BUTTON CLICKED - About to call handleDeletePost');
+                    handleDeletePost();
+                  }}
+                  style={[
+                    styles.deletePostButton,
+                    __DEV__ && { borderWidth: 2, borderColor: 'red' } // Debug border
+                  ]}
+                  disabled={deletePostLoading}
+                  testID="delete-post-button"
+                >
+                  <IconSymbol 
+                    name="trash" 
+                    size={16} 
+                    color={deletePostLoading ? "#BDBDBD" : "#EF5350"} 
+                  />
+                  {__DEV__ && (
+                    <ThemedText style={{ fontSize: 8, color: 'red' }}>DEL</ThemedText>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : null;
+          })()}
           {isEditingPost && (
             <View style={styles.editActions}>
               <TouchableOpacity onPress={handleCancelEditPost} style={styles.editActionButton}>
