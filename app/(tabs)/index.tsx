@@ -421,39 +421,71 @@ export default function HomeScreen() {
   const handleDeletePost = async (postId: string) => {
     if (!user?.id || deletePostLoading === postId) return;
 
+    console.log('🗑️ HOME PAGE: Delete post requested for:', postId);
+    console.log('🗑️ HOME PAGE: User ID:', user.id);
+    console.log('🗑️ HOME PAGE: Current deletePostLoading state:', deletePostLoading);
+
     Alert.alert(
       'Delete Post',
       'Are you sure you want to delete this post? This action cannot be undone.',
       [
         {
           text: 'Cancel',
-          style: 'cancel'
+          style: 'cancel',
+          onPress: () => {
+            console.log('🗑️ HOME PAGE: Delete cancelled by user');
+          }
         },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🗑️ HOME PAGE: Starting delete process...');
               setDeletePostLoading(postId);
+
+              console.log('🗑️ HOME PAGE: Calling DatabaseService.deletePost...');
               const { data, error } = await DatabaseService.deletePost(postId, user.id);
 
+              console.log('🗑️ HOME PAGE: Delete result:', {
+                hasData: !!data,
+                hasError: !!error,
+                errorMessage: error?.message,
+                data: data
+              });
+
               if (error) {
-                console.error('Error deleting post:', error);
+                console.error('🗑️ HOME PAGE: Error deleting post:', error);
                 Alert.alert('Error', error.message || 'Failed to delete post');
+                setDeletePostLoading(null);
                 return;
               }
 
+              console.log('🗑️ HOME PAGE: Post deleted successfully, updating UI...');
+
               // Remove the post from both posts and feedItems state
-              setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-              setFeedItems(prevItems => prevItems.filter(item => 
-                !(item.type === 'post' && item.id === postId)
-              ));
+              setPosts(prevPosts => {
+                const filtered = prevPosts.filter(post => post.id !== postId);
+                console.log('🗑️ HOME PAGE: Updated posts count:', filtered.length);
+                return filtered;
+              });
               
+              setFeedItems(prevItems => {
+                const filtered = prevItems.filter(item => 
+                  !(item.type === 'post' && item.id === postId)
+                );
+                console.log('🗑️ HOME PAGE: Updated feedItems count:', filtered.length);
+                return filtered;
+              });
+              
+              console.log('🗑️ HOME PAGE: UI updated, showing success message');
               Alert.alert('Success', 'Post deleted successfully');
+              
             } catch (error) {
-              console.error('Error deleting post:', error);
-              Alert.alert('Error', 'Failed to delete post');
+              console.error('🗑️ HOME PAGE: Unexpected error deleting post:', error);
+              Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
             } finally {
+              console.log('🗑️ HOME PAGE: Clearing delete loading state');
               setDeletePostLoading(null);
             }
           }
