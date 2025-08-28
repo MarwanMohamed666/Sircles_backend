@@ -287,18 +287,26 @@ export default function PostScreen() {
     }
 
     try {
+      console.log('🗑️ POST DETAIL: Starting delete process for post:', post.id);
       const { error } = await DatabaseService.deletePost(post.id, user.id);
 
       if (error) {
-        console.error('Error deleting post:', error);
+        console.error('🗑️ POST DETAIL: Error deleting post:', error);
         Alert.alert('Error', error.message || 'Failed to delete post');
         return;
       }
 
-      Alert.alert('Success', 'Post deleted successfully');
-      router.back();
+      console.log('🗑️ POST DETAIL: Post deleted successfully, navigating back...');
+      // Navigate back immediately after successful deletion
+      router.replace('/(tabs)/');
+      
+      // Show success message after navigation
+      setTimeout(() => {
+        Alert.alert('Success', 'Post deleted successfully');
+      }, 100);
+      
     } catch (error) {
-      console.error('Error deleting post:', error);
+      console.error('🗑️ POST DETAIL: Error deleting post:', error);
       Alert.alert('Error', 'Failed to delete post');
     } finally {
       setIsDeletingPost(false);
