@@ -1496,13 +1496,16 @@ export default function CircleScreen() {
             </ThemedText>
           </View>
         </View>
-        {/* Post Actions - Edit and Delete */}
+        {/* Edit and Delete Actions */}
         {(post.author?.id === user?.id || circle.isAdmin) && (
-          <View style={styles.postActions}>
+          <View style={styles.postEditActions}>
             {post.author?.id === user?.id && (
               <TouchableOpacity
                 style={styles.postActionButton}
-                onPress={() => handleEditPost(post.id, post.content)}
+                onPress={() => {
+                  console.log('🗑️ CIRCLE FEED: Edit button pressed for post:', post.id);
+                  handleEditPost(post.id, post.content);
+                }}
               >
                 <IconSymbol name="pencil" size={16} color={tintColor} />
               </TouchableOpacity>
@@ -1512,7 +1515,10 @@ export default function CircleScreen() {
                 styles.postActionButton, 
                 deletePostLoading === post.id && styles.disabledButton
               ]}
-              onPress={() => handleDeletePost(post.id)}
+              onPress={() => {
+                console.log('🗑️ CIRCLE FEED: Delete button pressed for post:', post.id);
+                handleDeletePost(post.id);
+              }}
               disabled={deletePostLoading === post.id}
             >
               <IconSymbol
@@ -1530,8 +1536,8 @@ export default function CircleScreen() {
       {post.image && (
         <Image source={{ uri: post.image }} style={styles.postImage} />
       )}
-      {/* Post Actions */}
-      <View style={styles.postActions}>
+      {/* Like and Comment Actions */}
+      <View style={styles.postInteractionActions}>
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleLikePost(post.id)}
@@ -2692,6 +2698,16 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  postEditActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  postInteractionActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 16,
   },
   membersContainer: {
     gap: 12,
