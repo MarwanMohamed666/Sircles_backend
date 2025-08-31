@@ -111,8 +111,10 @@ export default function CircleScreen() {
 
   const [newPostContent, setNewPostContent] = useState('');
   const [createPostLoading, setCreatePostLoading] = useState(false);
-  const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
+  const [isEditingPost, setIsEditingPost] = useState(false);
   const [editPostContent, setEditPostContent] = useState('');
+  const [editPostId, setEditPostId] = useState<string | null>(null);
+  const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
   const [editedCircle, setEditedCircle] = useState({
     name: '',
     description: '',
@@ -1258,22 +1260,24 @@ export default function CircleScreen() {
   };
 
   const handleEditPost = (postId: string, content: string) => {
-    setEditingPost({ id: postId, content });
-    setEditPostContent(content);
+    setEditPostId(postId);
+    setEditPostContent(content || '');
+    setIsEditingPost(true);
   };
 
   const handleCancelEdit = () => {
-    setEditingPost(null);
+    setIsEditingPost(false);
+    setEditPostId(null);
     setEditPostContent('');
   };
 
-  const handleSavePostEdit = async () => {
-    if (!editingPost || !editPostContent.trim() || !user?.id) return;
+  const handleUpdatePost = async () => {
+    if (!editPostId || !editPostContent.trim()) return;
 
     try {
       setLoading(true);
       const { error } = await DatabaseService.updatePost(
-        editingPost.id,
+        editPostId,
         { content: editPostContent.trim() },
         user.id
       );
@@ -1285,10 +1289,9 @@ export default function CircleScreen() {
       }
 
       // Update the posts state
-      const updatedPosts = posts.map(post =>
-        post.id === editingPost.id ? { ...post, content: editPostContent.trim() } : post
-      );
-      setPosts(updatedPosts);
+      setPosts(posts.map(post =>
+        post.id === editPostId ? { ...post, content: editPostContent.trim() } : post
+      ));
 
       handleCancelEdit();
     } catch (error) {
@@ -1297,6 +1300,59 @@ export default function CircleScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to delete posts');
+      return;
+    }
+
+    // Show confirmation dialog
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletePostLoading(postId);
+              console.log('🗑️ CIRCLE FEED: Deleting post:', postId);
+
+              const { data, error } = await DatabaseService.deletePost(postId, user.id);
+
+              if (error) {
+                console.error('🗑️ CIRCLE FEED: Error deleting post:', error);
+                Alert.alert('Error', error.message || 'Failed to delete post');
+                return;
+              }
+
+              console.log('🗑️ CIRCLE FEED: Post deleted successfully, updating UI...');
+
+              // Remove the post from the local state
+              setPosts(prevPosts => {
+                const filtered = prevPosts.filter(post => post.id !== postId);
+                console.log('🗑️ CIRCLE FEED: Updated posts count:', filtered.length);
+                return filtered;
+              });
+
+              Alert.alert('Success', 'Post deleted successfully');
+            } catch (error) {
+              console.error('🗑️ CIRCLE FEED: Unexpected error deleting post:', error);
+              Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
+            } finally {
+              setDeletePostLoading(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveChanges = async () => {
@@ -1440,10 +1496,33 @@ export default function CircleScreen() {
             </ThemedText>
           </View>
         </View>
-        {circle.isAdmin && (
-          <TouchableOpacity>
-            <IconSymbol name="ellipsis" size={20} color={textColor} />
-          </TouchableOpacity>
+        {/* Delete button logic */}
+        {(post.author?.id === user?.id || circle.isAdmin) && (
+          <View style={styles.postActions}>
+            {post.author?.id === user?.id && (
+              <TouchableOpacity
+                style={styles.postActionButton}
+                onPress={() => {
+                  setEditPostId(post.id);
+                  setEditPostContent(post.content || '');
+                  setIsEditingPost(true);
+                }}
+              >
+                <IconSymbol name="pencil" size={16} color={tintColor} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.postActionButton, deletePostLoading === post.id && styles.disabledButton]}
+              onPress={() => handleDeletePost(post.id)}
+              disabled={deletePostLoading === post.id}
+            >
+              <IconSymbol
+                name="trash"
+                size={16}
+                color={deletePostLoading === post.id ? '#ccc' : '#EF5350'}
+              />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
       <View style={styles.postContentContainer}>
@@ -1479,16 +1558,6 @@ export default function CircleScreen() {
             {post.comments_count || post.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
-
-        {/* Edit button - only show for post owner */}
-        {user?.id === post.author?.id && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditPost(post.id, post.content)}
-          >
-            <IconSymbol name="pencil" size={20} color={textColor} />
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
@@ -2275,7 +2344,7 @@ export default function CircleScreen() {
 
       {/* Edit Post Modal */}
       <Modal
-        visible={!!editingPost}
+        visible={isEditingPost}
         animationType="slide"
         presentationStyle="pageSheet"
       >
@@ -2285,7 +2354,7 @@ export default function CircleScreen() {
               <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
             </TouchableOpacity>
             <ThemedText style={styles.modalTitle}>Edit Post</ThemedText>
-            <TouchableOpacity onPress={handleSavePostEdit} disabled={!editPostContent.trim()}>
+            <TouchableOpacity onPress={handleUpdatePost} disabled={!editPostContent.trim()}>
               <ThemedText style={[
                 styles.saveButton,
                 { color: editPostContent.trim() ? tintColor : textColor + '50' }
@@ -3202,7 +3271,7 @@ const styles = StyleSheet.create({
   selectedPostImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 8, // Match the button's border radius
+    borderRadius: 8,
   },
   imageOverlay: {
     position: 'absolute',
@@ -3214,7 +3283,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
-    borderRadius: 8, // Match the button's border radius
+    borderRadius: 8,
   },
   changeImageText: {
     color: '#fff',
