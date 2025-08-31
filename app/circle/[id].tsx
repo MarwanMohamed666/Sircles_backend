@@ -1303,10 +1303,17 @@ export default function CircleScreen() {
   };
 
   const handleDeletePost = async (postId: string) => {
+    console.log('🗑️ CIRCLE FEED: handleDeletePost called with postId:', postId);
+    console.log('🗑️ CIRCLE FEED: User ID:', user?.id);
+    console.log('🗑️ CIRCLE FEED: User logged in:', !!user?.id);
+
     if (!user?.id) {
+      console.error('🗑️ CIRCLE FEED: No user ID, cannot delete');
       Alert.alert('Error', 'You must be logged in to delete posts');
       return;
     }
+
+    console.log('🗑️ CIRCLE FEED: Showing confirmation dialog...');
 
     // Show confirmation dialog
     Alert.alert(
@@ -1316,16 +1323,27 @@ export default function CircleScreen() {
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => {
+            console.log('🗑️ CIRCLE FEED: User canceled deletion');
+          }
         },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            console.log('🗑️ CIRCLE FEED: User confirmed deletion, starting delete process...');
+            
             try {
               setDeletePostLoading(postId);
-              console.log('🗑️ CIRCLE FEED: Deleting post:', postId);
+              console.log('🗑️ CIRCLE FEED: Set loading state, calling DatabaseService.deletePost...');
 
               const { data, error } = await DatabaseService.deletePost(postId, user.id);
+
+              console.log('🗑️ CIRCLE FEED: DatabaseService.deletePost returned:', {
+                hasData: !!data,
+                hasError: !!error,
+                errorMessage: error?.message
+              });
 
               if (error) {
                 console.error('🗑️ CIRCLE FEED: Error deleting post:', error);
@@ -1342,11 +1360,14 @@ export default function CircleScreen() {
                 return filtered;
               });
 
+              console.log('🗑️ CIRCLE FEED: UI updated, showing success alert');
               Alert.alert('Success', 'Post deleted successfully');
+              
             } catch (error) {
               console.error('🗑️ CIRCLE FEED: Unexpected error deleting post:', error);
               Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
             } finally {
+              console.log('🗑️ CIRCLE FEED: Clearing loading state');
               setDeletePostLoading(null);
             }
           },
