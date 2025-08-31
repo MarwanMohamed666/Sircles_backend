@@ -115,6 +115,8 @@ export default function CircleScreen() {
   const [editPostContent, setEditPostContent] = useState('');
   const [editPostId, setEditPostId] = useState<string | null>(null);
   const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [editedCircle, setEditedCircle] = useState({
     name: '',
     description: '',
@@ -1313,67 +1315,55 @@ export default function CircleScreen() {
       return;
     }
 
-    console.log('🗑️ CIRCLE FEED: Showing confirmation dialog...');
+    console.log('🗑️ CIRCLE FEED: Setting up delete confirmation modal...');
+    setPostToDelete(postId);
+    setShowDeleteConfirmModal(true);
+  };
 
-    // Show confirmation dialog
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            console.log('🗑️ CIRCLE FEED: User canceled deletion');
-          }
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('🗑️ CIRCLE FEED: User confirmed deletion, starting delete process...');
-            
-            try {
-              setDeletePostLoading(postId);
-              console.log('🗑️ CIRCLE FEED: Set loading state, calling DatabaseService.deletePost...');
+  const confirmDeletePost = async () => {
+    if (!postToDelete || !user?.id) return;
 
-              const { data, error } = await DatabaseService.deletePost(postId, user.id);
+    console.log('🗑️ CIRCLE FEED: User confirmed deletion, starting delete process...');
+    
+    try {
+      setDeletePostLoading(postToDelete);
+      setShowDeleteConfirmModal(false);
+      console.log('🗑️ CIRCLE FEED: Set loading state, calling DatabaseService.deletePost...');
 
-              console.log('🗑️ CIRCLE FEED: DatabaseService.deletePost returned:', {
-                hasData: !!data,
-                hasError: !!error,
-                errorMessage: error?.message
-              });
+      const { data, error } = await DatabaseService.deletePost(postToDelete, user.id);
 
-              if (error) {
-                console.error('🗑️ CIRCLE FEED: Error deleting post:', error);
-                Alert.alert('Error', error.message || 'Failed to delete post');
-                return;
-              }
+      console.log('🗑️ CIRCLE FEED: DatabaseService.deletePost returned:', {
+        hasData: !!data,
+        hasError: !!error,
+        errorMessage: error?.message
+      });
 
-              console.log('🗑️ CIRCLE FEED: Post deleted successfully, updating UI...');
+      if (error) {
+        console.error('🗑️ CIRCLE FEED: Error deleting post:', error);
+        Alert.alert('Error', error.message || 'Failed to delete post');
+        return;
+      }
 
-              // Remove the post from the local state
-              setPosts(prevPosts => {
-                const filtered = prevPosts.filter(post => post.id !== postId);
-                console.log('🗑️ CIRCLE FEED: Updated posts count:', filtered.length);
-                return filtered;
-              });
+      console.log('🗑️ CIRCLE FEED: Post deleted successfully, updating UI...');
 
-              console.log('🗑️ CIRCLE FEED: UI updated, showing success alert');
-              Alert.alert('Success', 'Post deleted successfully');
-              
-            } catch (error) {
-              console.error('🗑️ CIRCLE FEED: Unexpected error deleting post:', error);
-              Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
-            } finally {
-              console.log('🗑️ CIRCLE FEED: Clearing loading state');
-              setDeletePostLoading(null);
-            }
-          },
-        },
-      ]
-    );
+      // Remove the post from the local state
+      setPosts(prevPosts => {
+        const filtered = prevPosts.filter(post => post.id !== postToDelete);
+        console.log('🗑️ CIRCLE FEED: Updated posts count:', filtered.length);
+        return filtered;
+      });
+
+      console.log('🗑️ CIRCLE FEED: UI updated, showing success alert');
+      Alert.alert('Success', 'Post deleted successfully');
+      
+    } catch (error) {
+      console.error('🗑️ CIRCLE FEED: Unexpected error deleting post:', error);
+      Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      console.log('🗑️ CIRCLE FEED: Clearing loading state');
+      setDeletePostLoading(null);
+      setPostToDelete(null);
+    }
   };
 
   const handleSaveChanges = async () => {
@@ -2554,6 +2544,54 @@ export default function CircleScreen() {
         </View>
       </Modal>
 
+      {/* Delete Post Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirmModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          setShowDeleteConfirmModal(false);
+          setPostToDelete(null);
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={[styles.deleteModalContent, { backgroundColor: surfaceColor }]}>
+            <View style={styles.deleteModalHeader}>
+              <ThemedText style={styles.deleteModalTitle}>Delete Post</ThemedText>
+            </View>
+            
+            <View style={styles.deleteModalBody}>
+              <ThemedText style={styles.deleteModalMessage}>
+                Are you sure you want to delete this post? This action cannot be undone.
+              </ThemedText>
+            </View>
+            
+            <View style={styles.deleteModalFooter}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelDeleteButton, { backgroundColor: backgroundColor }]}
+                onPress={() => {
+                  console.log('🗑️ CIRCLE FEED: User canceled deletion via modal');
+                  setShowDeleteConfirmModal(false);
+                  setPostToDelete(null);
+                }}
+              >
+                <ThemedText style={{ color: textColor }}>Cancel</ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.deleteModalButton, { backgroundColor: '#EF5350' }]}
+                onPress={confirmDeletePost}
+                disabled={deletePostLoading === postToDelete}
+              >
+                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>
+                  {deletePostLoading === postToDelete ? 'Deleting...' : 'Delete'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -3570,5 +3608,58 @@ const styles = StyleSheet.create({
   saveButton: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Delete confirmation modal styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalContent: {
+    width: '85%',
+    maxWidth: 300,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  deleteModalHeader: {
+    padding: 20,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  deleteModalBody: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  deleteModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  cancelDeleteButton: {
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
 });
