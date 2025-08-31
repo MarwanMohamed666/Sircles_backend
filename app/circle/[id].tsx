@@ -1496,23 +1496,22 @@ export default function CircleScreen() {
             </ThemedText>
           </View>
         </View>
-        {/* Delete button logic */}
+        {/* Post Actions - Edit and Delete */}
         {(post.author?.id === user?.id || circle.isAdmin) && (
           <View style={styles.postActions}>
             {post.author?.id === user?.id && (
               <TouchableOpacity
                 style={styles.postActionButton}
-                onPress={() => {
-                  setEditPostId(post.id);
-                  setEditPostContent(post.content || '');
-                  setIsEditingPost(true);
-                }}
+                onPress={() => handleEditPost(post.id, post.content)}
               >
                 <IconSymbol name="pencil" size={16} color={tintColor} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[styles.postActionButton, deletePostLoading === post.id && styles.disabledButton]}
+              style={[
+                styles.postActionButton, 
+                deletePostLoading === post.id && styles.disabledButton
+              ]}
               onPress={() => handleDeletePost(post.id)}
               disabled={deletePostLoading === post.id}
             >
@@ -2686,6 +2685,13 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 12,
     opacity: 0.7,
+  },
+  postActionButton: {
+    padding: 8,
+    borderRadius: 4,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   membersContainer: {
     gap: 12,
