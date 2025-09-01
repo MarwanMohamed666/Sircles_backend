@@ -2023,7 +2023,23 @@ export default function CircleScreen() {
                         {new Date(item.date).toLocaleDateString()} at {item.time}
                       </ThemedText>
                       {item.location && (
-                        <ThemedText style={styles.eventLocation}>📍 {item.location}</ThemedText>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <ThemedText style={styles.eventLocation}>📍 </ThemedText>
+                          {item.location_url ? (
+                            <TouchableOpacity onPress={() => {
+                              // Open URL in browser
+                              import('expo-linking').then(({ default: Linking }) => {
+                                Linking.openURL(item.location_url!);
+                              });
+                            }}>
+                              <ThemedText style={[styles.eventLocation, { color: tintColor, textDecorationLine: 'underline' }]}>
+                                {item.location}
+                              </ThemedText>
+                            </TouchableOpacity>
+                          ) : (
+                            <ThemedText style={styles.eventLocation}>{item.location}</ThemedText>
+                          )}
+                        </View>
                       )}
                     </View>
                     <View style={styles.eventActions}>

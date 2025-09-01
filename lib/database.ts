@@ -557,7 +557,7 @@ export const DatabaseService = {
     return { data: events || [], error: null };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[], photoAsset?: any }) {
+  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[], photoAsset?: any, location_url?: string }) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
@@ -568,10 +568,11 @@ export const DatabaseService = {
       const eventId = crypto.randomUUID();
 
       // Extract interests and photo from event object and create clean event data
-      const { interests, photoAsset, ...eventDataClean } = event;
+      const { interests, photoAsset, location_url, ...eventDataClean } = event;
 
       console.log('Database: Creating event with interests:', interests);
       console.log('Database: Creating event with photo:', !!photoAsset);
+      console.log('Database: Creating event with location_url:', location_url);
 
       let eventPhotoUrl = null;
 
@@ -601,7 +602,8 @@ export const DatabaseService = {
         id: eventId,
         createdby: currentUser.user.id,
         creationdate: new Date().toISOString(),
-        photo_url: eventPhotoUrl // Add photo URL to event
+        photo_url: eventPhotoUrl, // Add photo URL to event
+        location_url: location_url || null // Add location_url to event
       };
 
       // Fix column name - use circleid not circleId
@@ -2327,6 +2329,7 @@ export const DatabaseService = {
     time?: string;
     location?: string;
     photo_url?: string;
+    location_url?: string;
   }) {
     try {
       // Verify user is authenticated
@@ -2724,7 +2727,7 @@ export const DatabaseService = {
 
     try {
       console.log('🗑️ STEP 1: Starting authentication check...');
-      
+
       // Verify user is authenticated
       const { data: currentUser, error: authError } = await supabase.auth.getUser();
 
@@ -2750,7 +2753,7 @@ export const DatabaseService = {
       console.log('🗑️ - IDs match:', currentUser.user.id === userId);
 
       console.log('🗑️ STEP 2: Fetching post details for permission check...');
-      
+
       // Get post details first to understand permissions
       const { data: postDetails, error: fetchError } = await supabase
         .from('posts')
@@ -2775,13 +2778,13 @@ export const DatabaseService = {
       console.log('🗑️ - fetchError:', fetchError);
       console.log('🗑️ - fetchErrorCode:', fetchError?.code);
       console.log('🗑️ - fetchErrorMessage:', fetchError?.message);
-      
+
       if (postDetails) {
         console.log('🗑️ - Post owner ID:', postDetails.userid);
         console.log('🗑️ - Post circle ID:', postDetails.circleid);
         console.log('🗑️ - Post content length:', postDetails.content?.length);
         console.log('🗑️ - Post creation date:', postDetails.creationdate);
-        
+
         if (postDetails.circles) {
           console.log('🗑️ - Circle name:', postDetails.circles.name);
           console.log('🗑️ - Circle creator:', postDetails.circles.creator);
@@ -2798,7 +2801,7 @@ export const DatabaseService = {
       console.log('🗑️ STEP 2 PASSED: Post details fetched successfully');
 
       console.log('🗑️ STEP 3: Checking permissions...');
-      
+
       let hasPermission = false;
       let permissionReason = 'none';
 
@@ -2814,7 +2817,7 @@ export const DatabaseService = {
         console.log('🗑️ - Checking circle permissions...');
         console.log('🗑️ - Circle creator:', postDetails.circles.creator);
         console.log('🗑️ - Current user:', currentUser.user.id);
-        
+
         // Check if user is circle creator
         if (postDetails.circles.creator === currentUser.user.id) {
           hasPermission = true;
@@ -2906,7 +2909,7 @@ export const DatabaseService = {
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
       console.log('🗑️ DELETE POST FUNCTION COMPLETED SUCCESSFULLY');
       console.log('🗑️ ═══════════════════════════════════════════════════════════');
-      
+
       return { data: { success: true, deletedPost: data[0] }, error: null };
 
     } catch (error) {
@@ -2919,7 +2922,7 @@ export const DatabaseService = {
       console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       console.error('🗑️ - Error object:', error);
       console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      
+
       return { 
         data: null, 
         error: error instanceof Error ? error : new Error(String(error)) 

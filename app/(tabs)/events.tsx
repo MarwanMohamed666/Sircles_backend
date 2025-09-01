@@ -17,6 +17,7 @@ interface Event {
   date: string;
   time: string;
   location: string;
+  location_url?: string;
   description: string;
   circleid?: string;
   circleName?: string;
@@ -244,6 +245,7 @@ export default function EventsScreen() {
       date: event.date,
       time: event.time,
       location: event.location,
+      location_url: event.location_url,
       circleid: event.circleid,
       interests: event.event_interests?.map((ei: any) => ei.interests.id) || [],
       photo_url: event.photo_url
@@ -367,7 +369,20 @@ export default function EventsScreen() {
               </View>
               <View style={styles.detailRow}>
                 <IconSymbol name="location" size={16} color={textColor} />
-                <ThemedText style={styles.detailText}>{event.location}</ThemedText>
+                {event.location_url ? (
+                  <TouchableOpacity onPress={() => {
+                    // Open URL in browser
+                    import('expo-linking').then(({ default: Linking }) => {
+                      Linking.openURL(event.location_url!);
+                    });
+                  }}>
+                    <ThemedText style={[styles.detailText, { color: tintColor, textDecorationLine: 'underline' }]}>
+                      {event.location}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ) : (
+                  <ThemedText style={styles.detailText}>{event.location}</ThemedText>
+                )}
               </View>
             </View>
 
@@ -504,7 +519,20 @@ export default function EventsScreen() {
                   </View>
                   <View style={styles.metaRow}>
                     <IconSymbol name="location" size={20} color={textColor} />
-                    <ThemedText style={styles.metaText}>{selectedEvent.location}</ThemedText>
+                    {selectedEvent.location_url ? (
+                      <TouchableOpacity onPress={() => {
+                        // Open URL in browser
+                        import('expo-linking').then(({ default: Linking }) => {
+                          Linking.openURL(selectedEvent.location_url!);
+                        });
+                      }}>
+                        <ThemedText style={[styles.metaText, { color: tintColor, textDecorationLine: 'underline' }]}>
+                          {selectedEvent.location}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ) : (
+                      <ThemedText style={styles.metaText}>{selectedEvent.location}</ThemedText>
+                    )}
                   </View>
                   <View style={styles.metaRow}>
                     <IconSymbol name="person" size={20} color={textColor} />

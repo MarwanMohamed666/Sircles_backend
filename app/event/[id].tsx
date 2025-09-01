@@ -19,6 +19,7 @@ interface Event {
   date: string;
   time: string;
   location?: string;
+  location_url?: string;
   photo_url?: string;
   createdby: string;
   circleid?: string;
@@ -186,7 +187,20 @@ export default function EventScreen() {
               {event.location && (
                 <View style={styles.metaItem}>
                   <IconSymbol name="location" size={16} color={textColor} />
-                  <ThemedText style={styles.metaText}>{event.location}</ThemedText>
+                  {event.location_url ? (
+                    <TouchableOpacity onPress={() => {
+                      // Open URL in browser
+                      import('expo-linking').then(({ default: Linking }) => {
+                        Linking.openURL(event.location_url!);
+                      });
+                    }}>
+                      <ThemedText style={[styles.metaText, { color: tintColor, textDecorationLine: 'underline' }]}>
+                        {event.location}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ) : (
+                    <ThemedText style={styles.metaText}>{event.location}</ThemedText>
+                  )}
                 </View>
               )}
             </View>

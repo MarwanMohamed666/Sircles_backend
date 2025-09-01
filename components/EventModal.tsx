@@ -25,6 +25,7 @@ interface NewEvent {
   date: string;
   time: string;
   location: string;
+  location_url: string;
   description: string;
   circleId: string;
   interests: string[];
@@ -50,6 +51,7 @@ export default function EventModal({
     date: '',
     time: '',
     location: '',
+    location_url: '',
     description: '',
     circleId: preSelectedCircleId || '',
     interests: []
@@ -75,6 +77,7 @@ export default function EventModal({
         date: editingEvent.date || '',
         time: editingEvent.time || '',
         location: editingEvent.location || '',
+        location_url: editingEvent.location_url || '',
         description: editingEvent.description || '',
         circleId: editingEvent.circleid || preSelectedCircleId || '',
         interests: editingEvent.interests || []
@@ -89,6 +92,7 @@ export default function EventModal({
         date: '',
         time: '',
         location: '',
+        location_url: '',
         description: '',
         circleId: preSelectedCircleId || '',
         interests: []
@@ -133,6 +137,7 @@ export default function EventModal({
         date: newEvent.date,
         time: newEvent.time,
         location: newEvent.location.trim(),
+        location_url: newEvent.location_url.trim(),
         description: newEvent.description.trim(),
         circleid: newEvent.circleId || null,
         createdby: user.id,
@@ -179,6 +184,7 @@ export default function EventModal({
       date: '',
       time: '',
       location: '',
+      location_url: '',
       description: '',
       circleId: preSelectedCircleId || '',
       interests: []
@@ -263,7 +269,8 @@ export default function EventModal({
           description: newEvent.description.trim(),
           date: newEvent.date,
           time: newEvent.time,
-          location: newEvent.location.trim()
+          location: newEvent.location.trim(),
+          location_url: newEvent.location_url.trim()
         };
 
         // Handle photo update if new photo selected
@@ -457,6 +464,20 @@ export default function EventModal({
               onChangeText={(text) => setNewEvent(prev => ({ ...prev, location: text }))}
               placeholder="Event location"
               placeholderTextColor="#999"
+            />
+          </View>
+
+          {/* Location URL */}
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.inputLabel}>Location URL (Optional)</ThemedText>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: surfaceColor, color: textColor }]}
+              value={newEvent.location_url}
+              onChangeText={(text) => setNewEvent(prev => ({ ...prev, location_url: text }))}
+              placeholder="https://maps.google.com/..."
+              placeholderTextColor="#999"
+              keyboardType="url"
+              autoCapitalize="none"
             />
           </View>
 
