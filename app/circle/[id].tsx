@@ -3,6 +3,7 @@ import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -2028,9 +2029,7 @@ export default function CircleScreen() {
                           {item.location_url ? (
                             <TouchableOpacity onPress={() => {
                               // Open URL in browser
-                              import('expo-linking').then(({ default: Linking }) => {
-                                Linking.openURL(item.location_url!);
-                              });
+                              Linking.openURL(item.location_url!);
                             }}>
                               <ThemedText style={[styles.eventLocation, { color: tintColor, textDecorationLine: 'underline' }]}>
                                 {item.location}

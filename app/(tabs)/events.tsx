@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -372,9 +373,7 @@ export default function EventsScreen() {
                 {event.location_url ? (
                   <TouchableOpacity onPress={() => {
                     // Open URL in browser
-                    import('expo-linking').then(({ default: Linking }) => {
-                      Linking.openURL(event.location_url!);
-                    });
+                    Linking.openURL(event.location_url!);
                   }}>
                     <ThemedText style={[styles.detailText, { color: tintColor, textDecorationLine: 'underline' }]}>
                       {event.location}
@@ -522,9 +521,7 @@ export default function EventsScreen() {
                     {selectedEvent.location_url ? (
                       <TouchableOpacity onPress={() => {
                         // Open URL in browser
-                        import('expo-linking').then(({ default: Linking }) => {
-                          Linking.openURL(selectedEvent.location_url!);
-                        });
+                        Linking.openURL(selectedEvent.location_url!);
                       }}>
                         <ThemedText style={[styles.metaText, { color: tintColor, textDecorationLine: 'underline' }]}>
                           {selectedEvent.location}
