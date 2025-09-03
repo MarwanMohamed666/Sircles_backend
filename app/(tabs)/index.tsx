@@ -234,40 +234,40 @@ export default function HomeScreen() {
       const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
 
       if (userInterestIds.length === 0) {
-        // If user has no interests, show random circles
-        const shuffled = availableCircles.sort(() => 0.5 - Math.random());
-        setSuggestedCircles(shuffled.slice(0, 5));
+        // If user has no interests, don't show any suggestions
+        setSuggestedCircles([]);
         return;
       }
 
-      // Score circles based on interest matches
-      const scoredCircles = availableCircles.map(circle => {
-        const circleInterestIds = circle.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
-        const matchingInterests = circleInterestIds.filter(id => userInterestIds.includes(id));
-        
-        return {
-          ...circle,
-          interestScore: matchingInterests.length,
-          matchingInterests
-        };
-      });
+      // Score circles based on interest matches - ONLY suggest circles with mutual interests
+      const circlesWithMutualInterests = availableCircles
+        .map(circle => {
+          const circleInterestIds = circle.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
+          const matchingInterests = circleInterestIds.filter(id => userInterestIds.includes(id));
+          
+          return {
+            ...circle,
+            interestScore: matchingInterests.length,
+            matchingInterests,
+            matchingInterestTitles: matchingInterests.map(id => {
+              const interest = circle.circle_interests?.find((ci: any) => ci.interests?.id === id);
+              return interest?.interests?.title;
+            }).filter(Boolean)
+          };
+        })
+        .filter(circle => circle.interestScore > 0) // Only include circles with at least 1 mutual interest
+        .sort((a, b) => {
+          // Sort by interest score (descending), then by name (ascending)
+          if (b.interestScore !== a.interestScore) {
+            return b.interestScore - a.interestScore;
+          }
+          return a.name.localeCompare(b.name);
+        });
 
-      // Sort by interest score (descending) and take top 5
-      const suggestions = scoredCircles
-        .filter(circle => circle.interestScore > 0)
-        .sort((a, b) => b.interestScore - a.interestScore)
-        .slice(0, 5);
+      // Take top 10 circles with mutual interests (or all if less than 10)
+      const suggestions = circlesWithMutualInterests.slice(0, 10);
 
-      // If we don't have enough suggestions, fill with random circles
-      if (suggestions.length < 5) {
-        const remainingCircles = availableCircles
-          .filter(circle => !suggestions.find(s => s.id === circle.id))
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 5 - suggestions.length);
-        
-        suggestions.push(...remainingCircles);
-      }
-
+      console.log(`Found ${suggestions.length} circles with mutual interests for user`);
       setSuggestedCircles(suggestions);
     } catch (error) {
       console.error('Error loading suggested circles:', error);
