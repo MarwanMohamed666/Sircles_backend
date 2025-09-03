@@ -55,6 +55,7 @@ export default function HomeScreen() {
   const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
   const [editPostContent, setEditPostContent] = useState('');
   const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
+  const [suggestedCircles, setSuggestedCircles] = useState<any[]>([]);
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -204,6 +205,75 @@ export default function HomeScreen() {
     }
   };
 
+  const loadSuggestedCircles = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Get all circles
+      const { data: allCircles, error: circlesError } = await DatabaseService.getCircles();
+      if (circlesError) {
+        console.error('Error loading circles for suggestions:', circlesError);
+        return;
+      }
+
+      // Get user's joined circles
+      const { data: userJoinedCircles, error: joinedError } = await DatabaseService.getUserJoinedCircles(user.id);
+      if (joinedError) {
+        console.error('Error loading user joined circles:', joinedError);
+        return;
+      }
+
+      const joinedCircleIds = new Set(userJoinedCircles?.map(uc => uc.circleid) || []);
+
+      // Filter out circles user has already joined
+      const availableCircles = (allCircles || []).filter(circle => 
+        !joinedCircleIds.has(circle.id)
+      );
+
+      // Get user's interest IDs
+      const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
+
+      if (userInterestIds.length === 0) {
+        // If user has no interests, show random circles
+        const shuffled = availableCircles.sort(() => 0.5 - Math.random());
+        setSuggestedCircles(shuffled.slice(0, 5));
+        return;
+      }
+
+      // Score circles based on interest matches
+      const scoredCircles = availableCircles.map(circle => {
+        const circleInterestIds = circle.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
+        const matchingInterests = circleInterestIds.filter(id => userInterestIds.includes(id));
+        
+        return {
+          ...circle,
+          interestScore: matchingInterests.length,
+          matchingInterests
+        };
+      });
+
+      // Sort by interest score (descending) and take top 5
+      const suggestions = scoredCircles
+        .filter(circle => circle.interestScore > 0)
+        .sort((a, b) => b.interestScore - a.interestScore)
+        .slice(0, 5);
+
+      // If we don't have enough suggestions, fill with random circles
+      if (suggestions.length < 5) {
+        const remainingCircles = availableCircles
+          .filter(circle => !suggestions.find(s => s.id === circle.id))
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 5 - suggestions.length);
+        
+        suggestions.push(...remainingCircles);
+      }
+
+      setSuggestedCircles(suggestions);
+    } catch (error) {
+      console.error('Error loading suggested circles:', error);
+    }
+  };
+
   const loadUserCircles = async () => {
     if (!user?.id) return;
 
@@ -234,6 +304,7 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
+    // loadSuggestedCircles will be called automatically when userInterests updates
     setRefreshing(false);
   }, [user]);
 
@@ -245,6 +316,7 @@ export default function HomeScreen() {
       setEvents([]);
       setFeedItems([]);
       setUserInterests([]);
+      setSuggestedCircles([]);
       setLoading(false);
     }
   }, [user]);
@@ -258,6 +330,12 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, [posts, events, userInterests, loading, user]);
+
+  useEffect(() => {
+    if (userInterests.length >= 0) { // Load even if user has no interests
+      loadSuggestedCircles();
+    }
+  }, [userInterests, user]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -494,6 +572,43 @@ export default function HomeScreen() {
     );
   };
 
+  const handleJoinSuggestedCircle = async (circleId: string) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to join circles');
+      return;
+    }
+
+    try {
+      const { error } = await DatabaseService.joinCircle(user.id, circleId);
+      
+      if (error) {
+        if (error.message.includes('private circle')) {
+          // Handle private circle - request to join instead
+          const { error: requestError } = await DatabaseService.requestToJoinCircle(user.id, circleId);
+          if (requestError) {
+            Alert.alert('Error', requestError.message);
+          } else {
+            Alert.alert('Request Sent', 'Your request to join this private circle has been sent to the admins.');
+            // Remove the circle from suggestions since user has requested to join
+            setSuggestedCircles(prev => prev.filter(c => c.id !== circleId));
+          }
+        } else {
+          Alert.alert('Error', error.message);
+        }
+        return;
+      }
+
+      Alert.alert('Success', 'You have successfully joined the circle!');
+      // Remove the joined circle from suggestions
+      setSuggestedCircles(prev => prev.filter(c => c.id !== circleId));
+      // Refresh user circles and suggested circles
+      await loadUserCircles();
+    } catch (error) {
+      console.error('Error joining circle:', error);
+      Alert.alert('Error', 'Failed to join circle. Please try again.');
+    }
+  };
+
   const renderEvent = ({ item }: { item: any }) => (
     <View style={[
       styles.postCard,
@@ -712,6 +827,55 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Suggested Circles Section */}
+        {user && suggestedCircles.length > 0 && !loading && (
+          <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
+            <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
+              Suggested Circles
+            </ThemedText>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.suggestedScrollView}
+              contentContainerStyle={styles.suggestedContent}
+            >
+              {suggestedCircles.map((circle) => (
+                <View key={circle.id} style={[styles.suggestedCircleCard, { backgroundColor: backgroundColor }]}>
+                  <View style={styles.suggestedCircleImageContainer}>
+                    {circle.circle_profile_url ? (
+                      <Image 
+                        source={{ uri: circle.circle_profile_url }} 
+                        style={styles.suggestedCircleImage}
+                        defaultSource={{ uri: 'https://via.placeholder.com/80' }}
+                      />
+                    ) : (
+                      <View style={[styles.suggestedCircleImagePlaceholder, { backgroundColor: tintColor + '20' }]}>
+                        <IconSymbol name="person.3" size={32} color={tintColor} />
+                      </View>
+                    )}
+                  </View>
+                  <ThemedText numberOfLines={2} style={styles.suggestedCircleName}>
+                    {circle.name}
+                  </ThemedText>
+                  {circle.interestScore > 0 && (
+                    <ThemedText style={[styles.suggestedCircleMatches, { color: tintColor }]}>
+                      {circle.interestScore} interest match{circle.interestScore > 1 ? 'es' : ''}
+                    </ThemedText>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.joinButton, { backgroundColor: tintColor }]}
+                    onPress={() => handleJoinSuggestedCircle(circle.id)}
+                  >
+                    <ThemedText style={styles.joinButtonText}>
+                      {circle.privacy === 'private' ? 'Request' : 'Join'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.centeredContainer}>
             <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
@@ -1292,5 +1456,73 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     opacity: 0.5,
+  },
+  suggestedSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 1,
+  },
+  suggestedTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+  },
+  suggestedScrollView: {
+    flexDirection: 'row',
+  },
+  suggestedContent: {
+    paddingRight: 16,
+  },
+  suggestedCircleCard: {
+    width: 140,
+    padding: 12,
+    borderRadius: 12,
+    marginRight: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  suggestedCircleImageContainer: {
+    marginBottom: 8,
+  },
+  suggestedCircleImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  suggestedCircleImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestedCircleName: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+    minHeight: 36,
+  },
+  suggestedCircleMatches: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  joinButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 'auto',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
