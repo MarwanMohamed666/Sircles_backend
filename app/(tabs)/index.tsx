@@ -11,6 +11,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/lib/database';
+import { CircleCard } from '@/components/CircleCard';
+import { useCirclesStore } from '@/stores/circlesStore';
 
 interface Post {
   id: string;
@@ -55,7 +57,8 @@ export default function HomeScreen() {
   const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
   const [editPostContent, setEditPostContent] = useState('');
   const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
-  const [suggestedCircles, setSuggestedCircles] = useState<any[]>([]);
+  // Remove local suggested circles state - now managed by store
+  const { suggested: suggestedCircles, loading: suggestedLoading, loadSuggested, dismiss, snooze } = useCirclesStore();
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -205,74 +208,7 @@ export default function HomeScreen() {
     }
   };
 
-  const loadSuggestedCircles = async () => {
-    if (!user?.id) return;
-
-    try {
-      // Get all circles
-      const { data: allCircles, error: circlesError } = await DatabaseService.getCircles();
-      if (circlesError) {
-        console.error('Error loading circles for suggestions:', circlesError);
-        return;
-      }
-
-      // Get user's joined circles
-      const { data: userJoinedCircles, error: joinedError } = await DatabaseService.getUserJoinedCircles(user.id);
-      if (joinedError) {
-        console.error('Error loading user joined circles:', joinedError);
-        return;
-      }
-
-      const joinedCircleIds = new Set(userJoinedCircles?.map(uc => uc.circleid) || []);
-
-      // Filter out circles user has already joined
-      const availableCircles = (allCircles || []).filter(circle => 
-        !joinedCircleIds.has(circle.id)
-      );
-
-      // Get user's interest IDs
-      const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
-
-      if (userInterestIds.length === 0) {
-        // If user has no interests, don't show any suggestions
-        setSuggestedCircles([]);
-        return;
-      }
-
-      // Score circles based on interest matches - ONLY suggest circles with mutual interests
-      const circlesWithMutualInterests = availableCircles
-        .map(circle => {
-          const circleInterestIds = circle.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
-          const matchingInterests = circleInterestIds.filter(id => userInterestIds.includes(id));
-          
-          return {
-            ...circle,
-            interestScore: matchingInterests.length,
-            matchingInterests,
-            matchingInterestTitles: matchingInterests.map(id => {
-              const interest = circle.circle_interests?.find((ci: any) => ci.interests?.id === id);
-              return interest?.interests?.title;
-            }).filter(Boolean)
-          };
-        })
-        .filter(circle => circle.interestScore > 0) // Only include circles with at least 1 mutual interest
-        .sort((a, b) => {
-          // Sort by interest score (descending), then by name (ascending)
-          if (b.interestScore !== a.interestScore) {
-            return b.interestScore - a.interestScore;
-          }
-          return a.name.localeCompare(b.name);
-        });
-
-      // Take top 10 circles with mutual interests (or all if less than 10)
-      const suggestions = circlesWithMutualInterests.slice(0, 10);
-
-      console.log(`Found ${suggestions.length} circles with mutual interests for user`);
-      setSuggestedCircles(suggestions);
-    } catch (error) {
-      console.error('Error loading suggested circles:', error);
-    }
-  };
+  // Suggested circles now handled by store
 
   const loadUserCircles = async () => {
     if (!user?.id) return;
@@ -332,10 +268,10 @@ export default function HomeScreen() {
   }, [posts, events, userInterests, loading, user]);
 
   useEffect(() => {
-    if (userInterests.length >= 0) { // Load even if user has no interests
-      loadSuggestedCircles();
+    if (user && userInterests.length >= 0) { // Load even if user has no interests
+      loadSuggested();
     }
-  }, [userInterests, user]);
+  }, [userInterests, user, loadSuggested]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -840,37 +776,13 @@ export default function HomeScreen() {
               contentContainerStyle={styles.suggestedContent}
             >
               {suggestedCircles.map((circle) => (
-                <View key={circle.id} style={[styles.suggestedCircleCard, { backgroundColor: backgroundColor }]}>
-                  <View style={styles.suggestedCircleImageContainer}>
-                    {circle.circle_profile_url ? (
-                      <Image 
-                        source={{ uri: circle.circle_profile_url }} 
-                        style={styles.suggestedCircleImage}
-                        defaultSource={{ uri: 'https://via.placeholder.com/80' }}
-                      />
-                    ) : (
-                      <View style={[styles.suggestedCircleImagePlaceholder, { backgroundColor: tintColor + '20' }]}>
-                        <IconSymbol name="person.3" size={32} color={tintColor} />
-                      </View>
-                    )}
-                  </View>
-                  <ThemedText numberOfLines={2} style={styles.suggestedCircleName}>
-                    {circle.name}
-                  </ThemedText>
-                  {circle.interestScore > 0 && (
-                    <ThemedText style={[styles.suggestedCircleMatches, { color: tintColor }]}>
-                      {circle.interestScore} interest match{circle.interestScore > 1 ? 'es' : ''}
-                    </ThemedText>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.joinButton, { backgroundColor: tintColor }]}
-                    onPress={() => handleJoinSuggestedCircle(circle.id)}
-                  >
-                    <ThemedText style={styles.joinButtonText}>
-                      {circle.privacy === 'private' ? 'Request' : 'Join'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
+                <CircleCard
+                  key={circle.id}
+                  circle={circle}
+                  onJoin={handleJoinSuggestedCircle}
+                  onDismiss={dismiss}
+                  onSnooze={snooze}
+                />
               ))}
             </ScrollView>
           </View>

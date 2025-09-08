@@ -138,6 +138,23 @@ export const AppTexts = {
     contentModeration: 'Content Moderation',
     reportsReview: 'Reports Review',
     searchManage: 'Search & Manage',
+
+    // Add more text constants as needed
+    retry: 'Retry',
+
+    // Circle preferences
+    notInterested: 'Not Interested',
+    dismissCircleConfirm: 'Remove this circle from suggestions?',
+    snoozeCircle: 'Snooze Circle',
+    snoozeCircleConfirm: 'Hide this circle for 30 days?',
+    snooze: 'Snooze',
+    snooze30Days: 'Snooze 30 days',
+    remove: 'Remove',
+    undo: 'Undo',
+    circleDismissed: 'Circle Dismissed',
+    circleSnoozed: 'Circle Snoozed',
+    undone: 'Undone',
+    circlePreferenceUndone: 'Circle preference has been undone',
   },
 
   ar: {
