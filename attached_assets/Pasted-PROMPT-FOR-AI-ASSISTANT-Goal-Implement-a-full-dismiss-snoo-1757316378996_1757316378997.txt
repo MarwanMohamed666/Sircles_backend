@@ -1,0 +1,149 @@
+PROMPT FOR AI ASSISTANT
+================================
+
+Goal
+----
+Implement a full “dismiss / snooze circles” feature so that a signed‑in user can permanently hide a circle from recommendations (Not Interested) or hide it temporarily (Snooze). The stack is **React Native (Expo) + TypeScript** with **Supabase (Postgres + RLS)**.
+
+Deliverables
+------------
+1) One SQL migration (Up/Down) that creates all DB objects (table, indexes, trigger, RLS policies, view, and optional RPC) and safely drops them in the reverse order.
+2) TypeScript client code for React Native: helper functions, a small store (Zustand/Redux), and a sample UI component showing how to call the helpers with optimistic updates and an Undo toast.
+3) Brief notes on acceptance tests and performance.
+
+---------------------------------------------
+1) DATABASE REQUIREMENTS (SQL + RLS)
+---------------------------------------------
+
+Create a table `public.user_circle_prefs` to store a user’s decision about a circle:
+- `userid`           — EXACT same data type as `public.user_circles.userid` (detect from schema and reuse).
+- `circleid`         — EXACT same data type as `public.circles.id` (detect from schema and reuse).
+- `status`           — text with CHECK constraint allowing only: 'not_interested' | 'snoozed'.
+- `snooze_until`     — timestamptz (nullable).
+- `reason`           — text (nullable), may store values like 'dismissed' | 'spam' | 'irrelevant'.
+- `created_at`       — timestamptz default now().
+- `updated_at`       — timestamptz default now().
+- **PRIMARY KEY**    — composite (userid, circleid).
+- **Foreign keys**   — reference `auth.users(id)` and `public.circles(id)` with `ON DELETE CASCADE`.
+
+Add partial indexes for fast exclusion:
+- Index on (userid, circleid) WHERE status = 'not_interested'.
+- Index on (userid, snooze_until) WHERE status = 'snoozed'.
+
+Add a trigger to keep `updated_at` fresh:
+- BEFORE UPDATE trigger that sets `NEW.updated_at = now()`.
+
+Enable and define RLS (Row Level Security) on `public.user_circle_prefs`:
+- Enable RLS.
+- Policies so that a user can **SELECT/INSERT/UPDATE/DELETE their own rows only**. Use `userid = auth.uid()` with the appropriate cast if `userid` is text; otherwise use uuid directly.
+
+Ensure read access needed by the suggestions logic:
+- On `public.circles` and `public.circle_interests`, allow SELECT for the `authenticated` role (e.g., `USING (true)`) unless you already have suitable policies.
+- On `public.user_interests`, allow users to read their own rows to compute matches.
+
+Create a **VIEW** `public.v_suggested_circles` that returns recommended circles for the current user based on shared interests, excluding:
+1) Circles the user already joined (`public.user_circles`).
+2) Circles the user marked as 'not_interested'.
+3) Circles snoozed where `snooze_until > now()`.
+
+Order: by `score` (number of shared interests) DESC, then `created_at` DESC. Limit to 20.
+
+IMPORTANT: The schema may use `uuid` or `text` for IDs. The SQL must auto‑adapt casts accordingly (e.g., remove `::text` if not needed).
+
+Approximate VIEW logic (adjust types/casts to match the real schema):
+```
+with my_interests as (
+  select ui.interestid
+  from public.user_interests ui
+  where ui.userid = auth.uid()::text  -- or just auth.uid() if uuid
+),
+ranked as (
+  select c.id, c.name, c.created_at,
+         count(*) as score
+  from public.circles c
+  join public.circle_interests ci on ci.circleid = c.id
+  join my_interests mi on mi.interestid = ci.interestid
+  left join public.user_circles uc
+    on uc.circleid = c.id and uc.userid = auth.uid()::text
+  left join public.user_circle_prefs p
+    on p.circleid = c.id and p.userid = auth.uid()::text
+  where uc.userid is null
+    and coalesce(p.status, '') <> 'not_interested'
+    and not (p.status = 'snoozed' and p.snooze_until > now())
+  group by c.id, c.name, c.created_at
+)
+select * from ranked
+order by score desc, created_at desc
+limit 20;
+```
+
+(OPTIONAL) Create an RPC function `suggested_circles()` (SECURITY INVOKER) that does `SELECT * FROM public.v_suggested_circles;` for a stable client API. Do **NOT** use SECURITY DEFINER.
+
+Migration expectations:
+- **Up** must: create table + constraints + FKs, indexes, trigger, RLS policies, view, and optional RPC (in a dependency‑safe order).
+- **Down** must: drop RPC, view, policies, trigger, indexes, table — reverse order to avoid dependency errors.
+
+---------------------------------------------
+2) CLIENT CODE (REACT NATIVE + TYPESCRIPT)
+---------------------------------------------
+
+Create `lib/circlePrefs.ts` with these helpers (Supabase JS client is already configured):
+- `dismissCircle(circleId: string)`
+  - `upsert` into `user_circle_prefs` with `status: 'not_interested'` and `reason: 'dismissed'`.
+  - Use `onConflict: 'userid,circleid'` so the call is idempotent.
+- `snoozeCircle(circleId: string, days = 30)`
+  - `upsert` with `status: 'snoozed'` and `snooze_until = new Date(Date.now() + days*24*60*60*1000).toISOString()`.
+  - Use `onConflict: 'userid,circleid'`.
+- `undoPreference(circleId: string)`
+  - `delete` the row in `user_circle_prefs` for the current user + circle.
+- `fetchSuggestedCircles()`
+  - Prefer `rpc('suggested_circles')`. If RPC not present, fallback to `.from('v_suggested_circles').select('*')`.
+
+Types to export:
+```
+export type Circle = { id: string; name: string; created_at: string; score: number };
+export type CirclePref = {
+  userid: string;
+  circleid: string;
+  status: 'not_interested' | 'snoozed';
+  snooze_until?: string | null;
+  reason?: string | null;
+};
+```
+
+Create a small store (Zustand or Redux slice) called `useCirclesStore`:
+- State: `suggested: Circle[]`, `loading: boolean`, `error?: string`.
+- Actions:
+  - `loadSuggested()` → fetch and set `suggested`.
+  - `dismiss(id)` → optimistic update: remove the circle locally, call `dismissCircle`, on error revert and show toast.
+  - `snooze(id, days)` → optimistic update: remove locally, call `snoozeCircle`, on error revert.
+  - `undo(id)` → call `undoPreference`, then refetch suggestions.
+- Show a Toast after action with an **Undo** button that calls `undo(id)`.
+
+Create `components/CircleCard.tsx`:
+- Props: `circle: Circle`, action callbacks.
+- UI: Join (primary) and overflow menu with **Not Interested** and **Snooze 30 days**.
+- Wire buttons to store actions.
+
+In the “Suggested Circles” screen:
+- Call `loadSuggested()` on mount.
+- After each action, keep the UI snappy with optimistic updates and silent background refresh.
+
+All user‑visible strings must be sourced from a central `AppTexts` object to support future i18n/RTL, even if we only ship EN right now.
+
+---------------------------------------------
+3) ACCEPTANCE TESTS
+---------------------------------------------
+- Marking a circle as `not_interested` removes it from `v_suggested_circles` immediately.
+- Marking a circle as `snoozed` with `snooze_until > now()` removes it, and it reappears after the time passes.
+- Undo removes the preference row and the circle reappears after refresh.
+- RLS prevents a user from reading or mutating another user’s `user_circle_prefs` rows.
+- Query performance: fetching suggestions should complete in ≤ 150 ms for realistic dataset sizes.
+
+---------------------------------------------
+4) PERFORMANCE & SECURITY NOTES
+---------------------------------------------
+- Use the provided partial indexes to accelerate the “exclusion” filters.
+- Keep the RPC function `SECURITY INVOKER` to honor RLS.
+- Use `onConflict: 'userid,circleid'` for idempotent writes.
+- Be cautious with any admin‑level bypass; do not leak private circles if you have circle privacy rules elsewhere.
