@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const [editPostContent, setEditPostContent] = useState('');
   const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
   // Remove local suggested circles state - now managed by store
-  const { suggested: suggestedCircles, loading: suggestedLoading, loadSuggested, dismiss, snooze } = useCirclesStore();
+  const { suggested: suggestedCircles, loading: suggestedLoading, loadSuggested, dismiss, snooze, error: circlesError } = useCirclesStore();
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -240,9 +240,10 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
-    // loadSuggestedCircles will be called automatically when userInterests updates
+    // Also explicitly reload suggested circles
+    await loadSuggested();
     setRefreshing(false);
-  }, [user]);
+  }, [user, loadSuggested]);
 
   useEffect(() => {
     if (user) {
@@ -269,9 +270,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (user && userInterests.length >= 0) { // Load even if user has no interests
+      console.log('Loading suggested circles for user with interests:', userInterests.length);
       loadSuggested();
     }
-  }, [userInterests, user, loadSuggested]);
+  }, [userInterests.length, user?.id, loadSuggested]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -764,28 +766,62 @@ export default function HomeScreen() {
         }
       >
         {/* Suggested Circles Section */}
-        {user && suggestedCircles.length > 0 && !loading && (
-          <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
-            <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
-              Suggested Circles
-            </ThemedText>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.suggestedScrollView}
-              contentContainerStyle={styles.suggestedContent}
-            >
-              {suggestedCircles.map((circle) => (
-                <CircleCard
-                  key={circle.id}
-                  circle={circle}
-                  onJoin={handleJoinSuggestedCircle}
-                  onDismiss={dismiss}
-                  onSnooze={snooze}
-                />
-              ))}
-            </ScrollView>
-          </View>
+        {user && !loading && (
+          <>
+            {suggestedLoading && (
+              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
+                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
+                  Loading Suggested Circles...
+                </ThemedText>
+              </View>
+            )}
+            
+            {!suggestedLoading && suggestedCircles.length > 0 && (
+              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
+                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
+                  Suggested Circles ({suggestedCircles.length})
+                </ThemedText>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.suggestedScrollView}
+                  contentContainerStyle={styles.suggestedContent}
+                >
+                  {suggestedCircles.map((circle) => (
+                    <CircleCard
+                      key={circle.id}
+                      circle={circle}
+                      onJoin={handleJoinSuggestedCircle}
+                      onDismiss={dismiss}
+                      onSnooze={snooze}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            
+            {!suggestedLoading && suggestedCircles.length === 0 && userInterests.length > 0 && (
+              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
+                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
+                  No Suggested Circles
+                </ThemedText>
+                <ThemedText style={styles.emptyText}>
+                  No circles match your interests at the moment
+                </ThemedText>
+              </View>
+            )}
+            
+            {circlesError && (
+              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
+                <ThemedText type="defaultSemiBold" style={[styles.suggestedTitle, { color: '#EF5350' }]}>
+                  Error Loading Suggestions
+                </ThemedText>
+                <ThemedText style={styles.emptyText}>
+                  {circlesError}
+                </ThemedText>
+              </View>
+            )}
+          </>
         )}
 
         {loading ? (
