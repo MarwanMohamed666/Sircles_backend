@@ -438,17 +438,33 @@ export default function ProfileScreen() {
   const { signOut: authSignOut } = useAuth();
 
   const handleLogout = () => {
-    handleSignOut();
+    Alert.alert(
+      texts.logout || 'Logout', 
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', onPress: handleSignOut, style: 'destructive' }
+      ]
+    );
   };
 
   const handleSignOut = async () => {
     try {
+      console.log('Starting logout process...');
       await authSignOut();
-      // Navigate immediately after logout to prevent auth errors
-      router.replace('/login');
+      console.log('Auth signout completed, navigating to login...');
+      
+      // Use setTimeout to ensure state is cleared before navigation
+      setTimeout(() => {
+        router.replace('/login');
+      }, 100);
+      
     } catch (error) {
       console.error('Logout failed:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
+      
+      // Force navigation even on error to prevent stuck states
+      router.replace('/login');
     }
   };
 
