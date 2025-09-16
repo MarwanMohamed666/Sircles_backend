@@ -10,8 +10,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPlaces } from '@/lib/services/places';
-import { getSpacesByPlace } from '@/lib/services/spaces';
-import type { Place, Space } from '@/types/database';
+import type { Place } from '@/types/database';
 
 export default function PlacesScreen() {
   const { user } = useAuth();
@@ -22,7 +21,6 @@ export default function PlacesScreen() {
   const textColor = useThemeColor({}, 'text');
 
   const [places, setPlaces] = useState<Place[]>([]);
-  const [placesWithSpaces, setPlacesWithSpaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,20 +32,6 @@ export default function PlacesScreen() {
       
       const placesData = await getPlaces();
       setPlaces(placesData);
-      
-      // Load spaces for each place
-      const placesWithSpacesData = await Promise.all(
-        placesData.map(async (place) => {
-          const spaces = await getSpacesByPlace(place.id);
-          return {
-            ...place,
-            spaces,
-            spacesCount: spaces.length
-          };
-        })
-      );
-      
-      setPlacesWithSpaces(placesWithSpacesData);
     } catch (error) {
       console.error('Error loading places:', error);
       setError('Failed to load places');
@@ -66,17 +50,17 @@ export default function PlacesScreen() {
     loadPlaces();
   }, []);
 
-  const handlePlacePress = (place: any) => {
-    // Navigate to place details or booking screen
+  const handlePlacePress = (place: Place) => {
+    // Navigate to place booking
     Alert.alert(
       place.name,
-      `${place.description || 'No description'}\n\nSpaces available: ${place.spacesCount}`,
+      `${place.description || 'No description'}\n\nCapacity: ${place.capacity || 'Not specified'}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'View Spaces', 
+          text: 'Book Place', 
           onPress: () => {
-            // TODO: Navigate to individual place booking screen
+            // TODO: Navigate to place booking screen
             console.log('Navigate to place booking:', place.id);
           }
         }
@@ -163,7 +147,7 @@ export default function PlacesScreen() {
           </View>
         )}
 
-        {!loading && !error && placesWithSpaces.length === 0 && (
+        {!loading && !error && places.length === 0 && (
           <View style={styles.emptyContainer}>
             <IconSymbol name="building.2" size={64} color={textColor + '40'} />
             <ThemedText style={styles.emptyText}>
@@ -175,9 +159,9 @@ export default function PlacesScreen() {
           </View>
         )}
 
-        {!loading && !error && placesWithSpaces.length > 0 && (
+        {!loading && !error && places.length > 0 && (
           <View style={styles.placesContainer}>
-            {placesWithSpaces.map((place) => (
+            {places.map((place) => (
               <TouchableOpacity
                 key={place.id}
                 style={[styles.placeCard, { backgroundColor: surfaceColor }]}
@@ -200,9 +184,9 @@ export default function PlacesScreen() {
                 
                 <View style={styles.placeDetails}>
                   <View style={styles.detailItem}>
-                    <IconSymbol name="door.left.hand.open" size={16} color={textColor + '80'} />
+                    <IconSymbol name="building.2.fill" size={16} color={textColor + '80'} />
                     <ThemedText style={styles.detailText}>
-                      {place.spacesCount} {place.spacesCount === 1 ? 'space' : 'spaces'}
+                      Bookable venue
                     </ThemedText>
                   </View>
                   

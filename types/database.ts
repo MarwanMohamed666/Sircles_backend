@@ -61,16 +61,7 @@ export interface Place {
   updated_at: string;
 }
 
-export interface Space {
-  id: string;
-  place_id: string;
-  name: string;
-  description?: string;
-  capacity?: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Removed Space interface - simplified to places-only booking system
 
 export interface PlaceHours {
   id: string;
@@ -86,7 +77,6 @@ export interface PlaceHours {
 export interface Blackout {
   id: string;
   place_id: string;
-  space_id?: string; // NULL for place-wide blackout
   reason?: string;
   starts_at: string; // TIMESTAMPTZ
   ends_at: string; // TIMESTAMPTZ
@@ -99,12 +89,12 @@ export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
 export interface Booking {
   id: string;
   place_id: string;
-  space_id: string;
   user_id: string;
   status: BookingStatus;
   starts_at: string; // TIMESTAMPTZ
   ends_at: string; // TIMESTAMPTZ
   notes?: string;
+  approved_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -122,16 +112,9 @@ export interface UpdatePlaceInput extends Partial<CreatePlaceInput> {
   is_active?: boolean;
 }
 
-export interface CreateSpaceInput {
-  place_id: string;
-  name: string;
-  description?: string;
-  capacity?: number;
-}
+// Removed CreateSpaceInput - places-only booking system
 
-export interface UpdateSpaceInput extends Partial<CreateSpaceInput> {
-  is_active?: boolean;
-}
+// Removed UpdateSpaceInput - places-only booking system
 
 export interface CreatePlaceHoursInput {
   place_id: string;
@@ -144,7 +127,6 @@ export interface CreatePlaceHoursInput {
 
 export interface CreateBlackoutInput {
   place_id: string;
-  space_id?: string;
   reason?: string;
   starts_at: string;
   ends_at: string;
@@ -152,7 +134,6 @@ export interface CreateBlackoutInput {
 
 export interface CreateBookingInput {
   place_id: string;
-  space_id: string;
   starts_at: string;
   ends_at: string;
   notes?: string;
@@ -163,6 +144,7 @@ export interface UpdateBookingInput {
   starts_at?: string;
   ends_at?: string;
   notes?: string;
+  approved_by?: string;
 }
 
 // RPC function return types
