@@ -140,14 +140,34 @@ export async function isPlaceOpen(
 ): Promise<boolean> {
   const date = new Date(dateTime);
   const dayOfWeek = date.getDay();
-  const time = date.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
   const dateStr = date.toISOString().split('T')[0];
 
   const hours = await getPlaceHoursForDay(placeId, dayOfWeek, dateStr);
   
   if (!hours) return false;
   
-  return time >= hours.open_time && time <= hours.close_time;
+  // Create a base date for time comparison (using same day to avoid timezone issues)
+  const baseDate = dateStr + 'T';
+  
+  // Parse times into proper Date objects for reliable comparison
+  const currentTime = new Date(baseDate + date.toTimeString().split(' ')[0]);
+  const openTime = new Date(baseDate + hours.open_time + ':00');
+  const closeTime = new Date(baseDate + hours.close_time + ':00');
+  
+  // Handle overnight hours (close time is next day)
+  if (closeTime <= openTime) {
+    // If current time is after midnight but before close time, check previous day
+    if (currentTime < openTime) {
+      const prevCloseTime = new Date(closeTime);
+      prevCloseTime.setDate(prevCloseTime.getDate() - 1);
+      return currentTime <= closeTime;
+    }
+    // If current time is after open time, it's valid regardless of close time
+    return currentTime >= openTime;
+  }
+  
+  // Normal hours (same day)
+  return currentTime >= openTime && currentTime <= closeTime;
 }
 
 /**

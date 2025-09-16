@@ -82,18 +82,51 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
     .single();
 
   if (error) {
-    // Provide user-friendly error messages
-    if (error.message.includes('operating hours')) {
+    // Handle database errors using error codes and message patterns for reliability
+    
+    // Exclusion constraint violation (overlapping bookings)
+    if (error.code === '23P01' && error.message?.includes('bookings_no_overlap')) {
+      throw new Error('This time slot is already booked by another user');
+    }
+    
+    // Custom validation errors from our trigger
+    if (error.message?.includes('BOOKING_OUTSIDE_HOURS:')) {
       throw new Error('Booking is outside the operating hours for this venue');
-    } else if (error.message.includes('blackout')) {
+    }
+    
+    if (error.message?.includes('BOOKING_BLACKOUT_CONFLICT:')) {
       throw new Error('The selected time conflicts with a blackout period');
-    } else if (error.message.includes('bookings_no_overlap')) {
-      throw new Error('This time slot is already booked');
-    } else if (error.message.includes('Space does not belong')) {
+    }
+    
+    if (error.message?.includes('SPACE_INVALID:')) {
       throw new Error('Invalid space selection for this venue');
-    } else if (error.message.includes('Place is inactive')) {
+    }
+    
+    if (error.message?.includes('PLACE_INACTIVE:')) {
       throw new Error('This venue is currently inactive');
     }
+    
+    // Foreign key constraint violations  
+    if (error.code === '23503') {
+      if (error.message?.includes('user_id')) {
+        throw new Error('Invalid user reference');
+      }
+      if (error.message?.includes('space_id') || error.message?.includes('place_id')) {
+        throw new Error('Invalid venue or space selection');
+      }
+    }
+    
+    // Check constraint violations
+    if (error.code === '23514') {
+      if (error.message?.includes('valid_period')) {
+        throw new Error('Start time must be before end time');
+      }
+      if (error.message?.includes('status')) {
+        throw new Error('Invalid booking status');
+      }
+    }
+    
+    // Generic fallback
     throw error;
   }
   

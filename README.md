@@ -196,10 +196,81 @@ posts (
 - **event_rsvps**: Event attendance tracking
 - **post_likes**: Post engagement tracking
 
+### Space Booking System Tables
+
+#### Places
+```sql
+places (
+  id: uuid (PK),
+  name: text,
+  description: text,
+  location: jsonb,
+  capacity: integer,
+  admin_user_id: text (FK to users),
+  timezone: text,
+  is_active: boolean,
+  created_at: timestamptz
+)
+```
+
+#### Spaces
+```sql
+spaces (
+  id: uuid (PK),
+  place_id: uuid (FK to places),
+  name: text,
+  description: text,
+  capacity: integer,
+  is_active: boolean
+)
+```
+
+#### Operating Hours
+```sql
+place_hours (
+  id: uuid (PK),
+  place_id: uuid (FK to places),
+  day_of_week: integer (0-6),
+  open_time: time,
+  close_time: time,
+  effective_from: date,
+  effective_to: date
+)
+```
+
+#### Blackouts
+```sql
+blackouts (
+  id: uuid (PK),
+  place_id: uuid (FK to places),
+  space_id: uuid (FK to spaces, nullable),
+  reason: text,
+  starts_at: timestamptz,
+  ends_at: timestamptz
+)
+```
+
+#### Bookings
+```sql
+bookings (
+  id: uuid (PK),
+  place_id: uuid (FK to places),
+  space_id: uuid (FK to spaces),
+  user_id: text (FK to users),
+  status: text (pending|confirmed|cancelled),
+  starts_at: timestamptz,
+  ends_at: timestamptz,
+  notes: text
+)
+```
+
 ### Advanced Features
 - **Suggested Circles View**: Algorithm-based circle recommendations
 - **Row Level Security**: Comprehensive data protection policies
 - **Real-time Subscriptions**: Live updates for messages and notifications
+- **Booking Conflict Prevention**: Exclusion constraints and triggers prevent overlapping bookings
+- **Timezone Support**: Operating hours validated in place timezone
+- **Availability RPC Functions**: Server-side availability checking with complex validation
 
 ## 🔧 Key Features Deep Dive
 
@@ -227,6 +298,18 @@ The app features an intelligent circle recommendation system:
 - **RTL Layout**: Proper right-to-left layout for Arabic
 - **Dynamic Text**: Context-aware text switching
 - **Cultural Adaptation**: Localized date, time, and number formats
+
+### 🏢 Space Booking System
+The app includes a comprehensive space booking system that allows users to book venues and spaces:
+
+- **Place Management**: Create and manage venues with capacity, location, and operating hours
+- **Space Booking**: Book individual spaces within venues with conflict detection
+- **Operating Hours**: Flexible scheduling with timezone support and effective date ranges
+- **Blackout Periods**: Manage maintenance periods and unavailable times
+- **Availability Checking**: Real-time availability validation with RPC functions
+- **Admin Controls**: Place administrators can manage spaces, hours, and bookings
+- **Conflict Prevention**: Automatic overlap detection and validation triggers
+- **Analytics**: Booking statistics and usage analytics for venue managers
 
 ## 🛠️ Development
 
@@ -395,6 +478,105 @@ const subscription = supabase
     // Handle new message
   })
   .subscribe()
+```
+
+### Space Booking API
+```typescript
+import { createPlace } from '@/lib/services/places'
+import { createSpace } from '@/lib/services/spaces'
+import { 
+  createBooking, 
+  checkSpaceAvailability,
+  getAvailableSlots 
+} from '@/lib/services/bookings'
+
+// Create a venue
+const place = await createPlace({
+  name: 'Conference Center',
+  description: 'Modern conference facility',
+  location: { address: '123 Main St', city: 'Doha' },
+  capacity: 200,
+  timezone: 'Asia/Qatar'
+})
+
+// Create a bookable space
+const space = await createSpace({
+  place_id: place.id,
+  name: 'Meeting Room A',
+  description: 'Small conference room',
+  capacity: 20
+})
+
+// Check availability before booking
+const isAvailable = await checkSpaceAvailability(
+  place.id,
+  space.id,
+  '2024-03-15T09:00:00Z',
+  '2024-03-15T17:00:00Z'
+)
+
+// Get available time slots
+const slots = await getAvailableSlots(
+  place.id,
+  space.id,
+  '2024-03-15',
+  60 // 60-minute slots
+)
+
+// Create a booking
+if (isAvailable) {
+  const booking = await createBooking({
+    place_id: place.id,
+    space_id: space.id,
+    starts_at: '2024-03-15T09:00:00Z',
+    ends_at: '2024-03-15T17:00:00Z',
+    notes: 'Team meeting'
+  })
+}
+```
+
+### Operating Hours Management
+```typescript
+import { upsertPlaceHours, upsertPlaceHoursBulk, generateStandardBusinessHours } from '@/lib/services/hours'
+
+// Set standard business hours (9 AM - 5 PM, Monday-Friday)
+const businessHours = generateStandardBusinessHours()
+await upsertPlaceHoursBulk(place.id, businessHours)
+
+// Custom hours for specific days
+await upsertPlaceHours({
+  place_id: place.id,
+  day_of_week: 6, // Saturday
+  open_time: '10:00',
+  close_time: '14:00',
+  effective_from: '2024-03-01'
+})
+```
+
+### Blackout Management
+```typescript
+import { createBlackout, createRecurringBlackout } from '@/lib/services/blackouts'
+
+// Single blackout period
+await createBlackout({
+  place_id: place.id,
+  reason: 'Maintenance',
+  starts_at: '2024-03-20T08:00:00Z',
+  ends_at: '2024-03-20T12:00:00Z'
+})
+
+// Recurring maintenance (every Sunday)
+await createRecurringBlackout({
+  place_id: place.id,
+  reason: 'Weekly maintenance',
+  starts_at: '2024-03-17T06:00:00Z',
+  ends_at: '2024-03-17T08:00:00Z',
+  recurrence: {
+    type: 'weekly',
+    interval: 1,
+    endDate: '2024-12-31'
+  }
+})
 ```
 
 ## 🐛 Troubleshooting
