@@ -139,7 +139,7 @@ export function CircleCard({ circle, onJoin, onDismiss, onSnooze }: CircleCardPr
         onPress={() => onJoin(circle.id)}
       >
         <ThemedText style={styles.joinButtonText}>
-          {AppTexts.en.join || 'Join'}
+          {AppTexts.en.joinCircle || 'Join'}
         </ThemedText>
       </TouchableOpacity>
     </ThemedView>
