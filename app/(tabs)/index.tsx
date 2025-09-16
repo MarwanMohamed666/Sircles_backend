@@ -276,7 +276,10 @@ export default function HomeScreen() {
   }, [userInterests.length, user?.id, loadSuggested]);
 
   const formatTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Unknown time';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Unknown time';
+    
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
 
@@ -568,7 +571,7 @@ export default function HomeScreen() {
               <ThemedText style={styles.postTime}>
                 Event • {formatTimeAgo(item.creationdate)}
               </ThemedText>
-              {item.interestScore > 0 && (
+              {item.interestScore > 0 && typeof item.interestScore === 'number' && (
                 <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
                   ⭐ {item.interestScore} match{item.interestScore > 1 ? 'es' : ''}
                 </ThemedText>
@@ -579,9 +582,9 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.postContent}>
-        <ThemedText style={styles.eventTitle}>{item.title}</ThemedText>
+        <ThemedText style={styles.eventTitle}>{item.title || 'Untitled Event'}</ThemedText>
         <ThemedText style={styles.eventDateTime}>
-          📅 {new Date(item.date).toLocaleDateString()} at {item.time}
+          📅 {item.date ? new Date(item.date).toLocaleDateString() : 'TBD'} at {item.time || 'TBD'}
         </ThemedText>
         {item.description && (
           <ThemedText style={styles.postText}>{item.description}</ThemedText>
@@ -593,16 +596,19 @@ export default function HomeScreen() {
         {/* Event Interests */}
         {item.event_interests && item.event_interests.length > 0 && (
           <View style={styles.eventInterests}>
-            {item.event_interests.map((ei: any) => (
-              <View
-                key={ei.interests.id}
-                style={[styles.eventInterestChip, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
-              >
-                <ThemedText style={[styles.eventInterestText, { color: tintColor }]}>
-                  {ei.interests.title}
-                </ThemedText>
-              </View>
-            ))}
+            {item.event_interests.map((ei: any) => {
+              if (!ei.interests || !ei.interests.id || !ei.interests.title) return null;
+              return (
+                <View
+                  key={ei.interests.id}
+                  style={[styles.eventInterestChip, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
+                >
+                  <ThemedText style={[styles.eventInterestText, { color: tintColor }]}>
+                    {ei.interests.title}
+                  </ThemedText>
+                </View>
+              );
+            }).filter(Boolean)}
           </View>
         )}
       </View>
@@ -633,7 +639,7 @@ export default function HomeScreen() {
               <ThemedText style={styles.postTime}>
                 • {formatTimeAgo(item.creationdate)}
               </ThemedText>
-              {item.interestScore > 0 && (
+              {item.interestScore > 0 && typeof item.interestScore === 'number' && (
                 <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
                   • ⭐ {item.interestScore}
                 </ThemedText>
@@ -748,6 +754,12 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/messages')}
           >
             <IconSymbol name="message" size={24} color={textColor} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push('/places')}
+          >
+            <IconSymbol name="building.2" size={24} color={textColor} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
