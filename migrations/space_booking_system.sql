@@ -93,10 +93,7 @@ CREATE TABLE public.bookings (
     CONSTRAINT bookings_place_id_fkey FOREIGN KEY (place_id) REFERENCES public.places(id) ON DELETE CASCADE,
     CONSTRAINT bookings_space_id_fkey FOREIGN KEY (space_id) REFERENCES public.spaces(id) ON DELETE CASCADE,
     CONSTRAINT bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
-    CONSTRAINT bookings_valid_period CHECK (starts_at < ends_at),
-    CONSTRAINT bookings_space_place_match CHECK (
-        EXISTS (SELECT 1 FROM public.spaces s WHERE s.id = space_id AND s.place_id = bookings.place_id)
-    )
+    CONSTRAINT bookings_valid_period CHECK (starts_at < ends_at)
 );
 
 -- Exclusion constraint to prevent overlapping bookings
