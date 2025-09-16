@@ -93,29 +93,22 @@ export async function undoPreference(circleId: string) {
  */
 export async function fetchSuggestedCircles(): Promise<Circle[]> {
   try {
-    console.log('🔍 Starting fetchSuggestedCircles...');
-    
     // Try RPC function first
-    console.log('🔍 Calling RPC function...');
     const { data, error } = await supabase.rpc('suggested_circles');
     
     if (error) {
-      console.log('🔍 RPC failed, trying view fallback. Error:', error);
       // Fallback to view if RPC fails
       const viewResult = await supabase
         .from('v_suggested_circles')
         .select('*');
       
-      console.log('🔍 View result:', { data: viewResult.data, error: viewResult.error });
-      
       if (viewResult.error) throw viewResult.error;
       return viewResult.data || [];
     }
     
-    console.log('🔍 RPC succeeded, data:', data);
     return data || [];
   } catch (error) {
-    console.error('❌ Error fetching suggested circles:', error);
+    console.error('Error fetching suggested circles:', error);
     throw error;
   }
 }
