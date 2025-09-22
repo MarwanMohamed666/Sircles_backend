@@ -1,5 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from "react";
+import { Platform } from "react-native";
+import { useFonts, Agbalumo_400Regular } from "@expo-google-fonts/agbalumo";
 import {
   View,
   StyleSheet,
@@ -7,109 +8,153 @@ import {
   TouchableOpacity,
   Alert,
   SafeAreaView,
-} from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useThemeColor } from '@/hooks/useThemeColor';
+  Image,
+  Animated,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useAuth } from "@/contexts/AuthContext";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { useThemeColor } from "@/hooks/useThemeColor";
+
+const COLORS = {
+  green: "#198F4B",
+  text: "#000000",
+  subtext: "#797979",
+  underline: "#000000",
+};
+
+import type { KeyboardTypeOptions } from "react-native";
+
+type FloatingInputProps = {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  color?: string;
+  underline?: string;
+  secureTextEntry?: boolean;
+  showToggle?: boolean;
+  onToggleSecure?: () => void;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  keyboardType?: KeyboardTypeOptions;
+};
+
+const FloatingInput = ({
+  label,
+  value,
+  onChangeText,
+  color = COLORS.text,
+  underline = COLORS.underline,
+  secureTextEntry = false,
+  showToggle = false,
+  onToggleSecure,
+  autoCapitalize = "none",
+  keyboardType = "default",
+}: FloatingInputProps) => {
+  const [focused, setFocused] = useState(false);
+  const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: focused || !!value ? 1 : 0,
+      duration: 160,
+      useNativeDriver: false,
+    }).start();
+  }, [focused, value]);
+
+  const labelTop = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [18, 6],
+  });
+  const labelSize = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [14, 13],
+  });
+
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <View style={{ justifyContent: "center" }}>
+        <Animated.Text
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: labelTop,
+            fontSize: labelSize,
+            fontWeight: "500",
+            color: "#000000ff",
+            backgroundColor: "#fff",
+            paddingHorizontal: 4,
+            zIndex: 1,
+          }}
+        >
+          {label}
+        </Animated.Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TextInput
+            style={styles.inputBase}
+            value={value}
+            onChangeText={onChangeText}
+            secureTextEntry={secureTextEntry}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            autoCapitalize={autoCapitalize}
+            keyboardType={keyboardType}
+            autoCorrect={false}
+            autoComplete={secureTextEntry ? "new-password" : "off"}
+            importantForAutofill="no"
+            selectionColor="#198F4B"
+          />
+
+          {showToggle ? (
+            <TouchableOpacity
+              accessibilityLabel="toggle password visibility"
+              onPress={onToggleSecure}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={secureTextEntry ? "eye" : "eye-off"}
+                size={18}
+                color="#000"
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={{ height: 1, backgroundColor: underline, marginTop: 6 }} />
+      </View>
+    </View>
+  );
+};
 
 export default function LoginScreen() {
-  const { texts, toggleLanguage, language, isRTL } = useLanguage();
-  const { signIn, checkUserExists, checkFirstLogin } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const backgroundColor = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
+  const backgroundColor = useThemeColor({}, "background");
+  const textColor = useThemeColor({}, "text");
 
   const handleLogin = async () => {
     if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert("Error", "Please enter your email address");
       return;
     }
-
     setLoading(true);
-
     try {
-      // If no password is provided, check if user exists and handle first-time setup
-      if (!password) {
-        const { exists, error: checkError } = await checkUserExists(email);
-
-        if (checkError) {
-          Alert.alert('Error', 'Failed to check user status');
-          setLoading(false);
-          return;
-        }
-
-        if (!exists) {
-          // New user - redirect to password setup
-          router.push({
-            pathname: '/password-setup',
-            params: { email }
-          });
-          setLoading(false);
-          return;
-        } else {
-          // Existing user but no password provided
-          Alert.alert('Error', 'Please enter your password');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Regular login flow with email and password
       const { error } = await signIn(email, password);
-
       if (error) {
-        // For any authentication error, show generic message for security
-        if (error.message?.includes('Invalid login credentials') || 
-            error.message?.includes('Email not confirmed') ||
-            error.message?.includes('Invalid') ||
-            error.message?.includes('Wrong')) {
-          Alert.alert('Login Error', 'Wrong email or password. Please try again.');
-        } else {
-          // For other errors, check if user exists
-          const { exists } = await checkUserExists(email);
-          if (!exists) {
-            Alert.alert(
-              'Account Not Found',
-              'This email is not registered. Please check your email or create a new account.',
-              [
-                {
-                  text: 'Create Account',
-                  onPress: () => router.push({
-                    pathname: '/password-setup',
-                    params: { email }
-                  })
-                },
-                { text: 'Cancel' }
-              ]
-            );
-          } else {
-            Alert.alert('Login Error', 'Wrong email or password. Please try again.');
-          }
-        }
+        Alert.alert(
+          "Login Error",
+          "Wrong email or password. Please try again."
+        );
       } else {
-        // Check if admin user
-        if (email === 'admin@example.com') {
-          router.replace('/admin');
-        } else {
-          // Check if this is first login
-          const { data: isFirstLogin } = await checkFirstLogin();
-
-          if (isFirstLogin) {
-            router.replace('/first-time-setup');
-          } else {
-            router.replace('/(tabs)');
-          }
-        }
+        router.replace("/(tabs)");
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -118,83 +163,65 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       <ThemedView style={styles.content}>
-        {/* Language Toggle */}
-        <View style={styles.languageToggle}>
-          <TouchableOpacity
-            style={styles.langButton}
-            onPress={toggleLanguage}
-          >
-            <ThemedText style={styles.langText}>
-              {language === 'en' ? 'العربية' : 'English'}
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {/* Header with House Icon and Branding */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.houseIcon}>
-            <ThemedText style={styles.houseText}>🏠</ThemedText>
+            <Ionicons name="home" size={60} color={COLORS.text} />
           </View>
           <ThemedText style={styles.brandTitle}>Sircles</ThemedText>
-          <ThemedText style={styles.tagline}>Your Community, Your Space</ThemedText>
+          <ThemedText style={styles.tagline}>
+            Your Community, Your Space
+          </ThemedText>
         </View>
 
-        {/* Login Form */}
+        {/* Form */}
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[styles.input, { color: textColor }]}
-              placeholder="Username"
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <View style={styles.underline} />
-          </View>
+          <FloatingInput
+            label="Username"
+            value={email}
+            onChangeText={setEmail}
+            color={textColor as unknown as string}
+            underline={COLORS.underline}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            onToggleSecure={() => {}} // Added to satisfy required prop
+          />
 
-          <View style={styles.inputContainer}>
-            <View style={styles.passwordWrapper}>
-              <TextInput
-                style={[styles.input, styles.passwordInput, { color: textColor }]}
-                placeholder="Password"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <ThemedText style={styles.eyeText}>👁️</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.underline} />
-          </View>
+          <FloatingInput
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            showToggle
+            onToggleSecure={() => setShowPassword((p) => !p)}
+            color={textColor as unknown as string}
+            underline={COLORS.underline}
+          />
 
-          {/* Forgot Password */}
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity style={styles.forgotBtn}>
             <ThemedText style={styles.forgotText}>Forget Password?</ThemedText>
           </TouchableOpacity>
 
-          {/* Sign In Button */}
           <TouchableOpacity
-            style={[styles.signInButton, { opacity: loading ? 0.7 : 1 }]}
+            style={[
+              styles.signInButton,
+              { marginTop: 40 },
+              loading && { opacity: 0.7 },
+            ]}
             onPress={handleLogin}
             disabled={loading}
           >
-            <ThemedText style={styles.signInButtonText}>
-              {loading ? 'Signing in...' : 'Sign in'}
+            <ThemedText style={styles.signInText}>
+              {loading ? "Signing in..." : "Sign in"}
             </ThemedText>
           </TouchableOpacity>
         </View>
 
-        {/* Community Illustration */}
-        <View style={styles.illustrationContainer}>
-          <ThemedText style={styles.illustration}>🌳🏠🌿👥</ThemedText>
-          <ThemedText style={styles.illustrationText}>Join your community</ThemedText>
+        <View pointerEvents="none" style={styles.illustration}>
+          <Image
+            source={require("../assets/images/login-illustration.png")}
+            style={{ width: 390, height: 300, resizeMode: "contain" }}
+          />
         </View>
       </ThemedView>
     </SafeAreaView>
@@ -202,117 +229,76 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   content: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 60,
+    paddingHorizontal: 28,
+    paddingTop: 40,
+    backgroundColor: "#fff",
+    // paddingBottom: 220,
   },
-  languageToggle: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  langButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  langText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  header: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 80,
-  },
+  header: { alignItems: "center", marginTop: 10, marginBottom: 36 },
   houseIcon: {
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  houseText: {
-    fontSize: 40,
+    marginTop: 50,
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
   },
   brandTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2d5a3d',
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  form: {
-    marginBottom: 60,
-  },
-  inputContainer: {
-    marginBottom: 32,
-  },
-  input: {
-    fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 0,
-    backgroundColor: 'transparent',
-  },
-  passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-  },
-  eyeIcon: {
-    padding: 8,
-  },
-  eyeText: {
-    fontSize: 16,
-  },
-  underline: {
-    height: 1,
-    backgroundColor: '#ddd',
-    marginTop: 4,
-  },
-  forgotPassword: {
-    alignItems: 'flex-end',
+    fontSize: 51,
+    fontWeight: "800",
+    color: "#2d5a3d",
+    marginTop: 8,
     marginBottom: 40,
   },
-  forgotText: {
-    fontSize: 14,
-    color: '#999',
-  },
-  signInButton: {
-    backgroundColor: '#2d5a3d',
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signInButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  illustrationContainer: {
+  tagline: { fontSize: 20, color: COLORS.text, fontWeight: "600" },
+  form: { marginTop: 10 },
+
+  inputBase: {
+    fontSize: 12,
+    paddingVertical: 10,
+    paddingTop: 26,
+    paddingBottom: 8,
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 40,
+    backgroundColor: "transparent",
+    color: "#4d4d4dff",
+    borderWidth: 0,
+    borderColor: "transparent",
+    ...Platform.select({
+      web: {
+        outlineStyle: "none",
+        outlineWidth: 0,
+        outlineColor: "transparent",
+        boxShadow: "0 0 0px 1000px #fff inset",
+        appearance: "none",
+      } as any,
+      default: {},
+    }),
   },
+
+  forgotBtn: { alignItems: "flex-end", marginTop: -10, marginBottom: 24 },
+  forgotText: { fontSize: 12, color: COLORS.subtext },
+  signInButton: {
+    backgroundColor: COLORS.green,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  signInText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+
   illustration: {
-    fontSize: 40,
-    marginBottom: 16,
-  },
-  illustrationText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    position: "absolute",
+    left: -60,
+    bottom: -30,
+    alignItems: "flex-start",
+    width: "100%",
+    paddingLeft: 12,
   },
 });

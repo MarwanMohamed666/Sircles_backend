@@ -77,7 +77,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   updateUserProfile: async () => ({ error: null }),
   checkUserExists: async () => ({ exists: false, error: null }),
-  checkFirstLogin: async () => ({ data: false, error: null }), // Default value
+  checkFirstLogin: async () => ({ data: false, error: null }), 
 });
 
 export const useAuth = () => {
