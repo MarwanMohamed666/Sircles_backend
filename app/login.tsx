@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Platform } from "react-native";
-import { useFonts, Agbalumo_400Regular } from "@expo-google-fonts/agbalumo";
+import { Platform, useWindowDimensions } from "react-native";
 import {
   View,
   StyleSheet,
@@ -23,6 +22,7 @@ const COLORS = {
   text: "#000000",
   subtext: "#797979",
   underline: "#000000",
+  error: "#D32F2F",
 };
 
 import type { KeyboardTypeOptions } from "react-native";
@@ -38,6 +38,7 @@ type FloatingInputProps = {
   onToggleSecure?: () => void;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   keyboardType?: KeyboardTypeOptions;
+  errorText?: string | null;
 };
 
 const FloatingInput = ({
@@ -51,9 +52,14 @@ const FloatingInput = ({
   onToggleSecure,
   autoCapitalize = "none",
   keyboardType = "default",
+  errorText = null,
 }: FloatingInputProps) => {
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const { width } = useWindowDimensions();
+
+  const baseLabel = width > 400 ? 15 : 14;
+  const smallLabel = baseLabel - 1;
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -63,17 +69,13 @@ const FloatingInput = ({
     }).start();
   }, [focused, value]);
 
-  const labelTop = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [18, 6],
-  });
-  const labelSize = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [14, 13],
-  });
+  const labelTop = anim.interpolate({ inputRange: [0, 1], outputRange: [20, 2] });
+  const labelSize = anim.interpolate({ inputRange: [0, 1], outputRange: [baseLabel, smallLabel] });
+
+  const underlineColor = errorText ? COLORS.error : underline;
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: errorText ? 8 : 24 }}>
       <View style={{ justifyContent: "center" }}>
         <Animated.Text
           pointerEvents="none"
@@ -83,7 +85,7 @@ const FloatingInput = ({
             top: labelTop,
             fontSize: labelSize,
             fontWeight: "500",
-            color: "#000000ff",
+            color: errorText ? COLORS.error : "#000000ff",
             backgroundColor: "#fff",
             paddingHorizontal: 4,
             zIndex: 1,
@@ -94,7 +96,7 @@ const FloatingInput = ({
 
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <TextInput
-            style={styles.inputBase}
+            style={[styles.inputBase, errorText && { color: COLORS.error }]}
             value={value}
             onChangeText={onChangeText}
             secureTextEntry={secureTextEntry}
@@ -105,7 +107,7 @@ const FloatingInput = ({
             autoCorrect={false}
             autoComplete={secureTextEntry ? "new-password" : "off"}
             importantForAutofill="no"
-            selectionColor="#198F4B"
+            selectionColor={COLORS.green}
           />
 
           {showToggle ? (
@@ -114,17 +116,19 @@ const FloatingInput = ({
               onPress={onToggleSecure}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons
-                name={secureTextEntry ? "eye" : "eye-off"}
-                size={18}
-                color="#000"
-              />
+              <Ionicons name={secureTextEntry ? "eye" : "eye-off"} size={18} color="#000" />
             </TouchableOpacity>
           ) : null}
         </View>
 
-        <View style={{ height: 1, backgroundColor: underline, marginTop: 6 }} />
+        <View style={{ height: 1, backgroundColor: underlineColor, marginTop: 6 }} />
       </View>
+
+      {errorText ? (
+        <ThemedText style={{ color: COLORS.error, fontSize: 12, marginTop: 6 }}>
+          {errorText}
+        </ThemedText>
+      ) : null}
     </View>
   );
 };
@@ -136,25 +140,101 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // field errors
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [passErr, setPassErr] = useState<string | null>(null);
+  const [formErr, setFormErr] = useState<string | null>(null);
+
   const backgroundColor = useThemeColor({}, "background");
-  const textColor = useThemeColor({}, "text");
+
+  const { width, height } = useWindowDimensions();
+  const isSmallH = height < 700 || width < 360;
+  const isTablet = width >= 768;
+  const isSmallPhone = width <= 375 || height <= 740;
+
+  const homeIconSize = width >= 420 ? 60 : width >= 360 ? 56 : 52;
+  const brandSize = width >= 420 ? 50 : width >= 360 ? 46 : 42;
+  const tagSize = width >= 420 ? 20 : width >= 360 ? 18 : 16;
+
+  const baseRatio = 0.77;
+  const imgW = isTablet
+    ? Math.min(width * 0.70, 640)
+    : isSmallPhone
+    ? Math.min(width * 0.80, 330)
+    : Math.min(width * 0.92, 420);
+  const imgH = imgW * baseRatio;
+
+  const imgLeft = isTablet
+    ? -Math.max(0.12 * width, 60)
+    : isSmallPhone
+    ? -Math.max(0.08 * width, 36)
+    : -Math.max(0.14 * width, 56);
+
+  const imgBottom = isTablet
+    ? -Math.max(0.04 * height, 20)
+    : isSmallPhone
+    ? -Math.max(0.07 * height, 26)
+    : -Math.max(0.05 * height, 22);
+
+  const contentPadBottom = isTablet
+    ? Math.min(Math.max(imgH * 0.55, 180), 300)
+    : isSmallPhone
+    ? Math.min(Math.max(imgH * 0.60, 160), 260)
+    : Math.min(Math.max(imgH * 0.55, 160), 240);
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+  const validate = () => {
+    let ok = true;
+    setFormErr(null);
+
+    const e = email.trim();
+    const p = password;
+
+    if (!e) {
+      setEmailErr("Email is required");
+      ok = false;
+    } else if (!emailRegex.test(e)) {
+      setEmailErr("Invalid email format");
+      ok = false;
+    } else {
+      setEmailErr(null);
+    }
+
+    if (!p) {
+      setPassErr("Password is required");
+      ok = false;
+    } else if (p.length < 6) {
+      setPassErr("Password must be at least 6 characters");
+      ok = false;
+    } else {
+      setPassErr(null);
+    }
+
+    return ok;
+  };
 
   const handleLogin = async () => {
-    if (!email) {
-      Alert.alert("Error", "Please enter your email address");
+    if (!validate()) {
+      if (!email.trim() && !password) {
+        Alert.alert("Required", "Please enter your email and password");
+      }
       return;
     }
+
     setLoading(true);
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(email.trim(), password);
       if (error) {
-        Alert.alert(
-          "Login Error",
-          "Wrong email or password. Please try again."
-        );
+        const msg = normalizeAuthError(error);
+        setFormErr(msg);
+        Alert.alert("Sign-in error", msg);
       } else {
         router.replace("/(tabs)");
       }
+    } catch (e: any) {
+      setFormErr("Unexpected error. Please try again.");
+      Alert.alert("Error", "Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -162,14 +242,14 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      <ThemedView style={styles.content}>
+      <ThemedView style={[styles.content, { paddingBottom: contentPadBottom }]}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.houseIcon}>
-            <Ionicons name="home" size={60} color={COLORS.text} />
+            <Ionicons name="home" size={homeIconSize} color={COLORS.text} />
           </View>
-          <ThemedText style={styles.brandTitle}>Sircles</ThemedText>
-          <ThemedText style={styles.tagline}>
+          <ThemedText style={[styles.brandTitle, { fontSize: brandSize }]}>Sircles</ThemedText>
+          <ThemedText style={[styles.tagline, { fontSize: tagSize }]}>
             Your Community, Your Space
           </ThemedText>
         </View>
@@ -177,39 +257,52 @@ export default function LoginScreen() {
         {/* Form */}
         <View style={styles.form}>
           <FloatingInput
-            label="Username"
+            label="Email"
             value={email}
-            onChangeText={setEmail}
-            color={textColor as unknown as string}
+            onChangeText={(t) => {
+              setEmail(t);
+              if (emailErr) setEmailErr(null);
+              if (formErr) setFormErr(null);
+            }}
             underline={COLORS.underline}
             autoCapitalize="none"
             keyboardType="email-address"
-            onToggleSecure={() => {}} // Added to satisfy required prop
+            errorText={emailErr}
           />
 
           <FloatingInput
             label="Password"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => {
+              setPassword(t);
+              if (passErr) setPassErr(null);
+              if (formErr) setFormErr(null);
+            }}
             secureTextEntry={!showPassword}
             showToggle
             onToggleSecure={() => setShowPassword((p) => !p)}
-            color={textColor as unknown as string}
             underline={COLORS.underline}
+            errorText={passErr}
           />
 
+          {formErr ? (
+            <ThemedText style={{ color: COLORS.error, fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+              {formErr}
+            </ThemedText>
+          ) : null}
+
           <TouchableOpacity style={styles.forgotBtn}>
-            <ThemedText style={styles.forgotText}>Forget Password?</ThemedText>
+            <ThemedText style={styles.forgotText}>Forgot Password?</ThemedText>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.signInButton,
-              { marginTop: 40 },
-              loading && { opacity: 0.7 },
+              { marginTop: isSmallH ? 28 : 40 },
+              (loading || !email.trim() || !password) && { opacity: 0.7 },
             ]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !email.trim() || !password}
           >
             <ThemedText style={styles.signInText}>
               {loading ? "Signing in..." : "Sign in"}
@@ -217,15 +310,40 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <View pointerEvents="none" style={styles.illustration}>
+        <View pointerEvents="none" style={[styles.illustration, { left: imgLeft, bottom: imgBottom }]}>
           <Image
             source={require("../assets/images/login-illustration.png")}
-            style={{ width: 390, height: 300, resizeMode: "contain" }}
+            style={{ width: imgW, height: imgH, resizeMode: "contain" }}
           />
         </View>
       </ThemedView>
     </SafeAreaView>
   );
+}
+
+function normalizeAuthError(error: any): string {
+  const msg = (error?.message || "").toLowerCase();
+  const code = (error?.code || error?.status || "").toString().toLowerCase();
+
+  if (code.includes("invalid_credentials") || msg.includes("invalid login credentials")) {
+    return "Email or password is incorrect";
+  }
+  if (code.includes("auth/invalid-credential") || msg.includes("invalid-credential")) {
+    return "Email or password is incorrect";
+  }
+  if (code.includes("auth/user-not-found") || msg.includes("user not found")) {
+    return "User not found";
+  }
+  if (code.includes("auth/wrong-password") || msg.includes("wrong password")) {
+    return "Wrong password";
+  }
+  if (code.includes("auth/too-many-requests") || msg.includes("too many")) {
+    return "Too many attempts. Try again later.";
+  }
+  if (code.includes("network") || msg.includes("network")) {
+    return "Network issue. Check your connection and try again.";
+  }
+  return "Could not sign in. Check your credentials and try again.";
 }
 
 const styles = StyleSheet.create({
@@ -235,7 +353,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 40,
     backgroundColor: "#fff",
-    // paddingBottom: 220,
   },
   header: { alignItems: "center", marginTop: 10, marginBottom: 36 },
   houseIcon: {
@@ -246,13 +363,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   brandTitle: {
-    fontSize: 51,
     fontWeight: "800",
     color: "#2d5a3d",
     marginTop: 8,
     marginBottom: 40,
   },
-  tagline: { fontSize: 20, color: COLORS.text, fontWeight: "600" },
+  tagline: { color: COLORS.text, fontWeight: "600" },
   form: { marginTop: 10 },
 
   inputBase: {
@@ -295,8 +411,6 @@ const styles = StyleSheet.create({
 
   illustration: {
     position: "absolute",
-    left: -60,
-    bottom: -30,
     alignItems: "flex-start",
     width: "100%",
     paddingLeft: 12,
