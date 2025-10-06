@@ -230,7 +230,7 @@ export default function LoginScreen() {
         setFormErr(msg);
         Alert.alert("Sign-in error", msg);
       } else {
-        router.replace("/(tabs)");
+     router.replace("/first-time-setup");
       }
     } catch (e: any) {
       setFormErr("Unexpected error. Please try again.");

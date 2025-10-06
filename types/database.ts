@@ -13,6 +13,8 @@ export interface User {
   address_block?: string;
   role?: string;
   creationDate?: string;
+  first_login?: boolean | null; // required by gate & interests
+
 }
 
 export interface Interest {

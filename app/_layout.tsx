@@ -42,6 +42,7 @@ export default function RootLayout() {
             <Stack.Screen name="+not-found" />
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="splash" options={{ headerShown: false }} />
+            <Stack.Screen name="interests" options={{ headerShown: false }} />
           </Stack>
         </ThemeProvider>
       </LanguageProvider>

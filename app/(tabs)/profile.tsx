@@ -1,961 +1,441 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Image, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  Image,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { DatabaseService } from '@/lib/database';
-import { supabase } from '@/lib/supabase';
-import { StorageService } from '@/lib/storage';
+import { ThemedText } from "@/components/ThemedText";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { DatabaseService } from "@/lib/database";
+import { supabase } from "@/lib/supabase";
+import { StorageService } from "@/lib/storage";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  birthday: string;
-  gender: string;
-  address: {
-    apartment: string;
-    building: string;
-    block: string;
-  };
-  interests: {
-    [category: string]: string[];
-  };
+  birthday?: string;
+  gender?: string;
   avatar?: string;
+  address_apartment?: string;
+  address_building?: string;
+  address_block?: string;
 }
 
+const COLORS = {
+  primary: "#2b7a4b",
+  darkPrimary: "#0E4416",
+  pageBg: "#FFFFFF",
+  white: "#FFFFFF",
+  text: "#111827",
+  muted: "#6B7280",
+  fieldBg: "#F3F4F6",
+  fieldBorder: "#E5E7EB",
+  chipBg: "#EFEFEF",
+  chipText: "#111827",
+  cardBorder: "#EEEEEE",
+};
+
+const SHADOW = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  android: { elevation: 3 },
+  default: {},
+});
+
 export default function ProfileScreen() {
-  const { user, userProfile, signOut, updateUserProfile, loading } = useAuth();
-  const { texts, language, toggleLanguage, isRTL } = useLanguage();
-  const backgroundColor = useThemeColor({}, 'background');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
-  const accentColor = useThemeColor({}, 'accent');
+  const { texts } = useLanguage();
+  const { user, userProfile, updateUserProfile, loading } = useAuth();
 
-  const [isEditing, setIsEditing] = useState(false);
-
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [showLookForModal, setShowLookForModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [newInterest, setNewInterest] = useState('');
-  const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [passwordData, setPasswordData] = useState({
-    current: '',
-    new: '',
-    confirm: '',
-  });
+  const [uploading, setUploading] = useState(false);
 
-  const [profile, setProfile] = useState<UserProfile>({
-    name: 'Ahmed Mohamed',
-    email: 'ahmed.mohamed@example.com',
-    phone: '+971 50 123 4567',
-    birthday: '1990-05-15',
-    gender: 'Male',
-    address: {
-      apartment: '12A',
-      building: 'Tower 3',
-      block: 'Block C',
-    },
-    interests: {
-      'Education': ['Book club', 'Tech & coding'],
-      'Hobbies': ['Photography', 'Movie nights'],
-      'Sports': ['Swimming', 'Football'],
-    },
-  });
+  const [userInterests, setUserInterests] = useState<{
+    [category: string]: any[];
+  }>({});
+  const [userLookFor, setUserLookFor] = useState<{ [category: string]: any[] }>(
+    {}
+  );
+  const [availableInterests, setAvailableInterests] = useState<{
+    [category: string]: any[];
+  }>({});
 
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [tempValue, setTempValue] = useState('');
-  const [userInterests, setUserInterests] = useState<{[category: string]: any[]}>({});
-  const [userLookFor, setUserLookFor] = useState<{[category: string]: any[]}>({});
-  const [availableInterests, setAvailableInterests] = useState<{[category: string]: any[]}>({});
-
-  const genderOptions = ['Male', 'Female', 'Prefer not to say'];
-
-  const calculateAge = (birthday: string) => {
-    const birthDate = new Date(birthday);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      return age - 1;
-    }
-    return age;
-  };
-
-  const startEditing = (field: string, currentValue: string) => {
-    setEditingField(field);
-    setTempValue(currentValue);
-  };
-
-  const saveField = () => {
-    if (editingField && tempValue.trim()) {
-      if (editingField.includes('address.')) {
-        const addressField = editingField.split('.')[1] as keyof typeof profile.address;
-        setProfile({
-          ...profile,
-          address: {
-            ...profile.address,
-            [addressField]: tempValue,
-          },
-        });
-      } else if (editingField === 'gender') {
-        setProfile({ ...profile, gender: tempValue });
-      } else {
-        setProfile({ ...profile, [editingField as keyof UserProfile]: tempValue } as UserProfile);
-      }
-    }
-    setEditingField(null);
-    setTempValue('');
-  };
-
-  const cancelEditing = () => {
-    setEditingField(null);
-    setTempValue('');
-  };
-
-  const handleChangePassword = () => {
-    if (!passwordData.current || !passwordData.new || !passwordData.confirm) {
-      Alert.alert(texts.error || 'Error', texts.fillAllFields || 'Please fill in all fields.');
-      return;
-    }
-
-    if (passwordData.new !== passwordData.confirm) {
-      Alert.alert(texts.error || 'Error', texts.passwordMismatch || 'New passwords do not match.');
-      return;
-    }
-
-    // Here you would typically validate the current password and update it
-    Alert.alert(texts.success || 'Success', texts.passwordChanged || 'Password changed successfully!');
-    setShowPasswordModal(false);
-    setPasswordData({ current: '', new: '', confirm: '' });
-  };
-
-  const toggleInterest = async (interest: any) => {
-    if (!user?.id) return;
-
-    const isSelected = Object.values(userInterests)
-      .flat()
-      .some(userInt => userInt.id === interest.id);
-
-    try {
-      if (isSelected) {
-        // Remove interest
-        const { error } = await supabase
-          .from('user_interests')
-          .delete()
-          .eq('userid', user.id)
-          .eq('interestid', interest.id);
-
-        if (error) {
-          console.error('Error removing interest:', error);
-          if (error.code === 'PGRST001' || error.code === '42501') {
-            Alert.alert('Error', 'You do not have permission to remove this interest');
-          } else {
-            Alert.alert('Error', 'Failed to remove interest');
-          }
-          return;
-        }
-      } else {
-        // Add interest
-        const { error } = await supabase
-          .from('user_interests')
-          .insert({
-            userid: user.id,
-            interestid: interest.id
-          });
-
-        if (error) {
-          console.error('Error adding interest:', error);
-          if (error.code === 'PGRST001' || error.code === '42501') {
-            Alert.alert('Error', 'You do not have permission to add this interest');
-          } else {
-            Alert.alert('Error', 'Failed to add interest');
-          }
-          return;
-        }
-      }
-
-      // Refresh user interests
-      await fetchUserInterests();
-    } catch (error) {
-      console.error('Error toggling interest:', error);
-      Alert.alert('Error', 'Failed to update interest');
-    }
-  };
-
-  const toggleLookFor = async (interest: any) => {
-    if (!user?.id) return;
-
-    const isSelected = Object.values(userLookFor)
-      .flat()
-      .some(userInt => userInt.id === interest.id);
-
-    try {
-      if (isSelected) {
-        // Remove look_for interest
-        const { error } = await supabase
-          .from('user_look_for')
-          .delete()
-          .eq('userid', user.id)
-          .eq('interestid', interest.id);
-
-        if (error) {
-          console.error('Error removing look_for interest:', error);
-          if (error.code === 'PGRST001' || error.code === '42501') {
-            Alert.alert('Error', 'You do not have permission to remove this interest');
-          } else {
-            Alert.alert('Error', 'Failed to remove interest');
-          }
-          return;
-        }
-      } else {
-        // Add look_for interest
-        const { error } = await supabase
-          .from('user_look_for')
-          .insert({
-            userid: user.id,
-            interestid: interest.id
-          });
-
-        if (error) {
-          console.error('Error adding look_for interest:', error);
-          if (error.code === 'PGRST001' || error.code === '42501') {
-            Alert.alert('Error', 'You do not have permission to add this interest');
-          } else {
-            Alert.alert('Error', 'Failed to add interest');
-          }
-          return;
-        }
-      }
-
-      // Refresh user look_for interests
-      await fetchUserLookFor();
-    } catch (error) {
-      console.error('Error toggling look_for interest:', error);
-      Alert.alert('Error', 'Failed to update interest');
-    }
-  };
-
-  const requestPermissions = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to upload avatar!');
-        return false;
-      }
-    }
-    return true;
-  };
-
+  // ===== avatar =====
   const pickImage = async () => {
-    try {
-      console.log('Starting image picker...');
-
-      // Request permissions first
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status);
-
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant photo library access to change your avatar');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      console.log('Image picker result:', result);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        console.log('Selected asset:', result.assets[0]);
-        await uploadAvatar(result.assets[0]);
-      } else {
-        console.log('Image selection was canceled');
-      }
-    } catch (error) {
-      console.error('Error picking image - full error:', error);
-      console.error('Error message:', error?.message);
-      console.error('Error stack:', error?.stack);
-      Alert.alert('Error', `Failed to pick image: ${error?.message || 'Unknown error occurred'}`);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Please grant photo library access to change your avatar"
+      );
+      return;
     }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length)
+      await uploadAvatar(result.assets[0]);
   };
 
   const uploadAvatar = async (asset: any) => {
-    console.log('=== UPLOAD AVATAR START ===');
-    console.log('User exists:', !!user);
-    console.log('User ID:', user?.id);
-
-    if (!user?.id) {
-      console.error('No user ID found');
-      Alert.alert('Error', 'You must be logged in to upload an avatar');
-      return;
-    }
-
-    // Check if user is actually authenticated
-    console.log('Checking session...');
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    console.log('Session check result:', { hasSession: !!session, sessionError });
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      Alert.alert('Error', `Session error: ${sessionError.message}`);
-      return;
-    }
-
+    if (!user?.id) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
-      console.error('No active session found');
-      Alert.alert('Error', 'Your session has expired. Please log in again.');
-      router.replace('/login');
+      router.replace("/login");
       return;
     }
-
     setUploading(true);
-    console.log('Starting upload process...');
     try {
-      // Get file extension from URI - handle base64 data URIs
-      let fileExtension: string;
-
-      if (asset.uri.startsWith('data:image/')) {
-        // Extract extension from data URI MIME type
-        const mimeMatch = asset.uri.match(/data:image\/([^;]+)/);
-        fileExtension = mimeMatch ? mimeMatch[1] : 'png';
-        console.log('Extracted extension from data URI:', fileExtension);
-      } else {
-        // Extract from file path
-        fileExtension = asset.uri.split('.').pop()?.toLowerCase() || 'png';
-        console.log('Extracted extension from file path:', fileExtension);
-      }
-
-      if (!['png', 'jpg', 'jpeg'].includes(fileExtension)) {
-        console.log('Invalid file extension:', fileExtension);
-        Alert.alert('Error', 'Please select a PNG or JPG image');
+      let ext = asset.uri.startsWith("data:image/")
+        ? asset.uri.match(/data:image\/([^;]+)/)?.[1] || "png"
+        : asset.uri.split(".").pop()?.toLowerCase() || "png";
+      if (ext === "jpeg") ext = "jpg";
+      if (!["png", "jpg"].includes(ext)) {
+        Alert.alert("Error", "Please select PNG or JPG");
         return;
       }
 
-      console.log('File extension validation passed:', fileExtension);
-
-      // Normalize extension
-      const normalizedExtension = fileExtension === 'jpeg' ? 'jpg' : fileExtension;
-
-      console.log('=== PROFILE UPLOAD DEBUG ===');
-      console.log('User object:', { id: user.id, email: user.email });
-      console.log('Original file extension:', fileExtension);
-      console.log('Normalized extension:', normalizedExtension);
-      console.log('Asset details:', {
-        uri: asset.uri?.substring(0, 50) + '...', // Log first 50 chars only
-        type: typeof asset,
-        hasUri: !!asset.uri
-      });
-
-      // Upload to Supabase Storage with the asset URI directly
-      console.log('About to call StorageService.uploadAvatar with:', {
-        userId: user.id,
-        extension: normalizedExtension,
-        hasStorageService: !!StorageService,
-        hasUploadMethod: !!StorageService.uploadAvatar
-      });
-
-      console.log('Calling StorageService.uploadAvatar NOW...');
       const { data, error } = await StorageService.uploadAvatar(
-        user.id, 
-        asset, 
-        normalizedExtension
+        user.id,
+        asset,
+        ext
       );
-
-      console.log('StorageService.uploadAvatar returned:', { 
-        hasData: !!data, 
-        hasError: !!error,
-        errorMessage: error?.message 
-      });
-
-      if (error) {
-        console.error('Upload error details:', error);
-        console.error('Error message:', error.message);
-        Alert.alert('Error', `Failed to upload avatar: ${error.message}`);
+      if (error || !data?.publicUrl) {
+        Alert.alert("Error", error?.message || "Upload failed");
         return;
       }
-
-      if (!data) {
-        console.error('Upload completed but no data returned');
-        Alert.alert('Error', 'Upload completed but no data returned');
-        return;
-      }
-
-      console.log('Upload successful! Data received:', data);
-
-      if (data?.publicUrl) {
-        console.log('Upload successful, updating user profile...');
-        // Update user profile with new avatar URL
-        const { error: updateError } = await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
-
-        if (updateError) {
-          console.error('Update avatar error:', updateError);
-          Alert.alert('Error', 'Failed to update profile');
-          return;
-        }
-
-        // Update local state
-        setAvatarUrl(data.publicUrl);
-
-        // Refresh user profile
-        if (updateUserProfile) {
-          await updateUserProfile({ avatar: data.publicUrl });
-        }
-
-        Alert.alert('Success', 'Avatar updated successfully!');
-      } else {
-        console.error('No public URL in response:', data);
-        Alert.alert('Error', 'Upload succeeded but no URL returned');
-      }
-    } catch (error) {
-      console.error('Avatar upload error - FULL DETAILS:', {
-        error: error,
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
-      });
-      Alert.alert('Error', `Failed to upload avatar: ${error?.message || 'Unknown error'}`);
+      await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
+      setAvatarUrl(data.publicUrl);
+      if (updateUserProfile)
+        await updateUserProfile({ avatar: data.publicUrl });
+      Alert.alert("Success", "Avatar updated successfully");
     } finally {
-      console.log('Upload process finished, setting uploading to false');
       setUploading(false);
     }
   };
 
-  const { signOut: authSignOut } = useAuth();
-
-  const handleLogout = () => {
-    Alert.alert(
-      texts.logout || 'Logout', 
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', onPress: handleSignOut, style: 'destructive' }
-      ]
-    );
-  };
-
-  const handleSignOut = async () => {
-    try {
-      console.log('Starting logout process...');
-      await authSignOut();
-      console.log('Auth signout completed, navigating to login...');
-      
-      // Use setTimeout to ensure state is cleared before navigation
-      setTimeout(() => {
-        router.replace('/login');
-      }, 100);
-      
-    } catch (error) {
-      console.error('Logout failed:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
-      
-      // Force navigation even on error to prevent stuck states
-      router.replace('/login');
-    }
-  };
-
+  // ===== data =====
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user]);
 
   useEffect(() => {
     if (user?.id) {
       fetchUserInterests();
       fetchUserLookFor();
-    }
-    fetchAvailableInterests();
-  }, [user]);
-
-  useEffect(() => {
-    if (user?.id) {
       checkExistingAvatar();
     }
+    fetchAvailableInterests();
   }, [user?.id, userProfile?.avatar]);
 
   const checkExistingAvatar = async () => {
     if (!user?.id) return;
-
-    try {
-      // First check if avatar URL is in user profile
-      if (userProfile?.avatar) {
-        setAvatarUrl(userProfile.avatar);
-        return;
-      }
-
-      // If not, check storage for existing avatar
-      const { exists, extension } = await StorageService.checkAvatarExists(user.id);
-      if (exists && extension) {
-        const url = StorageService.getAvatarUrl(user.id, extension);
-        setAvatarUrl(url);
-
-        // Update user profile with found avatar
-        await DatabaseService.updateUserAvatar(user.id, url);
-      }
-    } catch (error) {
-      console.error('Error checking existing avatar:', error);
+    if (userProfile?.avatar) {
+      setAvatarUrl(userProfile.avatar);
+      return;
+    }
+    const { exists, extension } = await StorageService.checkAvatarExists(
+      user.id
+    );
+    if (exists && extension) {
+      const url = StorageService.getAvatarUrl(user.id, extension);
+      setAvatarUrl(url);
+      await DatabaseService.updateUserAvatar(user.id, url);
     }
   };
 
   const fetchUserInterests = async () => {
     if (!user?.id) return;
-
-    try {
-      const { data, error } = await DatabaseService.getUserInterests(user.id);
-      if (error) {
-        console.error('Error fetching user interests:', error);
-      } else if (data) {
-        // Group user interests by category
-        const groupedInterests: {[category: string]: any[]} = {};
-        data.forEach((item: any) => {
-          if (item.interests) {
-            const category = item.interests.category || 'Other';
-            if (!groupedInterests[category]) {
-              groupedInterests[category] = [];
-            }
-            groupedInterests[category].push(item.interests);
-          }
-        });
-        setUserInterests(groupedInterests);
-      }
-    } catch (error) {
-      console.error('Error fetching user interests:', error);
+    const { data } = await DatabaseService.getUserInterests(user.id);
+    if (data) {
+      const grouped: { [category: string]: any[] } = {};
+      data.forEach((row: any) => {
+        const cat = row.interests?.category || "Other";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(row.interests);
+      });
+      setUserInterests(grouped);
     }
   };
 
   const fetchUserLookFor = async () => {
     if (!user?.id) return;
-
-    try {
-      const { data, error } = await DatabaseService.getUserLookFor(user.id);
-      if (error) {
-        console.error('Error fetching user look_for interests:', error);
-      } else if (data) {
-        // Group user look_for interests by category
-        const groupedLookFor: {[category: string]: any[]} = {};
-        data.forEach((item: any) => {
-          if (item.interests) {
-            const category = item.interests.category || 'Other';
-            if (!groupedLookFor[category]) {
-              groupedLookFor[category] = [];
-            }
-            groupedLookFor[category].push(item.interests);
-          }
-        });
-        setUserLookFor(groupedLookFor);
-      }
-    } catch (error) {
-      console.error('Error fetching user look_for interests:', error);
+    const { data } = await DatabaseService.getUserLookFor(user.id);
+    if (data) {
+      const grouped: { [category: string]: any[] } = {};
+      data.forEach((row: any) => {
+        const cat = row.interests?.category || "Other";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(row.interests);
+      });
+      setUserLookFor(grouped);
     }
   };
 
   const fetchAvailableInterests = async () => {
-    try {
-      const { data, error } = await DatabaseService.getInterestsByCategory();
-      if (error) {
-        console.error('Error fetching available interests:', error);
-      } else if (data) {
-        setAvailableInterests(data);
-      }
-    } catch (error) {
-      console.error('Error fetching available interests:', error);
-    }
+    const { data } = await DatabaseService.getInterestsByCategory();
+    if (data) setAvailableInterests(data);
   };
 
-  // Handle redirect when no user
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/login');
+  const toggleInterest = async (interest: any) => {
+    if (!user?.id) return;
+    const isSelected = Object.values(userInterests)
+      .flat()
+      .some((i) => i.id === interest.id);
+    if (isSelected) {
+      await supabase
+        .from("user_interests")
+        .delete()
+        .eq("userid", user.id)
+        .eq("interestid", interest.id);
+    } else {
+      await supabase
+        .from("user_interests")
+        .insert({ userid: user.id, interestid: interest.id });
     }
-  }, [loading, user]);
+    await fetchUserInterests();
+  };
 
-  // Show loading if auth is still loading
-  if (loading) {
+  const toggleLookFor = async (interest: any) => {
+    if (!user?.id) return;
+    const isSelected = Object.values(userLookFor)
+      .flat()
+      .some((i) => i.id === interest.id);
+    if (isSelected) {
+      await supabase
+        .from("user_look_for")
+        .delete()
+        .eq("userid", user.id)
+        .eq("interestid", interest.id);
+    } else {
+      await supabase
+        .from("user_look_for")
+        .insert([{ userid: user.id, interestid: interest.id }]);
+    }
+    await fetchUserLookFor();
+  };
+
+  if (loading || !user) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ThemedText>Loading...</ThemedText>
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ThemedText>Loading…</ThemedText>
         </View>
       </SafeAreaView>
     );
   }
 
-  // If no user, show loading (redirect will happen in useEffect)
-  if (!user) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ThemedText>Redirecting...</ThemedText>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const fullAddress =
+    (userProfile?.address_apartment
+      ? `Apt ${userProfile.address_apartment}`
+      : "") +
+    (userProfile?.address_building
+      ? `${userProfile?.address_apartment ? ", " : ""}Building ${
+          userProfile.address_building
+        }`
+      : "") +
+    (userProfile?.address_block
+      ? `${
+          userProfile?.address_apartment || userProfile?.address_building
+            ? ", "
+            : ""
+        }Block ${userProfile.address_block}`
+      : "");
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-      <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
-              {texts.profile || 'Profile'}
-            </ThemedText>
-            <TouchableOpacity 
-              style={[styles.editButton, { backgroundColor: tintColor }]}
-              onPress={() => setIsEditing(!isEditing)}
-            >
-              <IconSymbol name={isEditing ? "xmark.circle.fill" : "pencil"} size={20} color="#fff" />
-            </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.pageContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <ThemedText style={styles.headerTitle}>Your Profile</ThemedText>
+          <TouchableOpacity
+            onPress={() => router.push("/settings")}
+            style={styles.headerGear}
+          >
+            <Ionicons name="settings-outline" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Avatar and Name Section */}
-        <View style={[styles.avatarSection, { backgroundColor: surfaceColor }]}>
-          <TouchableOpacity 
-            style={styles.avatarContainer}
+        <View style={styles.centerColumn}>
+          <TouchableOpacity
             onPress={pickImage}
             disabled={uploading}
+            style={styles.avatarWrap}
           >
-            {avatarUrl || userProfile?.avatar ? (
-              <Image 
-                source={{ uri: avatarUrl || userProfile?.avatar }} 
-                style={styles.avatar} 
-                onError={() => setAvatarUrl(null)}
-              />
+            <View style={styles.avatarGreen}>
+              {avatarUrl || userProfile?.avatar ? (
+                <Image
+                  source={{ uri: avatarUrl || userProfile?.avatar }}
+                  style={styles.avatarImg}
+                />
+              ) : (
+                <View style={[styles.avatarImg, styles.avatarPlaceholder]}>
+                  <ThemedText style={{ fontSize: 28 }}>👤</ThemedText>
+                </View>
+              )}
+            </View>
+            <View style={styles.editAvatarBtn}>
+              <IconSymbol name="pencil" size={14} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+
+          <ThemedText style={styles.nameText}>
+            {userProfile?.name || "User"}
+          </ThemedText>
+          <ThemedText style={styles.metaText}>
+            {(userProfile?.gender || "Male") + " • Circle 27"}
+          </ThemedText>
+
+          <View style={[styles.blockCard, SHADOW]}>
+            <Field
+              label="Your Email"
+              value={user?.email || "example123@gmail.com"}
+              icon={
+                <MaterialIcons name="email" size={18} color={COLORS.muted} />
+              }
+            />
+            <Field
+              label="Phone Number"
+              value={userProfile?.phone || "+20 1200001000"}
+              icon={<Ionicons name="call" size={18} color={COLORS.muted} />}
+            />
+            <Field
+              label="Address"
+              value={fullAddress || "Apt 8, Building 8, Block B"}
+              icon={
+                <Ionicons
+                  name="location-sharp"
+                  size={18}
+                  color={COLORS.muted}
+                />
+              }
+            />
+          </View>
+
+          <SectionWithEdit
+            title="Interests"
+            onEdit={() => setShowInterestModal(true)}
+          >
+            {Object.keys(userInterests).length === 0 ? (
+              <ThemedText style={styles.emptyText}>
+                {texts.notInterested || "No interests added yet"}
+              </ThemedText>
             ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: tintColor }]}>
-                <IconSymbol name="person.fill" size={40} color="#fff" />
-              </View>
+              Object.entries(userInterests).map(([cat, list]) => (
+                <View key={cat} style={{ marginBottom: 10 }}>
+                  <ThemedText style={styles.catTitle}>{cat}</ThemedText>
+                  <View style={styles.tagsRow}>
+                    {list.map((interest: any) => (
+                      <View key={interest.id} style={styles.tag}>
+                        <ThemedText style={styles.tagText}>
+                          {interest.title}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
             )}
-            <View style={[styles.editAvatarButton, { backgroundColor: uploading ? '#ccc' : accentColor }]}>
-              <IconSymbol name={uploading ? "arrow.up.circle" : "pencil"} size={16} color="#fff" />
-            </View>
-          </TouchableOpacity>
+          </SectionWithEdit>
 
-          <View style={styles.nameSection}>
-            <ThemedText type="subtitle" style={[styles.userName, isRTL && styles.rtlText]}>
-              {userProfile?.name || 'User'}
-            </ThemedText>
-            <ThemedText style={[styles.userAge, isRTL && styles.rtlText]}>
-              {userProfile?.dob ? calculateAge(userProfile.dob) : 0} {texts.yearsOld || 'years old'}
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Personal Information */}
-        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.personalInformation || 'Personal Information'}
-          </ThemedText>
-
-          {/* Name */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.name || 'Name'}</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {userProfile?.name || 'Not set'}
-            </ThemedText>
-          </View>
-
-          {/* Email */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.email || 'Email'}</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {user?.email}
-            </ThemedText>
-          </View>
-
-          {/* Phone */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.phone || 'Phone'}</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {userProfile?.phone || 'Not set'}
-            </ThemedText>
-          </View>
-
-          {/* Birthday */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.birthday || 'Birthday'}</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {userProfile?.dob ? new Date(userProfile.dob).toLocaleDateString() : 'Not set'}
-            </ThemedText>
-          </View>
-
-          {/* Gender */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>{texts.gender || 'Gender'}</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-              {userProfile?.gender || 'Not set'}
-            </ThemedText>
-          </View>
-        </View>
-
-        {/* Address Information */}
-        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <ThemedText type="defaultSemiBold" style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {texts.address || 'Address'}
-          </ThemedText>
-
-           {/* Address - Apartment */}
-           <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>Address - Apartment:</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {userProfile?.address_apartment || 'Not set'}
-              </ThemedText>
-          </View>
-
-          {/* Address - Building */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>Address - Building:</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {userProfile?.address_building || 'Not set'}
-              </ThemedText>
-          </View>
-
-          {/* Address - Block */}
-          <View style={styles.fieldContainer}>
-            <ThemedText style={styles.fieldLabel}>Address - Block:</ThemedText>
-            <ThemedText style={[styles.fieldValue, styles.nonEditableField, isRTL && styles.rtlText]}>
-                {userProfile?.address_block || 'Not set'}
-              </ThemedText>
-          </View>
-        </View>
-
-        {/* Interests Section */}
-        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              {texts.interests || 'Interests'}
-            </ThemedText>
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: tintColor }]}
-              onPress={() => setShowInterestModal(true)}
-            >
-              <IconSymbol name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {Object.entries(userInterests).map(([category, interests]) => (
-            <View key={category} style={styles.interestCategory}>
-              <ThemedText style={[styles.categoryTitle, isRTL && styles.rtlText]}>
-                {category}
-              </ThemedText>
-              <View style={styles.interestTags}>
-                {interests.map((interest, index) => (
-                  <View key={interest.id} style={[styles.interestTag, { backgroundColor: tintColor + '20' }]}>
-                    <ThemedText style={[styles.interestTagText, { color: tintColor }]}>
-                      {interest.title}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-
-          {Object.keys(userInterests).length === 0 && (
-            <ThemedText style={[styles.emptyInterests, isRTL && styles.rtlText]}>
-              {texts.noInterestsYet || 'No interests added yet'}
-            </ThemedText>
-          )}
-        </View>
-
-        {/* Looking For Section */}
-        <View style={[styles.section, { backgroundColor: surfaceColor }]}>
-          <View style={[styles.sectionHeader, isRTL && styles.sectionHeaderRTL]}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-              {texts.lookingFor || 'Looking For'}
-            </ThemedText>
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: tintColor }]}
-              onPress={() => setShowLookForModal(true)}
-            >
-              <IconSymbol name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {Object.entries(userLookFor).map(([category, interests]) => (
-            <View key={category} style={styles.interestCategory}>
-              <ThemedText style={[styles.categoryTitle, isRTL && styles.rtlText]}>
-                {category}
-              </ThemedText>
-              <View style={styles.interestTags}>
-                {interests.map((interest, index) => (
-                  <View key={interest.id} style={[styles.interestTag, { backgroundColor: accentColor + '20' }]}>
-                    <ThemedText style={[styles.interestTagText, { color: accentColor }]}>
-                      {interest.title}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
-
-          {Object.keys(userLookFor).length === 0 && (
-            <ThemedText style={[styles.emptyInterests, isRTL && styles.rtlText]}>
-              {texts.noLookingForYet || 'No looking for preferences added yet'}
-            </ThemedText>
-          )}
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionsSection}>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: tintColor }]}
-            onPress={() => router.push('/settings')}
+          <SectionWithEdit
+            title="Looking For"
+            onEdit={() => setShowLookForModal(true)}
           >
-            <IconSymbol name="gearshape.fill" size={20} color="#fff" />
-            <ThemedText style={styles.actionButtonText}>
-              {texts.settings || 'Settings'}
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.logoutButton, { backgroundColor: '#EF5350' }]}
-            onPress={handleLogout}
-          >
-            <IconSymbol name="power" size={20} color="#fff" />
-            <ThemedText style={styles.actionButtonText}>
-              {texts.logout || 'Logout'}
-            </ThemedText>
-          </TouchableOpacity>
+            {Object.keys(userLookFor).length === 0 ? (
+              <ThemedText style={styles.emptyText}>
+                No looking for preferences added yet
+              </ThemedText>
+            ) : (
+              Object.entries(userLookFor).map(([cat, list]) => (
+                <View key={cat} style={{ marginBottom: 10 }}>
+                  <ThemedText style={styles.catTitle}>{cat}</ThemedText>
+                  <View style={styles.tagsRow}>
+                    {list.map((interest: any) => (
+                      <View key={interest.id} style={styles.tag}>
+                        <ThemedText style={styles.tagText}>
+                          {interest.title}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
+            )}
+          </SectionWithEdit>
         </View>
       </ScrollView>
 
-      {/* Change Password Modal */}
-      <Modal
-        visible={showPasswordModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowPasswordModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.changePassword || 'Change Password'}
-            </ThemedText>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.currentPassword || 'Current Password'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.enterCurrentPassword || 'Enter current password'}
-                placeholderTextColor={textColor + '80'}
-                secureTextEntry
-                value={passwordData.current}
-                onChangeText={(text) => setPasswordData({ ...passwordData, current: text })}
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.newPassword || 'New Password'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.enterNewPassword || 'Enter new password'}
-                placeholderTextColor={textColor + '80'}
-                secureTextEntry
-                value={passwordData.new}
-                onChangeText={(text) => setPasswordData({ ...passwordData, new: text })}
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.confirmPassword || 'Confirm Password'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.confirmNewPassword || 'Confirm new password'}
-                placeholderTextColor={textColor + '80'}
-                secureTextEntry
-                value={passwordData.confirm}
-                onChangeText={(text) => setPasswordData({ ...passwordData, confirm: text })}
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
-                onPress={() => setShowPasswordModal(false)}
-              >
-                <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={handleChangePassword}
-              >
-                <ThemedText style={{ color: '#fff' }}>
-                  {texts.change || 'Change'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Edit Interests Modal */}
+      {/* Modals */}
       <Modal
         visible={showInterestModal}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowInterestModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+          <View style={[styles.modalContent, SHADOW]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.editInterests || 'Edit Interests'}
+              {texts.interests || "Edit Interests"}
             </ThemedText>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.selectInterests || 'Select your interests'}
-              </ThemedText>
-              <ScrollView style={{ maxHeight: 400 }}>
-                {Object.entries(availableInterests).map(([category, interests]) => (
-                  <View key={category} style={styles.categorySection}>
-                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
-                    <View style={styles.categoryGrid}>
-                      {interests.map((interest) => {
-                        const isSelected = Object.values(userInterests)
+            <ScrollView style={{ maxHeight: 420 }}>
+              {Object.entries(availableInterests).map(
+                ([category, interests]) => (
+                  <View key={category} style={{ marginBottom: 16 }}>
+                    <ThemedText style={styles.catTitle}>{category}</ThemedText>
+                    <View style={styles.optionGrid}>
+                      {(interests as any[]).map((interest: any) => {
+                        const selected = Object.values(userInterests)
                           .flat()
-                          .some(userInt => userInt.id === interest.id);
-
+                          .some((i: any) => i.id === interest.id);
                         return (
                           <TouchableOpacity
                             key={interest.id}
-                            style={[
-                              styles.categoryOption,
-                              {
-                                backgroundColor: isSelected ? tintColor : 'transparent',
-                                borderColor: tintColor,
-                              }
-                            ]}
                             onPress={() => toggleInterest(interest)}
+                            style={[
+                              styles.optionBtn,
+                              {
+                                backgroundColor: selected
+                                  ? COLORS.primary
+                                  : "transparent",
+                                borderColor: COLORS.primary,
+                              },
+                            ]}
                           >
-                            <ThemedText style={[
-                              styles.categoryOptionText,
-                              { color: isSelected ? '#fff' : textColor }
-                            ]}>
+                            <ThemedText
+                              style={[
+                                styles.optionText,
+                                { color: selected ? "#FFF" : COLORS.text },
+                              ]}
+                            >
                               {interest.title}
                             </ThemedText>
                           </TouchableOpacity>
@@ -963,67 +443,62 @@ export default function ProfileScreen() {
                       })}
                     </View>
                   </View>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
-                onPress={() => setShowInterestModal(false)}
-              >
-                <ThemedText style={{ color: '#fff' }}>
-                  {texts.done || 'Done'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
+                )
+              )}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalPrimary}
+              onPress={() => setShowInterestModal(false)}
+            >
+              <ThemedText style={{ color: "#FFF", fontWeight: "600" }}>
+                Done
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Edit Looking For Modal */}
       <Modal
         visible={showLookForModal}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowLookForModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
+          <View style={[styles.modalContent, SHADOW]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.editLookingFor || 'Edit Looking For'}
+              Edit Looking For
             </ThemedText>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.selectLookingFor || 'Select what you are looking for'}
-              </ThemedText>
-              <ScrollView style={{ maxHeight: 400 }}>
-                {Object.entries(availableInterests).map(([category, interests]) => (
-                  <View key={category} style={styles.categorySection}>
-                    <ThemedText style={styles.categoryHeader}>{category}</ThemedText>
-                    <View style={styles.categoryGrid}>
-                      {interests.map((interest) => {
-                        const isSelected = Object.values(userLookFor)
+            <ScrollView style={{ maxHeight: 420 }}>
+              {Object.entries(availableInterests).map(
+                ([category, interests]) => (
+                  <View key={category} style={{ marginBottom: 16 }}>
+                    <ThemedText style={styles.catTitle}>{category}</ThemedText>
+                    <View style={styles.optionGrid}>
+                      {(interests as any[]).map((interest: any) => {
+                        const selected = Object.values(userLookFor)
                           .flat()
-                          .some(userInt => userInt.id === interest.id);
-
+                          .some((i: any) => i.id === interest.id);
                         return (
                           <TouchableOpacity
                             key={interest.id}
-                            style={[
-                              styles.categoryOption,
-                              {
-                                backgroundColor: isSelected ? accentColor : 'transparent',
-                                borderColor: accentColor,
-                              }
-                            ]}
                             onPress={() => toggleLookFor(interest)}
+                            style={[
+                              styles.optionBtn,
+                              {
+                                backgroundColor: selected
+                                  ? COLORS.primary
+                                  : "transparent",
+                                borderColor: COLORS.primary,
+                              },
+                            ]}
                           >
-                            <ThemedText style={[
-                              styles.categoryOptionText,
-                              { color: isSelected ? '#fff' : textColor }
-                            ]}>
+                            <ThemedText
+                              style={[
+                                styles.optionText,
+                                { color: selected ? "#FFF" : COLORS.text },
+                              ]}
+                            >
                               {interest.title}
                             </ThemedText>
                           </TouchableOpacity>
@@ -1031,20 +506,17 @@ export default function ProfileScreen() {
                       })}
                     </View>
                   </View>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: accentColor }]}
-                onPress={() => setShowLookForModal(false)}
-              >
-                <ThemedText style={{ color: '#fff' }}>
-                  {texts.done || 'Done'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
+                )
+              )}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalPrimary}
+              onPress={() => setShowLookForModal(false)}
+            >
+              <ThemedText style={{ color: "#FFF", fontWeight: "600" }}>
+                Done
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1052,265 +524,255 @@ export default function ProfileScreen() {
   );
 }
 
+const Field = ({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) => {
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <ThemedText style={styles.fieldLabel}>{label}</ThemedText>
+      <View style={styles.inputWrap}>
+        <TextInput
+          editable={false}
+          value={value}
+          style={styles.input}
+          pointerEvents="none"
+        />
+        <View style={styles.inputIconRight}>{icon}</View>
+      </View>
+    </View>
+  );
+};
+
+const SectionWithEdit = ({ title, onEdit, children }: any) => (
+  <View style={[styles.sectionCard, SHADOW]}>
+    <View style={styles.sectionHeader}>
+      <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
+      <TouchableOpacity onPress={onEdit} style={styles.editIconBtn}>
+        <IconSymbol name="pencil" size={14} color="#FFF" />
+      </TouchableOpacity>
+    </View>
+    <View style={styles.sectionBody}>{children}</View>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  container: { flex: 1, backgroundColor: COLORS.pageBg },
+
+  pageContent: { paddingBottom: 24 },
+
+  hero: {
+    width: "100%",
+    height: 120,
+    backgroundColor: COLORS.primary,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    justifyContent: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    elevation: 2,
+    paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 24,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  avatarSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 16,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editAvatarButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameSection: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  userAge: {
+    color: "#FFF",
     fontSize: 14,
-    opacity: 0.7,
+    fontWeight: "700",
+    position: "absolute",
+    top: 15,
+    left: 16,
   },
-  section: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+  headerGear: {
+    position: "absolute",
+    right: 16,
+    top: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sectionTitle: {
+
+  centerColumn: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+  },
+
+  avatarWrap: {
+    alignSelf: "center",
+    marginTop: -46,
+  },
+  avatarGreen: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImg: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: "#FFF",
+  },
+  avatarPlaceholder: { alignItems: "center", justifyContent: "center" },
+  editAvatarBtn: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  nameText: {
+    marginTop: 12,
     fontSize: 16,
-    marginBottom: 16,
+    fontWeight: "700",
+    color: COLORS.text,
+    textAlign: "center",
+  },
+  metaText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "400",
+    color: COLORS.muted,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+
+  blockCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    width: "100%",
+  },
+
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  inputWrap: {
+    position: "relative",
+    backgroundColor: COLORS.fieldBg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.fieldBorder,
+    height: 46,
+    justifyContent: "center",
+  },
+  input: {
+    height: 46,
+    color: COLORS.text,
+    paddingHorizontal: 12,
+    paddingRight: 44,
+    fontSize: 14,
+  },
+  inputIconRight: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+
+  sectionCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    width: "100%",
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  sectionHeaderRTL: {
-    flexDirection: 'row-reverse',
-  },
-  addButton: {
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: COLORS.text },
+  editIconBtn: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  fieldValue: {
-    fontSize: 16,
-  },
-  nonEditableField: {
-    opacity: 0.7,
-  },
-  editableField: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  editingContainer: {
-    gap: 8,
-  },
-  editInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
-  },
-  editActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  genderOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  sectionBody: { backgroundColor: "#F6F7F8", borderRadius: 12, padding: 12 },
+
+  catTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.muted,
     marginBottom: 8,
   },
-  genderOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  genderOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  interestCategory: {
-    marginBottom: 16,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  interestTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: {
+    backgroundColor: COLORS.chipBg,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    borderRadius: 999,
   },
-  interestTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actionsSection: {
-    gap: 12,
-    marginBottom: 32,
-  },
-   editButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 12,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  logoutButton: {
-    marginTop: 8,
-  },
+  tagText: { fontSize: 12, fontWeight: "600", color: COLORS.chipText },
+
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
   },
   modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    padding: 20,
-    borderRadius: 12,
+    width: "100%",
+    maxWidth: 480,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
   },
   modalTitle: {
-    textAlign: 'center',
-    marginBottom: 16,
+    textAlign: "center",
+    marginBottom: 12,
+    fontWeight: "700",
+    color: COLORS.text,
   },
-  formField: {
-    marginBottom: 16,
+  modalPrimary: {
+    marginTop: 8,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
   },
-  textInput: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  categoryGrid:{
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryOption: {
+
+  optionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  optionBtn: {
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
-  categoryOptionText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  rtlText: {
-    textAlign: 'right',
-  },
-  categorySection: {
-    marginBottom: 16,
-  },
-  categoryHeader: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  emptyInterests: {
-    textAlign: 'center',
-    opacity: 0.6,
-    fontStyle: 'italic',
-    marginTop: 16,
+  optionText: { fontSize: 12, fontWeight: "600" },
+
+  emptyText: {
+    color: COLORS.muted,
+    fontSize: 13,
+    textAlign: "center",
+    marginVertical: 8,
   },
 });

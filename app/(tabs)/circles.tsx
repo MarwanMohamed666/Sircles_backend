@@ -1,19 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { useCallback } from 'react';
+// CirclesScreen.tsx
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  RefreshControl,
+  Image,
+  Animated,
+  Easing,
+  LayoutChangeEvent,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useFocusEffect } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { getCircles, createCircle, joinCircle, leaveCircle, getCirclesByUser, DatabaseService } from '@/lib/database';
-import { supabase } from '@/lib/supabase';
-import { StorageService } from '@/lib/storage';
+import { ThemedText } from "@/components/ThemedText";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getCircles,
+  createCircle,
+  joinCircle,
+  leaveCircle,
+  getCirclesByUser,
+  DatabaseService,
+} from "@/lib/database";
+import { supabase } from "@/lib/supabase";
+import { StorageService } from "@/lib/storage";
 
 interface Circle {
   id: string;
@@ -23,92 +41,189 @@ interface Circle {
   creationDate: string;
   memberCount?: number;
   isJoined?: boolean;
-  member_count?: number; // Added to match backend
+  member_count?: number;
   circle_profile_url?: string;
-  creator?: string; // Added to match backend for creator check
-  hasPendingRequest?: boolean; // Added to track pending join requests
+  creator?: string;
+  hasPendingRequest?: boolean;
+}
+
+// ألوان
+const COLORS = {
+  primary: "#2B7A4B",
+  screenBg: "#FFFFFF", // خلفية الصفحة أبيض
+  surface: "#FFFFFF", // الكارد أبيض
+  gray100: "#F8FAFC",
+  gray200: "#EAECF0",
+  gray300: "#D0D5DD",
+  text: "#101828",
+  textMuted: "#667085",
+  danger: "#EF5350",
+  dangerSoft: "#FFE9E9",
+  control: "#EEF2F6", // عناصر التحكم الفاتحة
+};
+
+// Segmented بإنيميشن pill
+function AnimatedSegment({
+  options,
+  value,
+  onChange,
+  height = 36,
+}: {
+  options: { key: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  height?: number;
+}) {
+  const idx = Math.max(
+    0,
+    options.findIndex((o) => o.key === value)
+  );
+  const anim = useRef(new Animated.Value(idx)).current;
+  const [w, setW] = useState(0);
+
+  useEffect(() => {
+    const i = Math.max(
+      0,
+      options.findIndex((o) => o.key === value)
+    );
+    Animated.timing(anim, {
+      toValue: i,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [value]);
+
+  const onLayout = (e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width);
+  const pillW = w / Math.max(1, options.length);
+  const translateX = anim.interpolate({
+    inputRange: options.map((_, i) => i),
+    outputRange: options.map((_, i) => i * pillW),
+  });
+
+  return (
+    <View
+      style={[
+        styles.segment,
+        { height: height + 12, padding: 6, backgroundColor: COLORS.control },
+      ]}
+      onLayout={onLayout}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            margin: 6,
+            width: pillW - 12,
+            height,
+            borderRadius: height / 2,
+            backgroundColor: COLORS.primary,
+            transform: [{ translateX }],
+          },
+        ]}
+      />
+      {options.map((o) => {
+        const active = o.key === value;
+        return (
+          <TouchableOpacity
+            key={o.key}
+            style={[styles.segmentBtn, { height }]}
+            activeOpacity={0.9}
+            onPress={() => onChange(o.key)}
+          >
+            <ThemedText
+              style={[
+                styles.segmentTxt,
+                active && { color: "#000", fontWeight: "700" },
+              ]}
+            >
+              {o.label}
+            </ThemedText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function CirclesScreen() {
   const { user, userProfile } = useAuth();
   const { texts, isRTL } = useLanguage();
-  const backgroundColor = useThemeColor({}, 'background');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
 
   const [circles, setCircles] = useState<Circle[]>([]);
   const [myCircles, setMyCircles] = useState<Circle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
-  const [error, setError] = useState<string | null>(null); // Added error state
+  const [activeTab, setActiveTab] = useState<"all" | "my">("all");
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const [newCircle, setNewCircle] = useState({
-    name: '',
-    description: '',
-    privacy: 'public' as 'public' | 'private',
+    name: "",
+    description: "",
+    privacy: "public" as "public" | "private",
     interests: [] as string[],
     image: null as string | null,
   });
-  const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [interests, setInterests] = useState<{[key: string]: any[]}>({});
+  const [selectedImage, setSelectedImage] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [interests, setInterests] = useState<{ [key: string]: any[] }>({});
   const [loadingInterests, setLoadingInterests] = useState(false);
+
+  const filtered = (activeTab === "all" ? circles : myCircles).filter(
+    (c) =>
+      c.name?.toLowerCase().includes(query.trim().toLowerCase()) ||
+      c.description?.toLowerCase().includes(query.trim().toLowerCase())
+  );
 
   const loadCircles = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // Load all circles
       const { data: allCircles, error: circlesError } = await getCircles();
       if (circlesError) {
-        console.error('Error loading circles:', circlesError);
-        setError('Unable to load circles. Please try again.');
+        setError("Unable to load circles. Please try again.");
         setCircles([]);
         return;
       }
 
-      // Load user's joined circles if user is logged in
-      let joinedCircleIds = new Set<string>();
-      let pendingRequestCircleIds = new Set<string>();
+      let joinedIds = new Set<string>();
+      let pendingIds = new Set<string>();
 
       if (userProfile?.id) {
-        const { data: userCirclesResult, error: joinedError } = await getCirclesByUser(userProfile.id);
-        if (joinedError) {
-          console.error('Error loading joined circles:', joinedError);
-          // Don't show error for this, just continue without joined status
-        } else {
-          joinedCircleIds = new Set(userCirclesResult?.map(uc => uc.circleId) || []);
-        }
+        const { data: userCirclesResult } = await getCirclesByUser(
+          userProfile.id
+        );
+        joinedIds = new Set(userCirclesResult?.map((uc) => uc.circleId) || []);
 
-        // Check for pending requests for private circles
         if (allCircles) {
           for (const circle of allCircles) {
-            if (circle.privacy === 'private' && !joinedCircleIds.has(circle.id)) {
-              const { data: pendingRequest } = await DatabaseService.getUserPendingRequest(circle.id, userProfile.id);
-              if (pendingRequest) {
-                pendingRequestCircleIds.add(circle.id);
-              }
+            if (circle.privacy === "private" && !joinedIds.has(circle.id)) {
+              const { data: pendingRequest } =
+                await DatabaseService.getUserPendingRequest(
+                  circle.id,
+                  userProfile.id
+                );
+              if (pendingRequest) pendingIds.add(circle.id);
             }
           }
         }
       }
 
-      // Format circles
-      const circlesWithCount = allCircles?.map(circle => ({
-        ...circle,
-        isJoined: joinedCircleIds.has(circle.id),
-        hasPendingRequest: pendingRequestCircleIds.has(circle.id),
-        memberCount: circle.member_count || 0 // Use member_count from the table
-      })) || [];
+      const prepared =
+        allCircles?.map((c) => ({
+          ...c,
+          isJoined: joinedIds.has(c.id),
+          hasPendingRequest: pendingIds.has(c.id),
+          memberCount: c.member_count || 0,
+        })) || [];
 
-      setCircles(circlesWithCount);
-      setMyCircles(circlesWithCount.filter(circle => circle.isJoined));
-    } catch (error) {
-      console.error('Error loading circles:', error);
-      setError('Something went wrong. Please try again.');
+      setCircles(prepared);
+      setMyCircles(prepared.filter((c) => c.isJoined));
+    } catch {
+      setError("Something went wrong. Please try again.");
       setCircles([]);
     } finally {
       setLoading(false);
@@ -124,400 +239,290 @@ export default function CirclesScreen() {
   const loadInterests = async () => {
     setLoadingInterests(true);
     try {
-      const { data, error } = await DatabaseService.getInterestsByCategory();
-      if (!error && data) {
-        setInterests(data);
-      }
-    } catch (error) {
-      console.error('Error loading interests:', error);
+      const { data } = await DatabaseService.getInterestsByCategory();
+      if (data) setInterests(data);
     } finally {
       setLoadingInterests(false);
     }
   };
 
   const pickImage = async () => {
-    try {
-      console.log('Starting image picker for new circle...');
-
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission status:', status);
-
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant photo library access to select images.');
-        return;
-      }
-
-      // Launch image picker with web-compatible config
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-        base64: false,
-      });
-
-      console.log('Image picker result:', result);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        console.log('Selected asset for new circle:', {
-          uri: asset.uri?.substring(0, 50) + '...',
-          width: asset.width,
-          height: asset.height,
-          fileSize: asset.fileSize
-        });
-
-        if (!asset.uri) {
-          Alert.alert('Error', 'Invalid image selected');
-          return;
-        }
-
-        setSelectedImage(asset);
-        console.log('Circle image updated in UI preview');
-      } else {
-        console.log('Image selection was canceled or no asset selected');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
-
-      console.error('Error with image picker - full details:', {
-        error: error,
-        message: errorMessage,
-        stack: errorStack,
-        name: error instanceof Error ? error.name : typeof error,
-        isError: error instanceof Error,
-        errorString: String(error)
-      });
-      Alert.alert('Error', `Failed to pick image: ${errorMessage || 'Please try again'}`);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Please grant photo library access.");
+      return;
     }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets?.length)
+      setSelectedImage(result.assets[0]);
   };
 
   const handleCreateCircle = async () => {
     if (!newCircle.name.trim()) {
-      Alert.alert('Error', 'Circle name is required');
+      Alert.alert("Error", "Circle name is required");
       return;
     }
-
     if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to create a circle');
+      Alert.alert("Error", "You must be logged in");
       return;
     }
 
     try {
-      // First create the circle
       const { data, error } = await createCircle({
         name: newCircle.name.trim(),
         description: newCircle.description.trim(),
         privacy: newCircle.privacy,
-        creator: user.id, // Use the authenticated user's ID from Supabase Auth
+        creator: user.id,
       });
-
       if (error) {
-        console.error('Error creating circle:', error);
-        Alert.alert('Error', 'Failed to create circle');
+        Alert.alert("Error", "Failed to create circle");
         return;
       }
 
-      let circleProfileUrl = null;
-
-      // Upload image if one was selected
+      let circleProfileUrl: string | null = null;
       if (selectedImage && data) {
-        try {
-          const { data: uploadData, error: uploadError } = await StorageService.uploadCircleProfilePicture(data.id, selectedImage);
-
-          if (uploadError) {
-            console.error('Error uploading circle image:', uploadError);
-            // Don't fail circle creation if image upload fails, just warn user
-            Alert.alert('Warning', 'Circle created but image upload failed. You can add an image later.');
-          } else if (uploadData?.publicUrl) {
-            circleProfileUrl = uploadData.publicUrl;
-          }
-        } catch (uploadError) {
-          console.error('Error uploading circle image:', uploadError);
-          Alert.alert('Warning', 'Circle created but image upload failed. You can add an image later.');
-        }
+        const { data: uploadData } =
+          await StorageService.uploadCircleProfilePicture(
+            data.id,
+            selectedImage
+          );
+        circleProfileUrl = uploadData?.publicUrl || null;
       }
-
-      // Update circle with profile URL if image was uploaded
       if (circleProfileUrl && data) {
-        try {
-          const { error: updateError } = await supabase
-            .from('circles')
-            .update({ circle_profile_url: circleProfileUrl })
-            .eq('id', data.id);
-
-          if (updateError) {
-            console.error('Error updating circle profile URL:', updateError);
-          }
-        } catch (updateError) {
-          console.error('Error updating circle profile URL:', updateError);
-        }
+        await supabase
+          .from("circles")
+          .update({ circle_profile_url: circleProfileUrl })
+          .eq("id", data.id);
       }
 
-      // If circle was created successfully, add interests
-      if (data && newCircle.interests.length > 0) {
-        try {
-          // Add selected interests to the circle
-          for (const interestId of newCircle.interests) {
-            const { error: interestError } = await supabase
-              .from('circle_interests')
-              .insert({
-                circleid: data.id,
-                interestid: interestId
-              });
-
-            if (interestError) {
-              console.error('Error adding interest:', interestError);
-              // Continue with other interests even if one fails
-            }
-          }
-        } catch (interestError) {
-          console.error('Error adding interests to circle:', interestError);
-          // Don't fail the entire operation for interests
+      if (data && newCircle.interests.length) {
+        for (const interestId of newCircle.interests) {
+          await supabase
+            .from("circle_interests")
+            .insert({ circleid: data.id, interestid: interestId });
         }
       }
 
       setShowCreateModal(false);
-      setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
+      setNewCircle({
+        name: "",
+        description: "",
+        privacy: "public",
+        interests: [],
+        image: null,
+      });
       setSelectedImage(null);
       await loadCircles();
-      Alert.alert('Success', 'Circle created successfully!');
-    } catch (error) {
-      console.error('Error creating circle:', error);
-      Alert.alert('Error', 'Failed to create circle');
+      Alert.alert("Success", "Circle created successfully");
+    } catch {
+      Alert.alert("Error", "Failed to create circle");
     }
   };
 
   const toggleInterest = (interestId: string) => {
-    setNewCircle(prev => ({
+    setNewCircle((prev) => ({
       ...prev,
       interests: prev.interests.includes(interestId)
-        ? prev.interests.filter(id => id !== interestId)
-        : [...prev.interests, interestId]
+        ? prev.interests.filter((id) => id !== interestId)
+        : [...prev.interests, interestId],
     }));
   };
 
-  const handleJoinLeave = async (circleId: string, isJoined: boolean, circleName: string, circlePrivacy: string) => {
+  const handleJoinLeave = async (
+    circleId: string,
+    isJoined: boolean,
+    circleName: string,
+    circlePrivacy: string
+  ) => {
     if (!userProfile?.id) {
-      window.alert('Error: You must be logged in');
+      Alert.alert("Error", "You must be logged in");
       return;
     }
 
     if (isJoined) {
-      // Leave circle directly without confirmation
-      try {
-        console.log('Leaving circle:', circleId);
-        const { error } = await leaveCircle(userProfile.id, circleId);
-        if (error) {
-          console.error('Error leaving circle:', error);
-          window.alert('Error: Failed to leave circle');
-          return;
-        }
-        console.log('Successfully left circle');
-        await loadCircles();
-      } catch (error) {
-        console.error('Error leaving circle:', error);
-        window.alert('Error: Failed to leave circle');
+      const { error } = await leaveCircle(userProfile.id, circleId);
+      if (error) {
+        Alert.alert("Error", "Failed to leave circle");
+        return;
       }
+      await loadCircles();
       return;
     }
 
-    // Handle joining based on privacy
-    if (circlePrivacy === 'private') {
-      // Use window.prompt for web compatibility
+    if (circlePrivacy === "private") {
       const message = window.prompt(
-        `Send a request to join "${circleName}". You can include an optional message:`,
-        ''
+        `Send a request to join "${circleName}"`,
+        ""
       );
-      
-      if (message !== null) { // User didn't cancel
-        try {
-          const { error } = await DatabaseService.requestToJoinCircle(userProfile.id, circleId, message);
-          if (error) {
-            if (error.message.includes('already requested')) {
-              window.alert('Info: You have already requested to join this circle.');
-            } else {
-              window.alert('Error: Failed to send join request');
-            }
-            return;
-          }
-          window.alert('Success: Join request sent! The admin will review your request.');
-        } catch (error) {
-          window.alert('Error: Failed to send join request');
-        }
-      }
-    } else {
-      // Public circle - join directly
-      try {
-        console.log('Attempting to join public circle:', circleId);
-        const { error } = await joinCircle(userProfile.id, circleId);
-
+      if (message !== null) {
+        const { error } = await DatabaseService.requestToJoinCircle(
+          userProfile.id,
+          circleId,
+          message
+        );
         if (error) {
-          console.error('Error joining circle:', error);
-          if (error.message.includes('already a member')) {
-            window.alert('Info: You are already a member of this circle!');
-            setCircles(circles.map(circle => 
-              circle.id === circleId 
-                ? { ...circle, isJoined: true }
-                : circle
-            ));
-          } else {
-            window.alert('Error: Unable to join circle. Please try again.');
-          }
+          Alert.alert("Error", error.message || "Failed to send request");
           return;
         }
-
-        console.log('Successfully joined circle');
-        window.alert('Successfully joined the circle!');
-        await loadCircles();
-      } catch (error) {
-        console.error('Error joining circle:', error);
-        window.alert('Error: Failed to join circle');
+        Alert.alert("Success", "Join request sent");
       }
+    } else {
+      const { error } = await joinCircle(userProfile.id, circleId);
+      if (error) {
+        Alert.alert("Error", "Unable to join circle");
+        return;
+      }
+      await loadCircles();
     }
   };
 
   const handleDeleteCircle = async (circleId: string, circleName: string) => {
-    console.log('handleDeleteCircle called with:', { circleId, circleName, userId: user?.id });
-
     if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to delete a circle');
+      Alert.alert("Error", "You must be logged in");
       return;
     }
-
-    // Use window.confirm for web compatibility
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete "${circleName}"?\n\nThis action cannot be undone and will remove:\n• All circle posts and messages\n• All member data\n• Circle settings and profile\n\nOnly you, as the creator, can delete this circle.`
-    );
-
-    if (confirmed) {
-      try {
-        console.log('User confirmed deletion, proceeding...');
-        const { error } = await DatabaseService.deleteCircle(circleId, user.id);
-
-        if (error) {
-          console.error('Delete error:', error);
-          window.alert(`Error: ${error.message || 'Failed to delete circle'}`);
-          return;
-        }
-
-        console.log('Circle deleted successfully');
-        window.alert('Circle deleted successfully');
-        await loadCircles(); // Refresh the circles list
-      } catch (error) {
-        console.error('Delete circle error:', error);
-        window.alert('Error: An unexpected error occurred while deleting the circle');
-      }
+    const confirmed = window.confirm(`Delete "${circleName}" permanently?`);
+    if (!confirmed) return;
+    const { error } = await DatabaseService.deleteCircle(circleId, user.id);
+    if (error) {
+      Alert.alert("Error", error.message || "Failed to delete circle");
+      return;
     }
+    await loadCircles();
   };
 
   useEffect(() => {
     loadCircles();
   }, [userProfile]);
-
-  // Refresh data when the screen comes into focus (e.g., when navigating back from a circle page)
   useFocusEffect(
     useCallback(() => {
       loadCircles();
     }, [userProfile])
   );
 
-  const renderCircle = (circle: Circle) => (
-    <TouchableOpacity
-      key={circle.id}
-      style={[styles.circleCard, { backgroundColor: surfaceColor }]}
-      onPress={() => router.push(`/circle/${circle.id}`)}
-    >
-      <View style={styles.circleHeader}>
-        {/* Delete button for circle creator */}
+  const renderCircle = (circle: Circle) => {
+    const isJoined = !!circle.isJoined;
+    const hasPending = !!circle.hasPendingRequest;
+
+    return (
+      <TouchableOpacity
+        key={circle.id}
+        style={styles.card}
+        onPress={() => router.push(`/circle/${circle.id}`)}
+        activeOpacity={0.9}
+      >
         {circle.creator === user?.id && (
           <TouchableOpacity
-            style={styles.circleDeleteButton}
+            style={styles.deleteFab}
             onPress={(e) => {
-              console.log('Delete button pressed for circle:', circle.id, 'by user:', user?.id);
-              console.log('Circle creator:', circle.creator, 'User ID:', user?.id);
               e.stopPropagation();
               handleDeleteCircle(circle.id, circle.name);
             }}
           >
-            <IconSymbol name="trash" size={16} color="#EF5350" />
+            <IconSymbol name="trash" size={16} color={COLORS.danger} />
           </TouchableOpacity>
         )}
 
         {circle.circle_profile_url && (
           <Image
             source={{ uri: circle.circle_profile_url }}
-            style={styles.circleProfileImage}
+            style={styles.cardImage}
             resizeMode="cover"
           />
         )}
-        <View style={styles.circleInfo}>
-          <ThemedText type="defaultSemiBold" style={[styles.circleName, isRTL && styles.rtlText]}>
-            {circle.name}
-          </ThemedText>
-          <ThemedText style={[styles.circleDescription, isRTL && styles.rtlText]}>
-            {circle.description || 'No description'}
-          </ThemedText>
-          <View style={[styles.circleDetails, isRTL && styles.circleDetailsRTL]}>
-            <View style={[styles.detailItem, isRTL && styles.detailItemRTL]}>
-              <IconSymbol name="person.3" size={16} color={textColor} />
-              <ThemedText style={styles.detailText}>
-                {circle.memberCount || 0} {texts.members || 'members'}
-              </ThemedText>
-            </View>
-            <View style={[styles.detailItem, isRTL && styles.detailItemRTL]}>
-              <IconSymbol 
-                name={circle.privacy === 'private' ? "lock.fill" : "globe"} 
-                size={16} 
-                color={textColor} 
-              />
-              <ThemedText style={styles.detailText}>
-                {circle.privacy === 'private' ? texts.private || 'Private' : texts.public || 'Public'}
-              </ThemedText>
-            </View>
+
+        <View style={styles.metaRow}>
+          <View style={styles.metaGroup}>
+            <IconSymbol
+              name={circle.privacy === "private" ? "lock.fill" : "globe"}
+              size={14}
+              color={COLORS.textMuted}
+            />
+            <ThemedText style={styles.metaText}>
+              {circle.privacy === "private"
+                ? texts.private || "Private"
+                : texts.public || "Public"}
+            </ThemedText>
+          </View>
+          <View style={styles.metaGroup}>
+            <IconSymbol name="person.3" size={14} color={COLORS.textMuted} />
+            <ThemedText style={styles.metaText}>
+              {circle.memberCount || 0}
+            </ThemedText>
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.joinButton,
-            { 
-              backgroundColor: circle.isJoined 
-                ? '#EF5350' 
-                : circle.hasPendingRequest 
-                  ? '#FF9800' 
-                  : tintColor 
-            }
-          ]}
-          onPress={() => handleJoinLeave(circle.id, circle.isJoined || false, circle.name, circle.privacy)}
-          disabled={circle.hasPendingRequest}
+        <ThemedText
+          type="defaultSemiBold"
+          style={[styles.title, isRTL && styles.rtl]}
         >
-          <ThemedText style={styles.joinButtonText}>
-            {circle.isJoined 
-              ? texts.leave || 'Leave' 
-              : circle.hasPendingRequest
-                ? 'Pending'
-                : circle.privacy === 'private' 
-                  ? 'Request to Join'
-                  : texts.join || 'Join'
-            }
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+          {circle.name}
+        </ThemedText>
+        <ThemedText style={[styles.sub, isRTL && styles.rtl]}>
+          {circle.description || "No description"}
+        </ThemedText>
+
+        <View style={styles.footerRow}>
+          {isJoined ? (
+            <TouchableOpacity
+              onPress={() =>
+                handleJoinLeave(circle.id, true, circle.name, circle.privacy)
+              }
+              style={styles.leaveLight}
+            >
+              <ThemedText style={styles.leaveLightTxt}>leave</ThemedText>
+            </TouchableOpacity>
+          ) : hasPending ? (
+            <View style={styles.pendingPill}>
+              <ThemedText style={styles.pendingTxt}>Pending</ThemedText>
+            </View>
+          ) : (
+            <View />
+          )}
+
+          {isJoined ? (
+            <TouchableOpacity
+              onPress={() => router.push(`/circle/${circle.id}`)}
+              style={styles.openTextBtn}
+            >
+              <ThemedText style={styles.openTxt}>Open</ThemedText>
+              <IconSymbol
+                name="square.and.arrow.up"
+                size={14}
+                color={COLORS.textMuted}
+              />
+            </TouchableOpacity>
+          ) : !hasPending ? (
+            <TouchableOpacity
+              style={styles.joinBtn}
+              onPress={() =>
+                handleJoinLeave(circle.id, false, circle.name, circle.privacy)
+              }
+            >
+              <ThemedText style={styles.joinTxt}>
+                {circle.privacy === "private" ? "Request" : "Join"}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-        <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {texts.circles || 'Circles'}
+      <View style={styles.headerWrap}>
+        <ThemedText type="title" style={styles.headerTitle}>
+          {texts.circles || "Circles"}
         </ThemedText>
         <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: tintColor }]}
+          style={styles.addFab}
           onPress={() => {
             setShowCreateModal(true);
             loadInterests();
@@ -527,290 +532,247 @@ export default function CirclesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tab Selector */}
-      <View style={[styles.tabContainer, { backgroundColor: surfaceColor }]}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'all' && { backgroundColor: tintColor }
-          ]}
-          onPress={() => setActiveTab('all')}
-        >
-          <ThemedText style={[
-            styles.tabText,
-            activeTab === 'all' && { color: '#fff' }
-          ]}>
-            {texts.allCircles || 'All Circles'}
-          </ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'my' && { backgroundColor: tintColor }
-          ]}
-          onPress={() => setActiveTab('my')}
-        >
-          <ThemedText style={[
-            styles.tabText,
-            activeTab === 'my' && { color: '#fff' }
-          ]}>
-            {texts.myCircles || 'My Circles'}
-          </ThemedText>
-        </TouchableOpacity>
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <IconSymbol name="magnifyingglass" size={16} color={COLORS.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={texts.search || "Search Circles"}
+          placeholderTextColor={COLORS.textMuted + "AA"}
+          value={query}
+          onChangeText={setQuery}
+        />
       </View>
 
-      {/* Content */}
+      {/* Segmented */}
+      <AnimatedSegment
+        options={[
+          { key: "all", label: texts.allCircles || "All Circles" },
+          { key: "my", label: texts.myCircles || "My Circles" },
+        ]}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as "all" | "my")}
+        height={36}
+      />
+
+      {/* List */}
       <ScrollView
-        style={styles.content}
+        style={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
+          <View style={styles.centerPad}>
+            <ThemedText>Loading...</ThemedText>
           </View>
         ) : error ? (
-            <View style={styles.emptyContainer}>
-              <IconSymbol name="exclamationmark.triangle" size={64} color="#EF5350" />
-              <ThemedText style={styles.emptyText}>
-                {error}
+          <View style={styles.centerPad}>
+            <ThemedText style={styles.emptyText}>{error}</ThemedText>
+            <TouchableOpacity style={styles.retryBtn} onPress={loadCircles}>
+              <ThemedText style={styles.retryTxt}>
+                {texts.retry || "Retry"}
               </ThemedText>
-              <TouchableOpacity
-                style={[styles.retryButton, { backgroundColor: tintColor }]}
-                onPress={loadCircles}
-              >
-                <ThemedText style={[styles.retryButtonText, { color: '#fff' }]}>
-                  {texts.retry || 'Retry'}
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-          ) : (activeTab === 'all' ? circles : myCircles).length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <IconSymbol name="person.3" size={64} color={textColor + '40'} />
-                <ThemedText style={styles.emptyText}>
-                  {activeTab === 'all' 
-                    ? texts.noCircles || 'No circles available'
-                    : texts.noJoinedCircles || 'You haven\'t joined any circles yet'
-                  }
-                </ThemedText>
-              </View>
-            ) : (
-          <View style={styles.circlesList}>
-            {(activeTab === 'all' ? circles : myCircles).map(renderCircle)}
-            {(activeTab === 'all' ? circles : myCircles).length === 0 && (
-              <View style={styles.emptyContainer}>
-                <IconSymbol name="person.3" size={64} color={textColor + '40'} />
-                <ThemedText style={styles.emptyText}>
-                  {activeTab === 'all' 
-                    ? texts.noCircles || 'No circles available'
-                    : texts.noJoinedCircles || 'You haven\'t joined any circles yet'
-                  }
-                </ThemedText>
-              </View>
-            )}
+            </TouchableOpacity>
           </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.centerPad}>
+            <ThemedText style={styles.emptyText}>
+              {activeTab === "all"
+                ? "No circles available"
+                : "You haven't joined any circles yet"}
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.grid}>{filtered.map(renderCircle)}</View>
         )}
       </ScrollView>
 
-      {/* Create Circle Modal */}
+      {/* Create Modal */}
       <Modal
         visible={showCreateModal}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowCreateModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: surfaceColor }]}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>
-              {texts.createCircle || 'Create Circle'}
-            </ThemedText>
-
-            <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.profilePicture || 'Profile Picture'} (Optional)
-              </ThemedText>
+        <View style={styles.overlay}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
               <TouchableOpacity
-                style={[styles.imagePickerButton, { backgroundColor, borderColor: tintColor }]}
-                onPress={pickImage}
+                onPress={() => setShowCreateModal(false)}
+                style={styles.backBtn}
               >
+                <IconSymbol name="chevron.left" size={18} color={COLORS.text} />
+              </TouchableOpacity>
+              <ThemedText type="subtitle" style={styles.sheetTitle}>
+                {texts.createCircle || "New Circle"}
+              </ThemedText>
+              <View style={{ width: 32 }} />
+            </View>
+
+            <ScrollView
+              style={styles.sheetBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Image */}
+              <TouchableOpacity style={styles.coverPicker} onPress={pickImage}>
                 {selectedImage ? (
-                  <View style={styles.selectedImageContainer}>
-                    <Image
-                      source={{ uri: selectedImage.uri }}
-                      style={styles.selectedImage}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.imageOverlay}>
-                      <IconSymbol name="camera" size={20} color="#fff" />
-                      <ThemedText style={styles.changeImageText}>Change Image</ThemedText>
-                    </View>
-                  </View>
+                  <Image
+                    source={{ uri: selectedImage.uri }}
+                    style={styles.coverImg}
+                  />
                 ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <IconSymbol name="camera" size={32} color={tintColor} />
-                    <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>
-                      Select Cover Image
+                  <View style={styles.coverEmpty}>
+                    <IconSymbol
+                      name="camera"
+                      size={28}
+                      color={COLORS.primary}
+                    />
+                    <ThemedText
+                      style={[styles.coverTxt, { color: COLORS.primary }]}
+                    >
+                      {texts.profilePicture || "Add a circle image"}
                     </ThemedText>
                   </View>
                 )}
               </TouchableOpacity>
-            </View>
 
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.name || 'Name'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.enterCircleName || 'Enter circle name'}
-                placeholderTextColor={textColor + '80'}
-                value={newCircle.name}
-                onChangeText={(text) => setNewCircle({ ...newCircle, name: text })}
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.description || 'Description'}
-              </ThemedText>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  styles.textArea,
-                  { backgroundColor, color: textColor, textAlign: isRTL ? 'right' : 'left' }
-                ]}
-                placeholder={texts.enterDescription || 'Enter description'}
-                placeholderTextColor={textColor + '80'}
-                value={newCircle.description}
-                onChangeText={(text) => setNewCircle({ ...newCircle, description: text })}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.privacy || 'Privacy'}
-              </ThemedText>
-              <View style={styles.privacyOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.privacyOption,
-                    {
-                      backgroundColor: newCircle.privacy === 'public' ? tintColor : backgroundColor,
-                      borderColor: tintColor,
-                    }
-                  ]}
-                  onPress={() => setNewCircle({ ...newCircle, privacy: 'public' })}
-                >
-                  <IconSymbol name="globe" size={16} color={newCircle.privacy === 'public' ? '#fff' : textColor} />
-                  <ThemedText style={[
-                    styles.privacyOptionText,
-                    { color: newCircle.privacy === 'public' ? '#fff' : textColor }
-                  ]}>
-                    {texts.public || 'Public'}
-                  </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.privacyOption,
-                    {
-                      backgroundColor: newCircle.privacy === 'private' ? tintColor : backgroundColor,
-                      borderColor: tintColor,
-                    }
-                  ]}
-                  onPress={() => setNewCircle({ ...newCircle, privacy: 'private' })}
-                >
-                  <IconSymbol name="lock.fill" size={16} color={newCircle.privacy === 'private' ? '#fff' : textColor} />
-                  <ThemedText style={[
-                    styles.privacyOptionText,
-                    { color: newCircle.privacy === 'private' ? '#fff' : textColor }
-                  ]}>
-                    {texts.private || 'Private'}
-                  </ThemedText>
-                </TouchableOpacity>
+              {/* Name */}
+              <View style={styles.field}>
+                <ThemedText style={styles.label}>
+                  {texts.name || "Circle name"}
+                </ThemedText>
+                <TextInput
+                  style={styles.input}
+                  placeholder={texts.enterCircleName || "e.g. Sport Circle"}
+                  placeholderTextColor={COLORS.textMuted + "AA"}
+                  value={newCircle.name}
+                  onChangeText={(t) => setNewCircle({ ...newCircle, name: t })}
+                />
               </View>
-            </View>
 
-            <View style={styles.formField}>
-              <ThemedText style={styles.fieldLabel}>
-                {texts.interests || 'Interests'} (Optional)
-              </ThemedText>
-              <View style={[styles.interestsContainer, { backgroundColor: backgroundColor, borderColor: textColor + '20' }]}>
-                {loadingInterests ? (
-                  <ThemedText style={styles.loadingText}>Loading interests...</ThemedText>
-                ) : Object.keys(interests).length === 0 ? (
-                  <ThemedText style={styles.loadingText}>No interests available</ThemedText>
-                ) : (
-                  <ScrollView 
-                    style={styles.interestsScrollView}
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}
-                    contentContainerStyle={{ paddingBottom: 8 }}
-                  >
-                    {Object.entries(interests).map(([category, categoryInterests]) => (
-                      <View key={category} style={styles.interestCategory}>
-                        <ThemedText style={styles.categoryTitle}>{category}</ThemedText>
-                        <View style={styles.interestsList}>
-                          {categoryInterests.map((interest) => (
-                            <TouchableOpacity
-                              key={interest.id}
-                              style={[
-                                styles.interestChip,
-                                {
-                                  backgroundColor: newCircle.interests.includes(interest.id) 
-                                    ? tintColor 
-                                    : surfaceColor,
-                                  borderColor: tintColor,
-                                }
-                              ]}
-                              onPress={() => toggleInterest(interest.id)}
-                            >
-                              <ThemedText style={[
-                                styles.interestChipText,
-                                { 
-                                  color: newCircle.interests.includes(interest.id) 
-                                    ? '#fff' 
-                                    : textColor 
-                                }
-                              ]}>
-                                {interest.title}
-                              </ThemedText>
-                            </TouchableOpacity>
-                          ))}
+              {/* Description */}
+              <View style={styles.field}>
+                <ThemedText style={styles.label}>
+                  {texts.description || "Description"}
+                </ThemedText>
+                <TextInput
+                  style={styles.textarea}
+                  placeholder={
+                    texts.enterDescription || "What's this circle about?"
+                  }
+                  placeholderTextColor={COLORS.textMuted + "AA"}
+                  value={newCircle.description}
+                  onChangeText={(t) =>
+                    setNewCircle({ ...newCircle, description: t })
+                  }
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+
+              {/* Privacy */}
+              <View style={styles.field}>
+                <ThemedText style={styles.label}>
+                  {texts.privacy || "Privacy"}
+                </ThemedText>
+                <AnimatedSegment
+                  options={[
+                    { key: "public", label: texts.public || "Public" },
+                    { key: "private", label: texts.private || "Private" },
+                  ]}
+                  value={newCircle.privacy}
+                  onChange={(v) =>
+                    setNewCircle({
+                      ...newCircle,
+                      privacy: v as "public" | "private",
+                    })
+                  }
+                  height={40}
+                />
+              </View>
+
+              {/* Interests */}
+              <View style={styles.field}>
+                <ThemedText style={styles.label}>
+                  {texts.interests || "Interests"}
+                </ThemedText>
+                <View style={styles.interestsBox}>
+                  {loadingInterests ? (
+                    <ThemedText style={styles.emptyText}>
+                      Loading interests...
+                    </ThemedText>
+                  ) : Object.keys(interests).length === 0 ? (
+                    <ThemedText style={styles.emptyText}>
+                      No interests available
+                    </ThemedText>
+                  ) : (
+                    Object.entries(interests).map(([cat, items]) => (
+                      <View key={cat} style={{ marginBottom: 12 }}>
+                        <ThemedText style={styles.catTitle}>{cat}</ThemedText>
+                        <View style={styles.chips}>
+                          {items.map((it: any) => {
+                            const selected = newCircle.interests.includes(
+                              it.id
+                            );
+                            return (
+                              <TouchableOpacity
+                                key={it.id}
+                                style={[
+                                  styles.chip,
+                                  {
+                                    backgroundColor: selected
+                                      ? COLORS.primary
+                                      : COLORS.surface,
+                                  },
+                                ]}
+                                onPress={() => toggleInterest(it.id)}
+                              >
+                                <ThemedText
+                                  style={[
+                                    styles.chipTxt,
+                                    { color: selected ? "#fff" : COLORS.text },
+                                  ]}
+                                >
+                                  {it.title}
+                                </ThemedText>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                       </View>
-                    ))}
-                  </ScrollView>
-                )}
+                    ))
+                  )}
+                </View>
               </View>
-            </View>
             </ScrollView>
 
-            <View style={styles.modalActions}>
+            <View style={styles.sheetFooter}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, { backgroundColor }]}
+                style={styles.btnGhost}
                 onPress={() => {
                   setShowCreateModal(false);
-                  setNewCircle({ name: '', description: '', privacy: 'public', interests: [], image: null });
+                  setNewCircle({
+                    name: "",
+                    description: "",
+                    privacy: "public",
+                    interests: [],
+                    image: null,
+                  });
                   setSelectedImage(null);
                 }}
               >
-                <ThemedText>{texts.cancel || 'Cancel'}</ThemedText>
+                <ThemedText style={styles.btnGhostTxt}>
+                  {texts.cancel || "Cancel"}
+                </ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: tintColor }]}
+                style={styles.btnPrimary}
                 onPress={handleCreateCircle}
               >
-                <ThemedText style={{ color: '#fff' }}>
-                  {texts.create || 'Create'}
+                <ThemedText style={styles.btnPrimaryTxt}>
+                  {texts.create || "Create Circle"}
                 </ThemedText>
               </TouchableOpacity>
             </View>
@@ -822,313 +784,296 @@ export default function CirclesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  container: { flex: 1, backgroundColor: COLORS.screenBg },
+
+  headerWrap: {
+    backgroundColor: COLORS.screenBg,
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    elevation: 2,
+    paddingTop: 8,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  headerTitle: {
-    fontSize: 24,
-  },
-  createButton: {
+  headerTitle: { fontSize: 24, color: COLORS.text },
+
+  addFab: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
   },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  circlesList: {
-    gap: 12,
-  },
-  circleCard: {
-    padding: 16,
+
+  searchWrap: {
+    marginHorizontal: 16,
+    marginBottom: 8,
     borderRadius: 12,
-    elevation: 2,
-    position: 'relative',
+    paddingHorizontal: 12,
+    height: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.control,
   },
-  circleDeleteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.text },
+
+  segment: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: COLORS.control,
+    overflow: "hidden",
+  },
+  segmentBtn: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentTxt: { fontSize: 13, fontWeight: "600", color: COLORS.textMuted },
+
+  list: { flex: 1 },
+  grid: { paddingHorizontal: 16, paddingBottom: 24, gap: 16 },
+
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  cardImage: {
+    width: "100%",
+    height: 170,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    marginBottom: 10,
+  },
+  deleteFab: {
+    position: "absolute",
+    top: 10,
+    right: 10,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  circleHeader: {
-    flexDirection: 'column',
-    gap: 12,
-  },
-  circleProfileImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
+
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8,
+    paddingHorizontal: 2,
   },
-  circleInfo: {
-    flex: 1,
+  metaGroup: { flexDirection: "row", alignItems: "center", gap: 6 },
+  metaText: { fontSize: 12, color: COLORS.textMuted },
+
+  title: { fontSize: 16, marginBottom: 6, color: COLORS.text },
+  sub: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    lineHeight: 19,
+    marginBottom: 10,
   },
-  circleName: {
-    fontSize: 16,
-    marginBottom: 4,
+
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
   },
-  circleDescription: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 8,
-  },
-  circleDetails: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  circleDetailsRTL: {
-    flexDirection: 'row-reverse',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailItemRTL: {
-    flexDirection: 'row-reverse',
-  },
-  detailText: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  joinButton: {
+  leaveLight: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    height: 30,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: COLORS.dangerSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
   },
-  joinButtonText: {
+  leaveLightTxt: {
+    color: COLORS.danger,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: "700",
+    textTransform: "lowercase",
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 16,
+  pendingPill: {
+    paddingHorizontal: 14,
+    height: 30,
+    borderRadius: 16,
+    backgroundColor: "#FFE7C2",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
   },
-  emptyText: {
-    fontSize: 16,
-    opacity: 0.6,
-    textAlign: 'center',
+  pendingTxt: { color: "#8A5200", fontSize: 12, fontWeight: "700" },
+  openTextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
-  modalOverlay: {
+  openTxt: { color: COLORS.textMuted, fontSize: 13, fontWeight: "700" },
+  joinBtn: {
+    paddingHorizontal: 18,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+  },
+  joinTxt: { color: "#fff", fontSize: 13, fontWeight: "700" },
+
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  modalContent: {
-    width: '90%',
-    maxHeight: '85%',
-    padding: 20,
-    borderRadius: 12,
-    paddingBottom: 16,
+  sheet: {
+    width: "92%",
+    maxHeight: "90%",
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: COLORS.surface,
   },
-  modalTitle: {
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  formField: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    opacity: 0.8,
-  },
-  textInput: {
-    borderRadius: 8,
+  sheetHeader: {
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray200,
+    backgroundColor: COLORS.surface,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
+  backBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  privacyOptions: {
-    flexDirection: 'row',
-    gap: 8,
+  sheetTitle: { fontSize: 18, color: COLORS.text },
+  sheetBody: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: COLORS.surface,
   },
-  privacyOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 8,
+
+  coverPicker: {
+    height: 140,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    marginBottom: 14,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.primary,
   },
-  privacyOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
+  coverImg: { width: "100%", height: "100%" },
+  coverEmpty: { alignItems: "center", justifyContent: "center", gap: 6 },
+  coverTxt: { fontWeight: "700" },
+
+  field: { marginBottom: 14 },
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: COLORS.text,
+    opacity: 0.85,
   },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+  input: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 15,
+    backgroundColor: COLORS.gray100,
+    color: COLORS.text,
   },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  rtlText: {
-    textAlign: 'right',
-  },
-  retryButton: {
-    paddingHorizontal: 20,
+  textarea: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalScrollView: {
-    flex: 1,
-    marginBottom: 12,
-  },
-  interestsContainer: {
-    height: 160,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 4,
-  },
-  interestsScrollView: {
-    flex: 1,
-    padding: 8,
-  },
-  interestCategory: {
-    marginBottom: 16,
-  },
-  categoryTitle: {
+    height: 96,
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
+    textAlignVertical: "top",
+    backgroundColor: COLORS.gray100,
+    color: COLORS.text,
+  },
+
+  interestsBox: {
+    borderRadius: 12,
+    backgroundColor: COLORS.gray100,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  catTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
     opacity: 0.8,
+    marginBottom: 6,
   },
-  interestsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestChip: {
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surface,
   },
-  interestChipText: {
-    fontSize: 12,
-    fontWeight: '500',
+  chipTxt: { fontSize: 12, fontWeight: "600", color: COLORS.text },
+
+  sheetFooter: {
+    padding: 12,
+    gap: 10,
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray200,
+    backgroundColor: COLORS.surface,
   },
-  loadingText: {
-    textAlign: 'center',
-    opacity: 0.6,
-    paddingVertical: 20,
-    fontSize: 14,
-  },
-  imagePickerButton: {
-    height: 120,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    overflow: 'hidden',
-  },
-  selectedImageContainer: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-  },
-  selectedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  changeImageText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  imagePlaceholder: {
+  btnGhost: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+    backgroundColor: COLORS.surface,
   },
-  imagePickerText: {
-    fontSize: 14,
-    fontWeight: '600',
+  btnGhostTxt: { fontWeight: "700", color: COLORS.text },
+  btnPrimary: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
   },
+  btnPrimaryTxt: { color: "#fff", fontWeight: "800" },
+
+  rtl: { textAlign: "right" },
 });
