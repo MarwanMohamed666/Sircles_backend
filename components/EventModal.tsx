@@ -48,7 +48,6 @@ export default function EventModal({
   const { user } = useAuth();
   const { texts } = useLanguage();
 
-  // ثابت ألوان موحّد
   const PRIMARY = "#198F4B";
   const BG = "#FFFFFF";
   const SURFACE = "#FFFFFF";
@@ -312,6 +311,7 @@ export default function EventModal({
             TEXT={TEXT}
             SURFACE={SURFACE}
             BORDER={BORDER}
+            PRIMARY={PRIMARY}
           />
 
           {/* Description */}
@@ -327,6 +327,7 @@ export default function EventModal({
             TEXT={TEXT}
             SURFACE={SURFACE}
             BORDER={BORDER}
+            PRIMARY={PRIMARY}
           />
 
           {/* Date & Time */}
@@ -342,6 +343,7 @@ export default function EventModal({
               TEXT={TEXT}
               SURFACE={SURFACE}
               BORDER={BORDER}
+              PRIMARY={PRIMARY}
             />
             <Field
               label="Time *"
@@ -354,6 +356,7 @@ export default function EventModal({
               TEXT={TEXT}
               SURFACE={SURFACE}
               BORDER={BORDER}
+              PRIMARY={PRIMARY}
             />
           </View>
 
@@ -368,6 +371,7 @@ export default function EventModal({
             TEXT={TEXT}
             SURFACE={SURFACE}
             BORDER={BORDER}
+            PRIMARY={PRIMARY}
           />
 
           {/* Location URL */}
@@ -383,6 +387,7 @@ export default function EventModal({
             TEXT={TEXT}
             SURFACE={SURFACE}
             BORDER={BORDER}
+            PRIMARY={PRIMARY}
           />
 
           {/* Photo */}
@@ -541,7 +546,11 @@ function Field(props: any) {
     TEXT,
     SURFACE,
     BORDER,
+    PRIMARY,
   } = props;
+
+  const [focused, setFocused] = React.useState(false);
+
   return (
     <View style={[styles.inputGroup, containerStyle]}>
       <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
@@ -556,9 +565,21 @@ function Field(props: any) {
         numberOfLines={numberOfLines}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        selectionColor={PRIMARY}
+        underlineColorAndroid="transparent"
         style={[
           multiline ? styles.textAreaInput : styles.textInput,
-          { backgroundColor: SURFACE, color: TEXT, borderColor: BORDER },
+          {
+            backgroundColor: SURFACE,
+            color: TEXT,
+            borderColor: focused ? PRIMARY : BORDER,
+            // Web focus ring off
+            outlineWidth: 0,
+            outlineColor: "transparent",
+            outlineStyle: "none",
+          } as any,
         ]}
       />
     </View>

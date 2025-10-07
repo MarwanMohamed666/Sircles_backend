@@ -1,32 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, TextInput, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
+  Alert,
+  Modal,
+  TextInput,
+  FlatList,
+  useWindowDimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { DatabaseService } from '@/lib/database';
-import { CircleCard } from '@/components/CircleCard';
-import { useCirclesStore } from '@/stores/circlesStore';
+import { ThemedText } from "@/components/ThemedText";
+import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { DatabaseService } from "@/lib/database";
+import { CircleCard } from "@/components/CircleCard";
+import { useCirclesStore } from "@/stores/circlesStore";
+import { Animated, Easing } from "react-native";
 
 interface Post {
   id: string;
   content: string;
   image?: string;
   creationdate: string;
-  author: {
-    id: string; // Added id for comparison
-    name: string;
-    avatar_url?: string;
-  } | null;
+  author: { id: string; name: string; avatar_url?: string } | null;
   circle: {
+    id?: string;
     name: string;
-    circle_interests?: { interests: { id: string, title: string } }[]
+    circle_interests?: { interests: { id: string; title: string } }[];
   } | null;
   likes: any[];
   comments: any[];
@@ -36,11 +44,20 @@ interface Post {
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { texts, isRTL } = useLanguage();
-  const backgroundColor = useThemeColor({}, 'background');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'textColor');
+  const { texts } = useLanguage();
+  const { width } = useWindowDimensions();
+  // theme
+  const PRIMARY = "#198F4B";
+  const SURFACE = "#FFFFFF";
+  const BG = "#FFFFFF";
+  const TEXT = "#0F172A";
+  const SUBTLE = "#6B7280";
+  const BORDER = "#E5E7EB";
+
+  const surfaceColor = SURFACE;
+  const tintColor = PRIMARY;
+  const textColor = TEXT;
+  const backgroundColor = BG;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -49,16 +66,39 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // create / edit post
   const [showPostModal, setShowPostModal] = useState(false);
-  const [newPostContent, setNewPostContent] = useState('');
-  const [selectedCircle, setSelectedCircle] = useState<string>('');
+  const [newPostContent, setNewPostContent] = useState("");
+  const [selectedCircle, setSelectedCircle] = useState<string>("");
   const [userCircles, setUserCircles] = useState<any[]>([]);
-  const [selectedPostImage, setSelectedPostImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [editingPost, setEditingPost] = useState<{id: string, content: string} | null>(null);
-  const [editPostContent, setEditPostContent] = useState('');
-  const [deletePostLoading, setDeletePostLoading] = useState<string | null>(null);
-  // Remove local suggested circles state - now managed by store
-  const { suggested: suggestedCircles, loading: suggestedLoading, loadSuggested, dismiss, snooze, error: circlesError } = useCirclesStore();
+  const [selectedPostImage, setSelectedPostImage] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [editingPost, setEditingPost] = useState<{ id: string } | null>(null);
+  const [editPostContent, setEditPostContent] = useState("");
+  const [deletePostLoading, setDeletePostLoading] = useState<string | null>(
+    null
+  );
+
+  // menu state
+  const [menuFor, setMenuFor] = useState<{
+    type: "post" | "event";
+    id: string;
+  } | null>(null);
+
+  // search
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+
+  // suggested circles store
+  const {
+    suggested: suggestedCircles,
+    loading: suggestedLoading,
+    loadSuggested,
+    dismiss,
+    snooze,
+    error: circlesError,
+  } = useCirclesStore();
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -66,30 +106,22 @@ export default function HomeScreen() {
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
       const { data, error } = await DatabaseService.getHomePagePosts(user.id);
-
       if (error) {
-        console.error('Error loading posts:', error);
-        setError('Unable to load posts. Please try again.');
+        setError("Unable to load posts. Please try again.");
         setPosts([]);
       } else {
-        // Ensure data is of type Post[] and add userLiked and likes_count if not present
         const postsWithLikes = (data || []).map((post: any) => ({
           ...post,
           likes_count: post.likes?.length || 0,
-          userLiked: post.likes?.some((like: any) => like.userid === user.id) || false,
+          userLiked:
+            post.likes?.some((like: any) => like.userid === user.id) || false,
         }));
         setPosts(postsWithLikes);
-        setError(null);
       }
-    } catch (error) {
-      console.error('Error loading posts:', error);
-      setError('Unable to load posts. Please try again.');
-      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -97,643 +129,304 @@ export default function HomeScreen() {
 
   const loadEvents = async () => {
     try {
-      console.log('Loading events for home feed...');
       const { data, error } = await DatabaseService.getEvents();
-      if (error) {
-        console.error('Error loading events:', error);
-        setError('Unable to load events. Please try again.');
-      } else {
-        console.log('Events loaded successfully:', data?.length);
-        setEvents(data || []);
-        setError(null);
-      }
-    } catch (error) {
-      console.error('Error loading events:', error);
-      setError('Unable to load events. Please try again.');
+      if (error) setError("Unable to load events. Please try again.");
+      else setEvents(data || []);
+    } catch {
+      setError("Unable to load events. Please try again.");
     }
   };
 
   const calculateInterestScore = (item: any) => {
-    if (!userInterests || userInterests.length === 0) return 0;
-
+    if (!userInterests?.length) return 0;
     let itemInterests: string[] = [];
-
-    if (item.type === 'event') {
-      // Events use their direct interests
-      itemInterests = item.event_interests?.map((ei: any) => ei.interests?.id).filter(Boolean) || [];
-    } else if (item.type === 'post') {
-      // Posts use their circle's interests
-      itemInterests = item.circle?.circle_interests?.map((ci: any) => ci.interests?.id).filter(Boolean) || [];
+    if (item.type === "event") {
+      itemInterests =
+        item.event_interests
+          ?.map((ei: any) => ei.interests?.id)
+          .filter(Boolean) || [];
+    } else {
+      itemInterests =
+        item.circle?.circle_interests
+          ?.map((ci: any) => ci.interests?.id)
+          .filter(Boolean) || [];
     }
-
-    if (!itemInterests.length) return 0;
-
-    // Calculate number of matching interests
-    const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
-    const matchingInterests = itemInterests.filter(interestId =>
-      userInterestIds.includes(interestId)
-    );
-
-    return matchingInterests.length;
+    const userIds = userInterests
+      .map((ui) => ui.interests?.id || ui.interestid)
+      .filter(Boolean);
+    return itemInterests.filter((id) => userIds.includes(id)).length;
   };
 
+  // insert suggested block after the 3rd post/event item
   const combineFeedItems = () => {
-    if (!userInterests || userInterests.length === 0) {
-      // If user has no interests, sort by creation date only
-      const combined = [
-        ...posts.map(post => ({ ...post, type: 'post', sortDate: new Date(post.creationdate) })),
-        ...events.map(event => ({ ...event, type: 'event', sortDate: new Date(event.creationdate) }))
+    const combined = [
+      ...posts.map((post) => ({
+        ...post,
+        type: "post",
+        sortDate: new Date(post.creationdate),
+      })),
+      ...events.map((event) => ({
+        ...event,
+        type: "event",
+        sortDate: new Date(event.creationdate),
+      })),
+    ];
+    combined.forEach((i) => (i.interestScore = calculateInterestScore(i)));
+    combined.sort(
+      (a, b) =>
+        (b.interestScore || 0) - (a.interestScore || 0) ||
+        (b.sortDate as any) - (a.sortDate as any)
+    );
+
+    // add suggested section after item index 2 if suggestions exist
+    let withSuggested = combined;
+    if (suggestedCircles && suggestedCircles.length > 0) {
+      const insertAt = Math.min(3, combined.length);
+      withSuggested = [
+        ...combined.slice(0, insertAt),
+        { id: "suggested-section", type: "suggested" },
+        ...combined.slice(insertAt),
       ];
-
-      combined.sort((a, b) => {
-        return b.sortDate.getTime() - a.sortDate.getTime();
-      });
-
-      return combined;
     }
 
-    // Get user's interest IDs for comparison
-    const userInterestIds = userInterests.map(ui => ui.interests?.id || ui.interestid).filter(Boolean);
-
-    const combined = [
-      ...posts.map(post => ({
-        ...post,
-        type: 'post',
-        sortDate: new Date(post.creationdate),
-        interestScore: 0
-      })),
-      ...events.map(event => ({
-        ...event,
-        type: 'event',
-        sortDate: new Date(event.creationdate),
-        interestScore: 0
-      }))
-    ];
-
-    // Calculate interest scores
-    combined.forEach(item => {
-      item.interestScore = calculateInterestScore(item);
-    });
-
-    // Sort by interest score (descending), then by creation date (newest first)
-    combined.sort((a, b) => {
-      // First priority: interest score (higher is better)
-      if (a.interestScore !== b.interestScore) {
-        return b.interestScore - a.interestScore;
-      }
-
-      // Second priority: creation date (newer is better)
-      return b.sortDate.getTime() - a.sortDate.getTime();
-    });
-
-    setFeedItems(combined);
+    setFeedItems(withSuggested);
     setLoading(false);
   };
 
   const loadUserInterests = async () => {
     if (!user?.id) return;
-
     try {
       const { data, error } = await DatabaseService.getUserInterests(user.id);
-      if (error) {
-        console.error('Error loading user interests:', error);
-        setError('Unable to load user interests.');
-      } else {
-        setUserInterests(data || []);
-        setError(null);
-      }
-    } catch (error) {
-      console.error('Error loading user interests:', error);
-      setError('Unable to load user interests.');
-    }
+      if (!error) setUserInterests(data || []);
+    } catch {}
   };
-
-  // Suggested circles now handled by store
 
   const loadUserCircles = async () => {
     if (!user?.id) return;
-
     try {
-      const { data, error } = await DatabaseService.getUserJoinedCircles(user.id);
-      if (error) {
-        console.error('Error loading user circles:', error);
-        setError('Unable to load user circles.');
-        return;
-      }
-
-      const circleDetails = await Promise.all(
-        (data || []).map(async (uc) => {
-          const { data: circles } = await DatabaseService.getCircles();
-          const circle = circles?.find(c => c.id === uc.circleid);
-          return circle;
-        })
+      const { data, error } = await DatabaseService.getUserJoinedCircles(
+        user.id
       );
-
-      setUserCircles(circleDetails.filter(Boolean));
-      setError(null);
-    } catch (error) {
-      console.error('Error loading user circles:', error);
-      setError('Unable to load user circles.');
-    }
+      if (error) return;
+      const { data: allCircles } = await DatabaseService.getCircles();
+      const joined = (data || [])
+        .map((uc: any) => allCircles?.find((c: any) => c.id === uc.circleid))
+        .filter(Boolean);
+      setUserCircles(joined);
+    } catch {}
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
-    // Also explicitly reload suggested circles
+    await Promise.all([
+      loadPosts(),
+      loadEvents(),
+      loadUserCircles(),
+      loadUserInterests(),
+    ]);
     await loadSuggested();
     setRefreshing(false);
   }, [user, loadSuggested]);
 
   useEffect(() => {
-    if (user) {
-      Promise.all([loadPosts(), loadEvents(), loadUserCircles(), loadUserInterests()]);
-    } else {
+    if (user)
+      Promise.all([
+        loadPosts(),
+        loadEvents(),
+        loadUserCircles(),
+        loadUserInterests(),
+      ]);
+    else {
       setPosts([]);
       setEvents([]);
       setFeedItems([]);
       setUserInterests([]);
-      setSuggestedCircles([]);
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    if (posts.length > 0 || events.length > 0 || userInterests.length > 0) {
+    if (posts.length || events.length || userInterests.length >= 0)
       combineFeedItems();
-    } else if (!loading && user) {
-      // If still loading and no data, show empty state
-      setFeedItems([]);
-      setLoading(false);
-    }
-  }, [posts, events, userInterests, loading, user]);
+  }, [posts, events, userInterests, suggestedCircles]);
 
   useEffect(() => {
-    if (user && userInterests.length >= 0) { // Load even if user has no interests
-      console.log('Loading suggested circles for user with interests:', userInterests.length);
-      loadSuggested();
-    }
-  }, [userInterests.length, user?.id, loadSuggested]);
+    if (user) loadSuggested();
+  }, [user?.id, userInterests.length, loadSuggested]);
 
   const formatTimeAgo = (dateString: string) => {
-    if (!dateString) return 'Unknown time';
+    if (!dateString) return "Unknown time";
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Unknown time';
-    
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
-
+    if (isNaN(+date)) return "Unknown time";
+    const diffH = Math.floor((Date.now() - +date) / 36e5);
+    if (diffH < 1) return "Just now";
+    if (diffH < 24) return `${diffH}h ago`;
+    const d = Math.floor(diffH / 24);
+    if (d < 7) return `${d}d ago`;
     return date.toLocaleDateString();
   };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Allow photo library access.");
       return;
     }
-
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.9,
     });
-
-    if (!result.canceled) {
-      setSelectedPostImage(result.assets[0]);
-    }
+    if (!result.canceled) setSelectedPostImage(result.assets[0]);
   };
 
   const handleLikePost = async (postId: string) => {
-    if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to like posts');
-      return;
-    }
-
-    try {
-      const postIndex = posts.findIndex(p => p.id === postId);
-      if (postIndex === -1) return;
-
-      const post = posts[postIndex];
-      const isCurrentlyLiked = post.userLiked;
-      const originalPosts = [...posts];
-
-      const updatedPosts = [...posts];
-      updatedPosts[postIndex] = {
-        ...post,
-        userLiked: !isCurrentlyLiked,
-        likes_count: isCurrentlyLiked ? Math.max(0, (post.likes_count || 1) - 1) : (post.likes_count || 0) + 1
-      };
-      setPosts(updatedPosts);
-
-      const { error } = isCurrentlyLiked
-        ? await DatabaseService.unlikePost(postId, user.id)
-        : await DatabaseService.likePost(postId, user.id);
-
-      if (error) {
-        console.error('Error toggling like:', error);
-        setPosts(originalPosts);
-        Alert.alert('Error', 'Failed to update like');
-      }
-    } catch (error) {
-      console.error('Error handling like:', error);
-      const postIndex = posts.findIndex(p => p.id === postId);
-      if (postIndex !== -1) {
-        const originalPosts = [...posts];
-        originalPosts[postIndex] = {
-          ...originalPosts[postIndex],
-          userLiked: originalPosts[postIndex].userLiked,
-          likes_count: originalPosts[postIndex].likes_count
-        };
-        setPosts(originalPosts);
-      }
-      Alert.alert('Error', 'Failed to update like');
+    if (!user?.id) return Alert.alert("Error", "Login first");
+    const i = posts.findIndex((p) => p.id === postId);
+    if (i === -1) return;
+    const original = [...posts];
+    const p = posts[i];
+    const next = [...posts];
+    next[i] = {
+      ...p,
+      userLiked: !p.userLiked,
+      likes_count: (p.likes_count || 0) + (p.userLiked ? -1 : 1),
+    };
+    setPosts(next);
+    const { error } = p.userLiked
+      ? await DatabaseService.unlikePost(postId, user.id)
+      : await DatabaseService.likePost(postId, user.id);
+    if (error) {
+      setPosts(original);
+      Alert.alert("Error", "Failed to update like");
     }
   };
 
-
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() || !selectedCircle) {
-      Alert.alert('Error', 'Please enter post content and select a circle');
-      return;
-    }
-
-    if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to create posts');
-      return;
-    }
-
+    if (!newPostContent.trim() || !selectedCircle)
+      return Alert.alert("Error", "Content & circle required");
+    if (!user?.id) return Alert.alert("Error", "Login first");
     try {
-      let imageUrl = undefined;
+      let imageUrl: string | undefined;
       if (selectedPostImage) {
-        const uploadResponse = await DatabaseService.uploadImage(selectedPostImage);
-        if (uploadResponse.error) {
-          Alert.alert('Error', 'Failed to upload image');
-          return;
-        }
-        imageUrl = uploadResponse.url;
+        const up = await DatabaseService.uploadImage(selectedPostImage);
+        if (up.error) return Alert.alert("Error", "Failed to upload image");
+        imageUrl = up.url;
       }
-
       const { error } = await DatabaseService.createPost({
         userid: user.id,
         content: newPostContent.trim(),
         circleid: selectedCircle,
         image: imageUrl,
       });
-
-      if (error) {
-        Alert.alert('Error', 'Failed to create post');
-        return;
-      }
-
-      Alert.alert('Success', 'Post created successfully!');
-      setNewPostContent('');
-      setSelectedCircle('');
-      setSelectedPostImage(null);
+      if (error) return Alert.alert("Error", "Failed to create post");
       setShowPostModal(false);
+      setNewPostContent("");
+      setSelectedCircle("");
+      setSelectedPostImage(null);
       await loadPosts();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create post');
+    } catch {
+      Alert.alert("Error", "Failed to create post");
     }
   };
 
-  const handleEditPost = (postId: string, currentContent: string) => {
-    setEditingPost(postId);
-    setEditPostContent(currentContent);
+  const handleEditPostStart = (postId: string, current: string) => {
+    setEditingPost({ id: postId });
+    setEditPostContent(current);
   };
-
-  const handleCancelEdit = () => {
-    setEditingPost(null);
-    setEditPostContent('');
-  };
-
   const handleSaveEdit = async () => {
     if (!editingPost || !editPostContent.trim() || !user?.id) return;
-
-    try {
-      const { error } = await DatabaseService.updatePost(
-        editingPost.id,
-        { content: editPostContent.trim() },
-        user.id
-      );
-      if (error) {
-        Alert.alert('Error', 'Failed to update post');
-        return;
-      }
-
-      Alert.alert('Success', 'Post updated successfully!');
-      setEditingPost(null);
-      setEditPostContent('');
-      await loadPosts();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update post');
-    }
+    const { error } = await DatabaseService.updatePost(
+      editingPost.id,
+      { content: editPostContent.trim() },
+      user.id
+    );
+    if (error) return Alert.alert("Error", "Failed to update post");
+    setEditingPost(null);
+    setEditPostContent("");
+    await loadPosts();
   };
-
   const handleDeletePost = async (postId: string) => {
     if (!user?.id || deletePostLoading === postId) return;
-
-    console.log('🗑️ HOME PAGE: Delete post requested for:', postId);
-    console.log('🗑️ HOME PAGE: User ID:', user.id);
-    console.log('🗑️ HOME PAGE: Current deletePostLoading state:', deletePostLoading);
-
-    Alert.alert(
-      'Delete Post',
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => {
-            console.log('🗑️ HOME PAGE: Delete cancelled by user');
+    Alert.alert("Delete Post", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setDeletePostLoading(postId);
+            const { error } = await DatabaseService.deletePost(postId, user.id);
+            if (error)
+              return Alert.alert("Error", error.message || "Failed to delete");
+            setPosts((prev) => prev.filter((p) => p.id !== postId));
+            setFeedItems((prev) =>
+              prev.filter((i) => !(i.type === "post" && i.id === postId))
+            );
+          } finally {
+            setDeletePostLoading(null);
           }
         },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🗑️ HOME PAGE: Starting delete process...');
-              setDeletePostLoading(postId);
-
-              console.log('🗑️ HOME PAGE: Calling DatabaseService.deletePost...');
-              const { data, error } = await DatabaseService.deletePost(postId, user.id);
-
-              console.log('🗑️ HOME PAGE: Delete result:', {
-                hasData: !!data,
-                hasError: !!error,
-                errorMessage: error?.message,
-                data: data
-              });
-
-              if (error) {
-                console.error('🗑️ HOME PAGE: Error deleting post:', error);
-                Alert.alert('Error', error.message || 'Failed to delete post');
-                setDeletePostLoading(null);
-                return;
-              }
-
-              console.log('🗑️ HOME PAGE: Post deleted successfully, updating UI...');
-
-              // Remove the post from both posts and feedItems state
-              setPosts(prevPosts => {
-                const filtered = prevPosts.filter(post => post.id !== postId);
-                console.log('🗑️ HOME PAGE: Updated posts count:', filtered.length);
-                return filtered;
-              });
-              
-              setFeedItems(prevItems => {
-                const filtered = prevItems.filter(item => 
-                  !(item.type === 'post' && item.id === postId)
-                );
-                console.log('🗑️ HOME PAGE: Updated feedItems count:', filtered.length);
-                return filtered;
-              });
-              
-              console.log('🗑️ HOME PAGE: UI updated, showing success message');
-              Alert.alert('Success', 'Post deleted successfully');
-              
-            } catch (error) {
-              console.error('🗑️ HOME PAGE: Unexpected error deleting post:', error);
-              Alert.alert('Error', 'Failed to delete post: ' + (error instanceof Error ? error.message : String(error)));
-            } finally {
-              console.log('🗑️ HOME PAGE: Clearing delete loading state');
-              setDeletePostLoading(null);
-            }
-          }
-        }
-      ]
-    );
+      },
+    ]);
   };
 
   const handleJoinSuggestedCircle = async (circleId: string) => {
-    if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to join circles');
+    if (!user?.id) return Alert.alert("Error", "Login first");
+    const { error } = await DatabaseService.joinCircle(user.id, circleId);
+    if (error) {
+      if (error.message?.includes("private")) {
+        const { error: reqErr } = await DatabaseService.requestToJoinCircle(
+          user.id,
+          circleId
+        );
+        if (reqErr) Alert.alert("Error", reqErr.message);
+        else {
+          Alert.alert("Request Sent", "Waiting for approval");
+          dismiss(circleId);
+        }
+      } else Alert.alert("Error", error.message);
       return;
     }
-
-    try {
-      const { error } = await DatabaseService.joinCircle(user.id, circleId);
-      
-      if (error) {
-        if (error.message.includes('private circle')) {
-          // Handle private circle - request to join instead
-          const { error: requestError } = await DatabaseService.requestToJoinCircle(user.id, circleId);
-          if (requestError) {
-            Alert.alert('Error', requestError.message);
-          } else {
-            Alert.alert('Request Sent', 'Your request to join this private circle has been sent to the admins.');
-            // Remove the circle from suggestions since user has requested to join
-            setSuggestedCircles(prev => prev.filter(c => c.id !== circleId));
-          }
-        } else {
-          Alert.alert('Error', error.message);
-        }
-        return;
-      }
-
-      Alert.alert('Success', 'You have successfully joined the circle!');
-      // Remove the joined circle from suggestions
-      setSuggestedCircles(prev => prev.filter(c => c.id !== circleId));
-      // Refresh user circles and suggested circles
-      await loadUserCircles();
-    } catch (error) {
-      console.error('Error joining circle:', error);
-      Alert.alert('Error', 'Failed to join circle. Please try again.');
-    }
+    Alert.alert("Success", "Joined circle");
+    dismiss(circleId);
+    await loadUserCircles();
   };
 
-  const renderEvent = ({ item }: { item: any }) => (
-    <View style={[
-      styles.postCard,
-      { backgroundColor: surfaceColor },
-      item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
-    ]}>
-      <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          <View style={[styles.avatar, { backgroundColor: tintColor }]}>
-            <ThemedText style={styles.avatarText}>
-              📅
-            </ThemedText>
-          </View>
-          <View style={styles.userDetails}>
-            <ThemedText style={styles.userName}>
-              {item.circle?.name || 'Unknown Circle'}
-            </ThemedText>
-            <View style={styles.timeAndInterest}>
-              <ThemedText style={styles.postTime}>
-                Event • {formatTimeAgo(item.creationdate)}
-              </ThemedText>
-              {item.interestScore > 0 && typeof item.interestScore === 'number' && (
-                <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
-                  ⭐ {item.interestScore} match{item.interestScore > 1 ? 'es' : ''}
-                </ThemedText>
-              )}
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.postContent}>
-        <ThemedText style={styles.eventTitle}>{item.title || 'Untitled Event'}</ThemedText>
-        <ThemedText style={styles.eventDateTime}>
-          📅 {item.date ? new Date(item.date).toLocaleDateString() : 'TBD'} at {item.time || 'TBD'}
-        </ThemedText>
-        {item.description && (
-          <ThemedText style={styles.postText}>{item.description}</ThemedText>
-        )}
-        {item.location && (
-          <ThemedText style={styles.eventLocation}>📍 {item.location}</ThemedText>
-        )}
-
-        {/* Event Interests */}
-        {item.event_interests && item.event_interests.length > 0 && (
-          <View style={styles.eventInterests}>
-            {item.event_interests.map((ei: any) => {
-              if (!ei.interests || !ei.interests.id || !ei.interests.title) return null;
-              return (
-                <View
-                  key={ei.interests.id}
-                  style={[styles.eventInterestChip, { backgroundColor: tintColor + '20', borderColor: tintColor }]}
-                >
-                  <ThemedText style={[styles.eventInterestText, { color: tintColor }]}>
-                    {ei.interests.title}
-                  </ThemedText>
-                </View>
-              );
-            }).filter(Boolean)}
-          </View>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderPost = ({ item }: { item: Post & { interestScore?: number } }) => (
-    <View key={item.id} style={[
-      styles.postCard,
-      { backgroundColor: surfaceColor },
-      item.interestScore && item.interestScore > 0 && { borderLeftWidth: 4, borderLeftColor: tintColor }
-    ]}>
-      {/* Post Header */}
-      <View style={[styles.postHeader, isRTL && styles.postHeaderRTL]}>
-        <View style={[styles.authorInfo, isRTL && styles.authorInfoRTL]}>
-          <Image
-            source={{ uri: item.author?.avatar_url || 'https://via.placeholder.com/40' }}
-            style={styles.authorAvatar}
-          />
-          <View style={styles.authorDetails}>
-            <ThemedText type="defaultSemiBold" style={styles.authorName}>
-              {item.author?.name || 'Unknown User'}
-            </ThemedText>
-            <View style={[styles.postMeta, isRTL && styles.postMetaRTL]}>
-              <ThemedText style={styles.circleName}>
-                in {item.circle?.name || 'Unknown Circle'}
-              </ThemedText>
-              <ThemedText style={styles.postTime}>
-                • {formatTimeAgo(item.creationdate)}
-              </ThemedText>
-              {item.interestScore > 0 && typeof item.interestScore === 'number' && (
-                <ThemedText style={[styles.interestIndicator, { color: tintColor }]}>
-                  • ⭐ {item.interestScore}
-                </ThemedText>
-              )}
-            </View>
-          </View>
-        </View>
-        <View style={styles.postActions}>
-          {/* Edit button - only show for post owner */}
-          {user?.id === item.author?.id && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleEditPost(item.id, item.content)}
-            >
-              <IconSymbol name="pencil" size={20} color={textColor} />
-            </TouchableOpacity>
-          )}
-          {/* Delete button - show for post owner or admin */}
-          {(user?.id === item.author?.id || (item.circle && userCircles.some(c => c.id === item.circle.id && c.role === 'admin'))) && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleDeletePost(item.id)}
-              disabled={deletePostLoading === item.id}
-            >
-              {deletePostLoading === item.id ? (
-                <ThemedText style={{color: 'red'}}>Deleting...</ThemedText>
-              ) : (
-                <IconSymbol name="trash" size={20} color="#EF5350" />
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Post Content */}
-      <View style={styles.postContentContainer}>
-        <ThemedText style={[styles.postContent, isRTL && styles.rtlText]}>
-          {item.content}
-        </ThemedText>
-      </View>
-
-      {/* Post Image */}
-      {item.image && (
-        <Image source={{ uri: item.image }} style={styles.postImage} />
-      )}
-
-      {/* Post Actions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleLikePost(item.id)}
-          disabled={!user}
-        >
-          <IconSymbol
-            name={item.userLiked ? "heart.fill" : "heart"}
-            size={20}
-            color={item.userLiked ? "#ff4444" : textColor}
-          />
-          <ThemedText style={[
-            styles.actionText,
-            item.userLiked && { color: "#ff4444" }
-          ]}>
-            {item.likes_count || 0}
-          </ThemedText>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push(`/post/${item.id}`)}
-        >
-          <IconSymbol name="bubble.left" size={20} color={textColor} />
-          <ThemedText style={styles.actionText}>
-            {item.comments_count || item.comments?.length || 0}
-          </ThemedText>
-        </TouchableOpacity>
-
-      </View>
-    </View>
-  );
+  // filter feed
+  const filteredFeed = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return feedItems;
+    return feedItems.filter((item: any) => {
+      if (item.type === "post") {
+        const content = String(item.content || "").toLowerCase();
+        const circle = String(item.circle?.name || "").toLowerCase();
+        return content.includes(q) || circle.includes(q);
+      } else if (item.type === "event") {
+        const title = String(item.title || "").toLowerCase();
+        const desc = String(item.description || "").toLowerCase();
+        const circle = String(item.circle?.name || "").toLowerCase();
+        return title.includes(q) || desc.includes(q) || circle.includes(q);
+      }
+      return true; // suggested section passes through
+    });
+  }, [feedItems, query]);
 
   if (!user) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={styles.centeredContainer}>
-          <IconSymbol name="person.circle" size={64} color={textColor + '40'} />
+          <IconSymbol name="person.circle" size={64} color={SUBTLE} />
           <ThemedText style={styles.emptyText}>
-            Please log in to see posts from your circles
+            Please log in to see posts
           </ThemedText>
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: tintColor }]}
-            onPress={() => router.push('/login')}
+            style={[styles.primaryBtn, { backgroundColor: tintColor }]}
+            onPress={() => router.push("/login")}
           >
-            <ThemedText style={styles.loginButtonText}>
-              {texts.login || 'Login'}
+            <ThemedText style={styles.primaryBtnText}>
+              {texts.login || "Login"}
             </ThemedText>
           </TouchableOpacity>
         </View>
@@ -741,34 +434,110 @@ export default function HomeScreen() {
     );
   }
 
+  // Suggested block renderer. Two large cards side-by-side.
+  function renderSuggestedSection() {
+    const H_PAD = 12; // نفس padding للكونتينر
+    const CARD_GAP = 12; // مسافة بين الكروت
+    const cardW = Math.floor((width - H_PAD * 2) * 0.72); // كارت عريض ومريح
+
+    const items = suggestedCircles; // اعرض الكل في سلايدر
+
+    return (
+      <View style={[styles.card, { backgroundColor: surfaceColor }]}>
+        <View
+          style={{ paddingHorizontal: H_PAD, paddingTop: 10, paddingBottom: 8 }}
+        >
+          <ThemedText
+            style={{ fontWeight: "700", fontSize: 14, color: textColor }}
+          >
+            Circles of Your Interest
+          </ThemedText>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: H_PAD,
+            paddingBottom: 10,
+          }}
+        >
+          {items.map((circle: any, idx: number) => (
+            <View
+              key={circle.id}
+              style={{
+                width: cardW,
+                marginRight: idx === items.length - 1 ? 0 : CARD_GAP,
+              }}
+            >
+              <CircleCard
+                circle={circle}
+                onJoin={handleJoinSuggestedCircle}
+                onDismiss={dismiss}
+                onSnooze={snooze}
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/circles")}
+          style={{
+            alignItems: "center",
+            paddingVertical: 8,
+            borderTopWidth: 1,
+            borderColor: BORDER,
+          }}
+        >
+          <ThemedText style={{ color: SUBTLE, fontWeight: "600" }}>
+            See All
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: surfaceColor }]}>
-        <ThemedText type="title" style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {texts.home || 'Home'}
+      <View style={[styles.appHeader]}>
+        <ThemedText type="title" style={[styles.brand, { color: tintColor }]}>
+          Sircles
         </ThemedText>
-        <View style={[styles.headerButtons, isRTL && styles.headerButtonsRTL]}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/messages')}
-          >
-            <IconSymbol name="message" size={24} color={textColor} />
+
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => setShowSearch((s) => !s)}>
+            <IconSymbol name="magnifyingglass" size={22} color={TEXT} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/places')}
-          >
-            <IconSymbol name="building.2" size={24} color={textColor} />
+          <TouchableOpacity onPress={() => router.push("/(tabs)/messages")}>
+            <IconSymbol name="bubble.left.fill" size={22} color={TEXT} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push('/(tabs)/notifications')}
-          >
-            <IconSymbol name="bell" size={24} color={textColor} />
+          <TouchableOpacity onPress={() => setShowPostModal(true)}>
+            <IconSymbol name="plus.circle" size={22} color={TEXT} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Collapsible search bar */}
+      {showSearch && (
+        <View style={[styles.searchWrap, { borderColor: BORDER }]}>
+          <IconSymbol name="magnifyingglass" size={18} color={SUBTLE} />
+          <TextInput
+            style={[styles.searchInput, { color: TEXT }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search posts and events..."
+            placeholderTextColor={SUBTLE}
+            autoFocus
+            returnKeyType="search"
+          />
+          {!!query && (
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <IconSymbol name="xmark.circle.fill" size={18} color={SUBTLE} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <ScrollView
         style={styles.content}
@@ -777,117 +546,47 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Suggested Circles Section */}
-        {user && !loading && (
-          <>
-            {suggestedLoading && (
-              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
-                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
-                  Loading Suggested Circles...
-                </ThemedText>
-              </View>
-            )}
-            
-            {!suggestedLoading && suggestedCircles.length > 0 && (
-              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
-                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
-                  Suggested Circles ({suggestedCircles.length})
-                </ThemedText>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.suggestedScrollView}
-                  contentContainerStyle={styles.suggestedContent}
-                >
-                  {suggestedCircles.map((circle) => (
-                    <CircleCard
-                      key={circle.id}
-                      circle={circle}
-                      onJoin={handleJoinSuggestedCircle}
-                      onDismiss={dismiss}
-                      onSnooze={snooze}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-            
-            {!suggestedLoading && suggestedCircles.length === 0 && userInterests.length > 0 && (
-              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
-                <ThemedText type="defaultSemiBold" style={styles.suggestedTitle}>
-                  No Suggested Circles
-                </ThemedText>
-                <ThemedText style={styles.emptyText}>
-                  No circles match your interests at the moment
-                </ThemedText>
-              </View>
-            )}
-            
-            {circlesError && (
-              <View style={[styles.suggestedSection, { backgroundColor: surfaceColor }]}>
-                <ThemedText type="defaultSemiBold" style={[styles.suggestedTitle, { color: '#EF5350' }]}>
-                  Error Loading Suggestions
-                </ThemedText>
-                <ThemedText style={styles.emptyText}>
-                  {circlesError}
-                </ThemedText>
-              </View>
-            )}
-          </>
-        )}
-
+        {/* نلغي سيكشن المقترحات العلوي لتجنب التكرار */}
         {loading ? (
           <View style={styles.centeredContainer}>
-            <ThemedText>{texts.loading || 'Loading...'}</ThemedText>
+            <ThemedText>{texts.loading || "Loading..."}</ThemedText>
           </View>
         ) : error ? (
           <View style={styles.centeredContainer}>
-            <IconSymbol name="exclamationmark.triangle" size={64} color="#EF5350" />
+            <IconSymbol
+              name="exclamationmark.triangle"
+              size={64}
+              color="#EF5350"
+            />
             <ThemedText style={styles.emptyText}>{error}</ThemedText>
             <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: tintColor }]}
+              style={[styles.primaryBtn, { backgroundColor: tintColor }]}
               onPress={loadPosts}
             >
-              <ThemedText style={styles.retryButtonText}>
-                {texts.retry || 'Retry'}
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-        ) : feedItems.length === 0 ? (
-          <View style={styles.centeredContainer}>
-            <IconSymbol name="doc.text" size={64} color={textColor + '40'} />
-            <ThemedText style={styles.emptyText}>
-              No posts or events yet
-            </ThemedText>
-            <ThemedText style={styles.emptySubtext}>
-              Join some circles or check for events!
-            </ThemedText>
-            <TouchableOpacity
-              style={[styles.exploreButton, { backgroundColor: tintColor }]}
-              onPress={() => router.push('/circles')}
-            >
-              <ThemedText style={styles.exploreButtonText}>
-                Explore Circles
+              <ThemedText style={styles.primaryBtnText}>
+                {texts.retry || "Retry"}
               </ThemedText>
             </TouchableOpacity>
           </View>
         ) : (
           <FlatList
-            data={feedItems}
+            data={filteredFeed}
             keyExtractor={(item) => `${item.type}-${item.id}`}
-            renderItem={({ item }) => {
-              if (item.type === 'post') {
-                return renderPost({ item });
-              } else {
-                return renderEvent({ item });
-              }
-            }}
+            renderItem={({ item }) =>
+              item.type === "post"
+                ? renderPost({ item })
+                : item.type === "event"
+                ? renderEvent({ item })
+                : renderSuggestedSection()
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <ThemedText style={styles.emptyStateText}>No posts or events yet</ThemedText>
+              <View style={styles.centeredContainer}>
+                <ThemedText style={styles.emptyText}>
+                  No posts or events yet
+                </ThemedText>
               </View>
             }
             showsVerticalScrollIndicator={false}
@@ -895,15 +594,59 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Floating Action Button */}
-      {user && (
+      {/* Three-dots Menu */}
+      <Modal
+        visible={!!menuFor}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuFor(null)}
+      >
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: tintColor }]}
-          onPress={() => setShowPostModal(true)}
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuFor(null)}
         >
-          <IconSymbol name="plus" size={24} color="#fff" />
+          <View
+            style={[
+              styles.menuSheet,
+              { backgroundColor: SURFACE, borderColor: BORDER },
+            ]}
+          >
+            {menuFor?.type === "post" && (
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    const p = posts.find((x) => x.id === menuFor.id);
+                    if (p) handleEditPostStart(p.id, p.content || "");
+                    setMenuFor(null);
+                  }}
+                >
+                  <IconSymbol name="pencil" size={18} color={TEXT} />
+                  <ThemedText style={styles.menuText}>Edit</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    handleDeletePost(menuFor!.id);
+                    setMenuFor(null);
+                  }}
+                >
+                  <IconSymbol name="trash" size={18} color="#EF4444" />
+                  <ThemedText style={[styles.menuText, { color: "#EF4444" }]}>
+                    Delete
+                  </ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
+            {menuFor?.type === "event" && (
+              <View style={{ paddingHorizontal: 8, paddingVertical: 2 }}>
+                <ThemedText>Event actions coming soon</ThemedText>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
-      )}
+      </Modal>
 
       {/* Create Post Modal */}
       <Modal
@@ -912,85 +655,134 @@ export default function HomeScreen() {
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
-            <TouchableOpacity onPress={() => {
-              setShowPostModal(false);
-              setSelectedPostImage(null);
-              setNewPostContent('');
-              setSelectedCircle('');
-            }}>
-              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
+          <View
+            style={[
+              styles.modalHeader,
+              { backgroundColor: surfaceColor, borderBottomColor: BORDER },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setShowPostModal(false);
+                setSelectedPostImage(null);
+                setNewPostContent("");
+                setSelectedCircle("");
+              }}
+            >
+              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>
+                Cancel
+              </ThemedText>
             </TouchableOpacity>
-            <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
-            <TouchableOpacity onPress={handleCreatePost} disabled={!newPostContent.trim() || !selectedCircle}>
-              <ThemedText style={[
-                styles.saveButton,
-                { color: newPostContent.trim() && selectedCircle ? tintColor : textColor + '50' }
-              ]}>
+            <ThemedText style={[styles.modalTitle, { color: TEXT }]}>
+              Create Post
+            </ThemedText>
+            <TouchableOpacity
+              onPress={handleCreatePost}
+              disabled={!newPostContent.trim() || !selectedCircle}
+            >
+              <ThemedText
+                style={[
+                  styles.saveButton,
+                  {
+                    color:
+                      newPostContent.trim() && selectedCircle
+                        ? tintColor
+                        : SUBTLE,
+                  },
+                ]}
+              >
                 Post
               </ThemedText>
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalBody}>
-            {/* Circle Selection */}
             <View style={styles.inputSection}>
-              <ThemedText style={styles.inputLabel}>Select Circle:</ThemedText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.circleSelector}>
-                {userCircles.map((circle) => (
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                Select Circle:
+              </ThemedText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {userCircles.map((c) => (
                   <TouchableOpacity
-                    key={circle.id}
+                    key={c.id}
                     style={[
-                      styles.circleOption,
+                      styles.circlePill,
                       {
-                        backgroundColor: selectedCircle === circle.id ? tintColor : backgroundColor,
-                        borderColor: tintColor
-                      }
+                        borderColor: tintColor,
+                        backgroundColor:
+                          selectedCircle === c.id ? tintColor : SURFACE,
+                      },
                     ]}
-                    onPress={() => setSelectedCircle(circle.id)}
+                    onPress={() => setSelectedCircle(c.id)}
                   >
-                    <ThemedText style={[
-                      styles.circleOptionText,
-                      { color: selectedCircle === circle.id ? '#fff' : textColor }
-                    ]}>
-                      {circle.name}
+                    <ThemedText
+                      style={[
+                        styles.circlePillTxt,
+                        { color: selectedCircle === c.id ? "#fff" : textColor },
+                      ]}
+                    >
+                      {c.name}
                     </ThemedText>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
-            {/* Post Content Input */}
             <View style={styles.inputSection}>
-              <ThemedText style={styles.inputLabel}>What's on your mind?</ThemedText>
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                What's on your mind?
+              </ThemedText>
               <TextInput
-                style={[styles.postInput, { backgroundColor: backgroundColor, color: textColor }]}
+                style={[
+                  styles.postInput,
+                  {
+                    backgroundColor: SURFACE,
+                    color: TEXT,
+                    borderColor: BORDER,
+                  },
+                ]}
                 value={newPostContent}
                 onChangeText={setNewPostContent}
                 placeholder="Share your thoughts..."
-                placeholderTextColor={textColor + '60'}
+                placeholderTextColor={SUBTLE}
                 multiline
-                numberOfLines={4}
+                numberOfLines={25}
                 textAlignVertical="top"
               />
             </View>
 
-            {/* Image Picker */}
             <View style={styles.inputSection}>
-              <ThemedText style={styles.inputLabel}>Add Photo:</ThemedText>
-              <TouchableOpacity onPress={pickImage} style={[styles.imagePickerButton, { backgroundColor: backgroundColor, borderColor: tintColor }]}>
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                Add Photo:
+              </ThemedText>
+              <TouchableOpacity
+                onPress={pickImage}
+                style={[
+                  styles.imagePicker,
+                  { backgroundColor: SURFACE, borderColor: tintColor },
+                ]}
+              >
                 {selectedPostImage ? (
-                  <View style={styles.selectedImageContainer}>
-                    <Image source={{ uri: selectedPostImage.uri }} style={styles.selectedPostImage} />
+                  <View style={styles.imageSelected}>
+                    <Image
+                      source={{ uri: selectedPostImage.uri }}
+                      style={styles.image}
+                    />
                     <View style={styles.imageOverlay}>
-                      <IconSymbol name="photo" size={24} color="#fff" />
-                      <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                      <IconSymbol name="photo" size={22} color="#fff" />
+                      <ThemedText style={styles.imageOverlayTxt}>
+                        Change Photo
+                      </ThemedText>
                     </View>
                   </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <IconSymbol name="photo" size={32} color={tintColor} />
-                    <ThemedText style={[styles.imagePickerText, { color: tintColor }]}>Tap to select a photo</ThemedText>
+                    <IconSymbol name="photo" size={28} color={tintColor} />
+                    <ThemedText
+                      style={[styles.imagePickerTxt, { color: tintColor }]}
+                    >
+                      Tap to select a photo
+                    </ThemedText>
                   </View>
                 )}
               </TouchableOpacity>
@@ -1006,16 +798,35 @@ export default function HomeScreen() {
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor }]}>
-            <TouchableOpacity onPress={handleCancelEdit}>
-              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>Cancel</ThemedText>
+          <View
+            style={[
+              styles.modalHeader,
+              { backgroundColor: surfaceColor, borderBottomColor: BORDER },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setEditingPost(null);
+                setEditPostContent("");
+              }}
+            >
+              <ThemedText style={[styles.cancelButton, { color: tintColor }]}>
+                Cancel
+              </ThemedText>
             </TouchableOpacity>
-            <ThemedText style={styles.modalTitle}>Edit Post</ThemedText>
-            <TouchableOpacity onPress={handleSaveEdit} disabled={!editPostContent.trim()}>
-              <ThemedText style={[
-                styles.saveButton,
-                { color: editPostContent.trim() ? tintColor : textColor + '50' }
-              ]}>
+            <ThemedText style={[styles.modalTitle, { color: TEXT }]}>
+              Edit Post
+            </ThemedText>
+            <TouchableOpacity
+              onPress={handleSaveEdit}
+              disabled={!editPostContent.trim()}
+            >
+              <ThemedText
+                style={[
+                  styles.saveButton,
+                  { color: editPostContent.trim() ? tintColor : SUBTLE },
+                ]}
+              >
                 Save
               </ThemedText>
             </TouchableOpacity>
@@ -1023,13 +834,22 @@ export default function HomeScreen() {
 
           <View style={styles.modalContent}>
             <View style={styles.inputSection}>
-              <ThemedText style={styles.inputLabel}>Edit your post</ThemedText>
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                Edit your post
+              </ThemedText>
               <TextInput
-                style={[styles.postInput, { backgroundColor: surfaceColor, color: textColor }]}
+                style={[
+                  styles.postInput,
+                  {
+                    backgroundColor: SURFACE,
+                    color: TEXT,
+                    borderColor: BORDER,
+                  },
+                ]}
                 value={editPostContent}
                 onChangeText={setEditPostContent}
                 placeholder="What's on your mind?"
-                placeholderTextColor={textColor + '60'}
+                placeholderTextColor={SUBTLE}
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"
@@ -1041,448 +861,422 @@ export default function HomeScreen() {
       </Modal>
     </SafeAreaView>
   );
-}
 
+  // --- UI: Event Card ---
+  function renderEvent({ item }: { item: any }) {
+    return (
+      <View style={[styles.card, { backgroundColor: surfaceColor }]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.headerLeft}>
+            <View
+              style={[
+                styles.avatarCircle,
+                { backgroundColor: tintColor + "26" },
+              ]}
+            >
+              <IconSymbol name="calendar" size={18} color={tintColor} />
+            </View>
+            <View style={styles.headerTextWrap}>
+              <ThemedText style={[styles.headerTitle, { color: TEXT }]}>
+                {item.circle?.name || "Event"}
+              </ThemedText>
+              <ThemedText style={[styles.headerSub, { color: SUBTLE }]}>
+                Event • {formatTimeAgo(item.creationdate)}
+              </ThemedText>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => setMenuFor({ type: "event", id: item.id })}
+            style={styles.menuBtn}
+          >
+            <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
+          </TouchableOpacity>
+        </View>
+
+        {item.image && (
+          <Image source={{ uri: item.image }} style={styles.cardImage} />
+        )}
+        <View style={styles.cardBody}>
+          <ThemedText
+            style={[styles.eventTitle, { color: TEXT, fontWeight: "800" }]}
+          >
+            {item.title || "Untitled Event"}
+          </ThemedText>
+          <ThemedText style={[styles.eventMeta, { color: PRIMARY }]}>
+            📅 {item.date ? new Date(item.date).toLocaleDateString() : "TBD"} •{" "}
+            {item.time || "TBD"}
+          </ThemedText>
+          {item.description ? (
+            <ThemedText style={[styles.desc, { color: TEXT }]}>
+              {item.description}
+            </ThemedText>
+          ) : null}
+          {item.location ? (
+            <ThemedText style={[styles.eventLoc, { color: SUBTLE }]}>
+              📍 {item.location}
+            </ThemedText>
+          ) : null}
+
+          {item.event_interests?.length ? (
+            <View style={styles.chipsRow}>
+              {item.event_interests.map((ei: any) => (
+                <View
+                  key={ei.interests?.id}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: tintColor,
+                      backgroundColor: tintColor + "1A",
+                    },
+                  ]}
+                >
+                  <ThemedText style={[styles.chipText, { color: tintColor }]}>
+                    {ei.interests?.title}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
+  function LikeButton({
+    liked,
+    count,
+    onPress,
+    disabled,
+    SUBTLE,
+  }: {
+    liked: boolean;
+    count: number;
+    onPress: () => void;
+    disabled?: boolean;
+    SUBTLE: string;
+  }) {
+    const scale = React.useRef(new Animated.Value(1)).current;
+    const opacity = React.useRef(new Animated.Value(0)).current;
+
+    const run = () => {
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.25,
+            duration: 120,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            friction: 5,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 80,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 160,
+            delay: 80,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    };
+
+    const handlePress = () => {
+      run();
+      onPress();
+    };
+
+    return (
+      <TouchableOpacity
+        style={[styles.actionBtn, { position: "relative" }]}
+        onPress={handlePress}
+        disabled={disabled}
+        activeOpacity={0.8}
+      >
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <IconSymbol
+            name={liked ? "heart.fill" : "heart"}
+            size={20}
+            color={liked ? "#ff4444" : SUBTLE}
+          />
+        </Animated.View>
+
+        <ThemedText
+          style={[
+            styles.actionTxt,
+            liked && { color: "#ff4444", fontWeight: "700" },
+          ]}
+        >
+          {count}
+        </ThemedText>
+
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: -6,
+            right: -6,
+            top: -6,
+            bottom: -6,
+            borderRadius: 8,
+            backgroundColor: "rgba(255,68,68,0.15)",
+            opacity,
+          }}
+        />
+      </TouchableOpacity>
+    );
+  }
+
+  // --- UI: Post Card ---
+  function renderPost({ item }: { item: Post & { interestScore?: number } }) {
+    return (
+      <View style={[styles.card, { backgroundColor: surfaceColor }]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.headerLeft}>
+            <Image
+              source={{
+                uri:
+                  item.author?.avatar_url || "https://via.placeholder.com/40",
+              }}
+              style={styles.avatarImg}
+            />
+            <View style={styles.headerTextWrap}>
+              <ThemedText style={[styles.headerTitle, { color: TEXT }]}>
+                {item.author?.name || "Unknown"}
+              </ThemedText>
+              <View style={styles.headerMetaRow}>
+                <ThemedText style={[styles.headerSub, { color: SUBTLE }]}>
+                  in {item.circle?.name || "Circle"}
+                </ThemedText>
+                <ThemedText style={[styles.dot]}>•</ThemedText>
+                <ThemedText style={[styles.headerSub, { color: SUBTLE }]}>
+                  {formatTimeAgo(item.creationdate)}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => setMenuFor({ type: "post", id: item.id })}
+            style={styles.menuBtn}
+          >
+            <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.cardBody}>
+          {!!item.content && (
+            <ThemedText style={[styles.desc, { color: TEXT }]}>
+              {item.content}
+            </ThemedText>
+          )}
+          {item.image && (
+            <Image source={{ uri: item.image }} style={styles.cardImage} />
+          )}
+
+          <View style={styles.actionsRow}>
+            {/* زر اللايك المتحرك كمكوّن منفصل */}
+            <LikeButton
+              liked={!!item.userLiked}
+              count={item.likes_count || 0}
+              onPress={() => handleLikePost(item.id)}
+              disabled={!user}
+              SUBTLE={SUBTLE}
+            />
+
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => router.push(`/post/${item.id}`)}
+            >
+              <IconSymbol name="bubble.left" size={18} color={SUBTLE} />
+              <ThemedText style={styles.actionTxt}>
+                {item.comments?.length || 0}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+}
+/* Styles */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  container: { flex: 1 },
+
+  appHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    elevation: 2,
-  },
-  headerTitle: {
-    fontSize: 24,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  headerButtonsRTL: {
-    flexDirection: 'row-reverse',
-  },
-  headerButton: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  postsList: {
-    padding: 16,
-    gap: 16,
-  },
-  postCard: {
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  postHeaderRTL: {
-    flexDirection: 'row-reverse',
-  },
-  authorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  authorInfoRTL: {
-    flexDirection: 'row-reverse',
-  },
-  authorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 20,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  authorName: {
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  postMetaRTL: {
-    flexDirection: 'row-reverse',
-  },
-  circleName: {
-    fontSize: 12,
-    opacity: 0.7,
-    fontWeight: '600',
-  },
-  postTime: {
-    fontSize: 12,
-    opacity: 0.5,
-    marginLeft: 4,
-  },
-  timeAndInterest: {
-    flexDirection: 'column',
-    gap: 2,
-  },
-  interestIndicator: {
-    fontSize: 11,
-    fontWeight: '600',
-    opacity: 0.8,
-  },
-  postContentContainer: {
-    marginBottom: 12,
-  },
-  postContent: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  postText: {
-    fontSize: 14,
-    lineHeight: 22,
-    opacity: 0.8,
-  },
-  eventTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  eventDateTime: {
-    fontSize: 14,
-    opacity: 0.8,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#FF9800',
-  },
-  eventLocation: {
-    fontSize: 14,
-    opacity: 0.8,
-    marginTop: 8,
-  },
-  eventInterests: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-    gap: 6,
-  },
-  eventInterestChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  eventInterestText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  postActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  postActionsRTL: {
-    flexDirection: 'row-reverse',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionButtonRTL: {
-    flexDirection: 'row-reverse',
-  },
-  actionText: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  centeredContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    opacity: 0.6,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    opacity: 0.5,
-    textAlign: 'center',
-  },
-  loginButton: {
-    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  exploreButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  exploreButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  retryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  rtlText: {
-    textAlign: 'right',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    flex: 1,
-    paddingTop: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  inputSection: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  brand: { fontSize: 28, fontWeight: "800" },
+  headerIcons: { flexDirection: "row", gap: 16 },
+
+  // Search bar
+  searchWrap: {
+    marginHorizontal: 12,
     marginBottom: 8,
-  },
-  circleSelector: {
-    flexDirection: 'row',
-  },
-  circleOption: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 10,
     borderWidth: 1,
-    marginRight: 10,
-  },
-  circleOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  postInput: {
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minHeight: 100,
-    maxHeight: 200,
-  },
-  imagePickerButton: {
-    height: 120,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    overflow: 'hidden',
-  },
-  selectedImageContainer: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-  },
-  selectedPostImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-  },
-  changeImageText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
-  imagePickerText: {
-    fontSize: 14,
-    fontWeight: '600',
+  searchInput: { flex: 1, fontSize: 14 },
+
+  content: { flex: 1, paddingHorizontal: 12, paddingBottom: 16 },
+
+  /* Card */
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    marginBottom: 14,
+    overflow: "hidden",
   },
-  emptyState: {
+  cardHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  avatarImg: { width: 36, height: 36, borderRadius: 18 },
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTextWrap: { flex: 1 },
+  headerTitle: { fontSize: 14, fontWeight: "700" },
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  headerSub: { fontSize: 12 },
+  dot: { fontSize: 12, color: "#94A3B8" },
+  menuBtn: { padding: 6 },
+
+  cardBody: { paddingHorizontal: 12, paddingBottom: 12 },
+  cardImage: { width: "100%", height: 190 },
+
+  eventTitle: { fontSize: 16, fontWeight: "700", marginTop: 6 },
+  eventMeta: { fontSize: 13, fontWeight: "700", marginTop: 4 },
+  eventLoc: { fontSize: 13, marginTop: 6 },
+  desc: { fontSize: 14, lineHeight: 22, marginTop: 6 },
+
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: 12, fontWeight: "700" },
+
+  actionsRow: { flexDirection: "row", gap: 18, marginTop: 10 },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
+  actionTxt: { fontSize: 13, color: "#6B7280" },
+
+  centeredContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 12,
   },
-  emptyStateText: {
-    fontSize: 16,
-    opacity: 0.5,
+  emptyText: { opacity: 0.6, textAlign: "center" },
+
+  /* Menus */
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
   },
-  suggestedSection: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    elevation: 1,
-  },
-  suggestedTitle: {
-    fontSize: 18,
-    marginBottom: 12,
-  },
-  suggestedScrollView: {
-    flexDirection: 'row',
-  },
-  suggestedContent: {
-    paddingRight: 16,
-  },
-  suggestedCircleCard: {
-    width: 140,
-    padding: 12,
-    borderRadius: 12,
-    marginRight: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  suggestedCircleImageContainer: {
-    marginBottom: 8,
-  },
-  suggestedCircleImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  suggestedCircleImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestedCircleName: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-    minHeight: 36,
-  },
-  suggestedCircleMatches: {
-    fontSize: 11,
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  joinButton: {
-    paddingHorizontal: 16,
+  menuSheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     paddingVertical: 6,
-    borderRadius: 16,
-    marginTop: 'auto',
+    borderTopWidth: 1,
   },
-  joinButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
+  menuText: { fontSize: 16, fontWeight: "600" },
+
+  /* Modals */
+  modalContainer: { flex: 1 },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700" },
+  cancelButton: { fontSize: 16, fontWeight: "700" },
+  saveButton: { fontSize: 16, fontWeight: "700" },
+  modalBody: { padding: 16 },
+  modalContent: { flex: 1, padding: 16 },
+
+  /* Inputs */
+  inputSection: { marginBottom: 16 },
+  inputLabel: { fontSize: 14, fontWeight: "700", marginBottom: 8 },
+  circlePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  circlePillTxt: { fontSize: 12, fontWeight: "700" },
+  postInput: { borderRadius: 10, padding: 12, borderWidth: 1, minHeight: 100 },
+  imagePicker: {
+    height: 130,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    overflow: "hidden",
+  },
+  imageSelected: { width: "100%", height: "100%", position: "relative" },
+  image: { width: "100%", height: "100%" },
+  imageOverlay: {
+    position: "absolute",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  imageOverlayTxt: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  imagePickerTxt: { fontSize: 13, fontWeight: "700" },
+
+  /* Buttons */
+  primaryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  primaryBtnText: { color: "#fff", fontWeight: "700" },
 });

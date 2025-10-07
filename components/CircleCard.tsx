@@ -1,12 +1,10 @@
-
-import React, { useState } from 'react';
-import { View, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
-import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
-import { IconSymbol } from './ui/IconSymbol';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { Circle } from '@/lib/circlePrefs';
-import { AppTexts } from '@/constants/AppTexts';
+import React, { useState } from "react";
+import { View, TouchableOpacity, Image, StyleSheet, Alert } from "react-native";
+import { ThemedText } from "./ThemedText";
+import { ThemedView } from "./ThemedView";
+import { IconSymbol } from "./ui/IconSymbol";
+import { Circle } from "@/lib/circlePrefs";
+import { AppTexts } from "@/constants/AppTexts";
 
 interface CircleCardProps {
   circle: Circle;
@@ -15,235 +13,230 @@ interface CircleCardProps {
   onSnooze: (circle: Circle, days?: number) => void;
 }
 
-export function CircleCard({ circle, onJoin, onDismiss, onSnooze }: CircleCardProps) {
+export function CircleCard({
+  circle,
+  onJoin,
+  onDismiss,
+  onSnooze,
+}: CircleCardProps) {
   const [showMenu, setShowMenu] = useState(false);
-  const backgroundColor = useThemeColor({}, 'background');
-  const surfaceColor = useThemeColor({}, 'surface');
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
 
-  const handleMenuAction = (action: 'dismiss' | 'snooze') => {
+  // ثابتة طبقًا للتصميم
+  const SURFACE = "#FFFFFF";
+  const TEXT = "#111827";
+  const SUBTEXT = "#6B7280";
+  const GREEN = "#198F4B";
+  const REMOVE_BG = "#E5E7EB";
+
+  const handleMenuAction = (action: "dismiss" | "snooze") => {
     setShowMenu(false);
-    
-    if (action === 'dismiss') {
+    if (action === "dismiss") {
       Alert.alert(
-        AppTexts.en.notInterested || 'Not Interested',
-        AppTexts.en.dismissCircleConfirm || `Remove "${circle.name}" from suggestions?`,
+        AppTexts.en.notInterested || "Not Interested",
+        AppTexts.en.dismissCircleConfirm ||
+          `Remove "${circle.name}" from suggestions?`,
         [
-          { text: AppTexts.en.cancel || 'Cancel', style: 'cancel' },
-          { 
-            text: AppTexts.en.remove || 'Remove', 
-            style: 'destructive',
-            onPress: () => onDismiss(circle)
-          }
+          { text: AppTexts.en.cancel || "Cancel", style: "cancel" },
+          {
+            text: AppTexts.en.remove || "Remove",
+            style: "destructive",
+            onPress: () => onDismiss(circle),
+          },
         ]
       );
-    } else if (action === 'snooze') {
+    } else {
       Alert.alert(
-        AppTexts.en.snoozeCircle || 'Snooze Circle',
+        AppTexts.en.snoozeCircle || "Snooze Circle",
         AppTexts.en.snoozeCircleConfirm || `Hide "${circle.name}" for 30 days?`,
         [
-          { text: AppTexts.en.cancel || 'Cancel', style: 'cancel' },
-          { 
-            text: AppTexts.en.snooze || 'Snooze', 
-            onPress: () => onSnooze(circle, 30)
-          }
+          { text: AppTexts.en.cancel || "Cancel", style: "cancel" },
+          {
+            text: AppTexts.en.snooze || "Snooze",
+            onPress: () => onSnooze(circle, 30),
+          },
         ]
       );
     }
   };
 
   return (
-    <ThemedView style={[styles.card, { backgroundColor: surfaceColor }]}>
-      <View style={styles.header}>
-        <View style={styles.circleInfo}>
-          <View style={styles.imageContainer}>
-            {circle.circle_profile_url ? (
-              <Image 
-                source={{ uri: circle.circle_profile_url }} 
-                style={styles.circleImage}
-                defaultSource={{ uri: 'https://via.placeholder.com/60' }}
-              />
-            ) : (
-              <View style={[styles.imagePlaceholder, { backgroundColor: tintColor + '20' }]}>
-                <IconSymbol name="person.3" size={24} color={tintColor} />
-              </View>
-            )}
+    <ThemedView style={[styles.card, { backgroundColor: SURFACE }]}>
+      {/* صورة عريضة بزاوية دائرية */}
+      <View style={styles.heroWrap}>
+        {circle.circle_profile_url ? (
+          <Image
+            source={{ uri: circle.circle_profile_url }}
+            style={styles.heroImg}
+          />
+        ) : (
+          <View style={styles.heroPlaceholder}>
+            <IconSymbol name="photo" size={28} color={SUBTEXT} />
           </View>
-          
-          <View style={styles.details}>
-            <ThemedText numberOfLines={2} style={styles.circleName}>
-              {circle.name}
-            </ThemedText>
-            {circle.score > 0 && (
-              <ThemedText style={[styles.matchText, { color: tintColor }]}>
-                {circle.score} interest match{circle.score > 1 ? 'es' : ''}
-              </ThemedText>
-            )}
-            {circle.description && (
-              <ThemedText numberOfLines={2} style={styles.description}>
-                {circle.description}
-              </ThemedText>
-            )}
-          </View>
-        </View>
+        )}
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => setShowMenu(!showMenu)}
-          >
-            <IconSymbol name="ellipsis.horizontal" size={20} color={textColor} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.menuFab}
+          onPress={() => setShowMenu(!showMenu)}
+        >
+          <IconSymbol name="ellipsis" size={18} color={TEXT} />
+        </TouchableOpacity>
       </View>
 
-      {/* Menu Overlay */}
+      {/* النصوص */}
+      <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
+        <ThemedText
+          numberOfLines={1}
+          style={[styles.circleName, { color: TEXT }]}
+        >
+          {circle.name}
+        </ThemedText>
+
+        {circle.score > 0 && (
+          <ThemedText style={[styles.matchText, { color: GREEN }]}>
+            {circle.score} interest match{circle.score > 1 ? "es" : ""}
+          </ThemedText>
+        )}
+
+        {!!circle.description && (
+          <ThemedText
+            numberOfLines={2}
+            style={[styles.description, { color: SUBTEXT }]}
+          >
+            {circle.description}
+          </ThemedText>
+        )}
+      </View>
+
+      {/* القائمة المنسدلة */}
       {showMenu && (
-        <View style={[styles.menuOverlay, { backgroundColor: backgroundColor }]}>
+        <View style={[styles.menuOverlay, { backgroundColor: SURFACE }]}>
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => handleMenuAction('dismiss')}
+            onPress={() => handleMenuAction("dismiss")}
           >
             <IconSymbol name="hand.thumbsdown" size={16} color="#EF5350" />
-            <ThemedText style={[styles.menuItemText, { color: '#EF5350' }]}>
-              {AppTexts.en.notInterested || 'Not Interested'}
+            <ThemedText style={[styles.menuItemText, { color: "#EF5350" }]}>
+              {AppTexts.en.notInterested || "Not Interested"}
             </ThemedText>
           </TouchableOpacity>
-          
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => handleMenuAction('snooze')}
+            onPress={() => handleMenuAction("snooze")}
           >
-            <IconSymbol name="clock" size={16} color={textColor} />
-            <ThemedText style={styles.menuItemText}>
-              {AppTexts.en.snooze30Days || 'Snooze 30 days'}
+            <IconSymbol name="clock" size={16} color={TEXT} />
+            <ThemedText style={[styles.menuItemText, { color: TEXT }]}>
+              {AppTexts.en.snooze30Days || "Snooze 30 days"}
             </ThemedText>
           </TouchableOpacity>
-          
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => setShowMenu(false)}
           >
-            <IconSymbol name="xmark" size={16} color={textColor} />
-            <ThemedText style={styles.menuItemText}>
-              {AppTexts.en.cancel || 'Cancel'}
+            <IconSymbol name="xmark" size={16} color={TEXT} />
+            <ThemedText style={[styles.menuItemText, { color: TEXT }]}>
+              {AppTexts.en.cancel || "Cancel"}
             </ThemedText>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Join Button */}
-      <TouchableOpacity
-        style={[styles.joinButton, { backgroundColor: tintColor }]}
-        onPress={() => onJoin(circle.id)}
-      >
-        <ThemedText style={styles.joinButtonText}>
-          {AppTexts.en.joinCircle || 'Join'}
-        </ThemedText>
-      </TouchableOpacity>
+      {/* الأزرار */}
+      <View style={styles.buttonsRow}>
+        <TouchableOpacity
+          style={[styles.btn, { backgroundColor: GREEN }]}
+          onPress={() => onJoin(circle.id)}
+        >
+          <ThemedText style={[styles.btnTxt, { color: "#fff" }]}>
+            {AppTexts.en.joinCircle || "Join"}
+          </ThemedText>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.btn, { backgroundColor: REMOVE_BG }]}
+          onPress={() => onDismiss(circle)}
+        >
+          <ThemedText style={[styles.btnTxt, { color: TEXT }]}>
+            {AppTexts.en.remove || "Remove"}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 140,
-    padding: 12,
     borderRadius: 12,
-    marginRight: 12,
-    elevation: 2,
-    shadowColor: '#000',
+    overflow: "hidden",
+    elevation: 1,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 2,
   },
-  header: {
-    flexDirection: 'column',
-    marginBottom: 8,
+  heroWrap: {
+    width: "100%",
+    height: 120,
+    position: "relative",
+    paddingHorizontal: 12,
+    paddingTop: 12,
   },
-  circleInfo: {
-    alignItems: 'center',
-    marginBottom: 8,
+  heroImg: { width: "100%", height: "100%", borderRadius: 10 },
+  heroPlaceholder: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
   },
-  imageContainer: {
-    marginBottom: 8,
+  menuFab: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 6,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 14,
   },
-  circleImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+
+  circleName: { fontSize: 14, fontWeight: "700" },
+  matchText: { fontSize: 12, fontWeight: "600", marginTop: 2 },
+  description: { fontSize: 12, marginTop: 6 },
+
+  buttonsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  imagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+  btn: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  details: {
-    alignItems: 'center',
-    minHeight: 60,
-  },
-  circleName: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  matchText: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 11,
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-  actions: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-  },
-  menuButton: {
-    padding: 4,
-  },
+  btnTxt: { fontSize: 13, fontWeight: "700" },
+
   menuOverlay: {
-    position: 'absolute',
-    top: 28,
-    right: 0,
-    minWidth: 160,
+    position: "absolute",
+    top: 34,
+    right: 8,
+    minWidth: 170,
     borderRadius: 8,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     zIndex: 1000,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
   },
-  menuItemText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  joinButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 'auto',
-  },
-  joinButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  menuItemText: { fontSize: 14, fontWeight: "500" },
 });

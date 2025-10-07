@@ -18,8 +18,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
 import EventModal from "@/components/EventModal";
-import { Ionicons } from "@expo/vector-icons";
-import { Platform } from "react-native";
 
 interface Event {
   id: string;
@@ -291,29 +289,6 @@ export default function EventsScreen() {
       </View>
 
       {/* Search */}
-      {/* <View style={styles.searchWrap}>
-        <View style={[styles.searchBox, { borderColor: BORDER }]}>
-          <IconSymbol name="magnifyingglass" size={18} color={SUBTLE} />
-          <TextInput
-            placeholder={texts.searchEvents || "Search Events"}
-            placeholderTextColor={SUBTLE}
-            value={query}
-            onChangeText={setQuery}
-            style={[
-              styles.searchInput,
-              { color: TEXT },
-              isRTL && { textAlign: "right" },
-            ]}
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            onPress={() => setFiltersOpen(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <IconSymbol name="slider.horizontal.3" size={18} color={PRIMARY} />
-          </TouchableOpacity>
-        </View>
-      </View> */}
       <View style={styles.searchWrap}>
         <View style={[styles.searchBox, { borderColor: BORDER }]}>
           <IconSymbol name="magnifyingglass" size={18} color={SUBTLE} />
@@ -322,14 +297,16 @@ export default function EventsScreen() {
             placeholderTextColor={SUBTLE}
             value={query}
             onChangeText={setQuery}
+            returnKeyType="search"
+            underlineColorAndroid="transparent"
+            selectionColor={PRIMARY}
             style={[
               styles.searchInput,
               { color: TEXT },
               isRTL && { textAlign: "right" },
+              styles.inputNoOutline, // no yellow/orange outline
             ]}
-            returnKeyType="search"
           />
-        
         </View>
       </View>
 
@@ -409,7 +386,6 @@ export default function EventsScreen() {
                     !showImage && styles.cardBodyRounded,
                   ]}
                 >
-                  {/* interests: أول اتنين + +N more */}
                   {firstTwo.length > 0 && (
                     <View style={styles.interestsRow}>
                       {firstTwo.map((ei, idx) => (
@@ -430,7 +406,6 @@ export default function EventsScreen() {
                     </View>
                   )}
 
-                  {/* العنوان ثم الوصف */}
                   <ThemedText
                     type="defaultSemiBold"
                     style={[styles.title, isRTL && styles.rtl]}
@@ -443,7 +418,6 @@ export default function EventsScreen() {
                     </ThemedText>
                   )}
 
-                  {/* دائرة أو جنرال */}
                   {event.circleid ? (
                     event.circleName && (
                       <ThemedText style={[styles.metaSmall, { color: SUBTLE }]}>
@@ -456,7 +430,6 @@ export default function EventsScreen() {
                     </ThemedText>
                   )}
 
-                  {/* meta */}
                   <View style={styles.metaRow}>
                     <IconSymbol name="calendar" size={16} color={SUBTLE} />
                     <ThemedText style={[styles.metaText, { color: SUBTLE }]}>
@@ -489,9 +462,8 @@ export default function EventsScreen() {
                     )}
                   </View>
 
-                  <View style={[styles.divider]} />
+                  <View style={styles.divider} />
 
-                  {/* RSVP */}
                   <View style={styles.rsvpButtons}>
                     <TouchableOpacity
                       style={[
@@ -710,7 +682,7 @@ export default function EventsScreen() {
       >
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheet, { backgroundColor: BG }]}>
-            <View style={styles.sheetHeader}>
+            <View className="header" style={styles.sheetHeader}>
               <ThemedText type="subtitle" style={{ color: TEXT }}>
                 Filters
               </ThemedText>
@@ -918,6 +890,7 @@ const styles = StyleSheet.create({
   },
   hero: { paddingHorizontal: 16, paddingVertical: 8 },
   heroTitle: { fontSize: 22, lineHeight: 28, fontWeight: "700" },
+
   searchWrap: { paddingHorizontal: 16, paddingTop: 8 },
   searchBox: {
     height: 44,
@@ -929,6 +902,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 14 },
+  inputNoOutline: {
+    outlineStyle: "none" as any,
+    outlineWidth: 0 as any,
+    outlineColor: "transparent" as any,
+    boxShadow: "none" as any,
+  },
+
   tabsRow: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -936,6 +916,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   tabText: { fontSize: 14, fontWeight: "700", paddingBottom: 6 },
+
   eventsList: {
     flex: 1,
     paddingHorizontal: 16,
@@ -975,9 +956,9 @@ const styles = StyleSheet.create({
   pillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   moreInterests: { fontSize: 12, color: "#6B7280", fontWeight: "600" },
 
-  title: { fontSize: 16, marginTop: 4, marginBottom: 4 },
+  title: { fontSize: 16, marginTop: 4, marginBottom: 4, color: "#000000ff", },
   eventDescription: {
-    color: "#0F172A",
+    color: "#3d3d3dff",
     opacity: 0.9,
     marginBottom: 6,
     lineHeight: 20,
