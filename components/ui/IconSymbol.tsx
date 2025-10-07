@@ -1,129 +1,125 @@
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
-import { ComponentProps } from 'react';
-import { OpaqueColorValue, type StyleProp, type TextStyle, Platform } from 'react-native';
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { SymbolWeight } from "expo-symbols";
+import { ComponentProps } from "react";
+import {
+  OpaqueColorValue,
+  type StyleProp,
+  type TextStyle,
+  Platform,
+} from "react-native";
 
-type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>['name']>;
+type IconMapping = Record<
+  string,
+  { name: string; lib?: "MaterialIcons" | "MaterialCommunityIcons" }
+>;
 
-/**
- * Add your SF Symbols to Material Icons mappings here.
- * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
- * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
- */
-const MAPPING = {
+const MAPPING: IconMapping = {
   // Navigation Icons
-  'house.fill': 'home',
-  'house': 'home',
-  'person.circle': 'account-circle',
-  'person.circle.fill': 'account-circle',
-  'bell': 'notifications',
-  'bell.fill': 'notifications',
-  'calendar': 'event',
-  'calendar.fill': 'event',
-  'message': 'chat',
-  'message.fill': 'chat',
-  'magnifyingglass': 'search',
-  'person.3': 'group',
-  'person.3.fill': 'group',
+  "house.fill": { name: "home" },
+  house: { name: "home" },
+
+ 
+  "house.badge.plus": {
+    name: "home-plus-outline",
+    lib: "MaterialCommunityIcons",
+  },
+
+  "person.circle": { name: "account-circle" },
+  "person.circle.fill": { name: "account-circle" },
+  bell: { name: "notifications" },
+  "bell.fill": { name: "notifications" },
+  calendar: { name: "event" },
+  "calendar.fill": { name: "event" },
+  message: { name: "chat" },
+  "message.fill": { name: "chat" },
+
+  magnifyingglass: { name: "magnify", lib: "MaterialCommunityIcons" },
+
+  ellipsis: { name: "dots-horizontal", lib: "MaterialCommunityIcons" },
+  "ellipsis.bubble": {
+    name: "chat-processing-outline",
+    lib: "MaterialCommunityIcons",
+  },
+
+  "person.3": { name: "group" },
+  "person.3.fill": { name: "group" },
 
   // Action Icons
-  'plus': 'add',
-  'plus.circle': 'add-circle',
-  'plus.circle.fill': 'add-circle',
-  'paperplane.fill': 'send',
-  'heart': 'favorite-border',
-  'heart.fill': 'favorite',
-  'bubble.left': 'comment',
-  'bubble.left.fill': 'comment',
-  'share': 'share',
-  'location': 'location-on',
-  'location.fill': 'location-on',
-  'clock': 'schedule',
-  'clock.fill': 'schedule',
+  plus: { name: "add" },
+  "plus.circle": { name: "add-circle" },
+  "plus.circle.fill": { name: "add-circle" },
+  "paperplane.fill": { name: "send" },
+  heart: { name: "favorite-border" },
+  "heart.fill": { name: "favorite" },
+  "bubble.left": { name: "comment" },
+  "bubble.left.fill": { name: "comment" },
+  share: { name: "share" },
+  location: { name: "location-on" },
+  "location.fill": { name: "location-on" },
+  clock: { name: "schedule" },
+  "minus.circle": { name: "cancel" },
+
+  "clock.fill": { name: "schedule" },
+  "line.3.horizontal.decrease.circle": { name: "tune" },
 
   // Navigation Arrows
-  'chevron.left': 'chevron-left',
-  'chevron.right': 'chevron-right',
-  'chevron.up': 'keyboard-arrow-up',
-  'chevron.down': 'keyboard-arrow-down',
-  'arrow.left': 'arrow-back',
-  'arrow.right': 'arrow-forward',
+  "chevron.left": { name: "chevron-left" },
+  "chevron.right": { name: "chevron-right" },
+  "chevron.up": { name: "keyboard-arrow-up" },
+  "chevron.down": { name: "keyboard-arrow-down" },
+  "arrow.left": { name: "arrow-back" },
+  "arrow.right": { name: "arrow-forward" },
 
   // Settings & Profile Icons
-  'gear': 'settings',
-  'gear.fill': 'settings',
-  'person': 'person',
-  'person.fill': 'person',
-  'photo': 'photo',
-  'photo.fill': 'photo',
-  'camera': 'camera-alt',
-  'camera.fill': 'camera-alt',
-  'eye': 'visibility',
-  'eye.slash': 'visibility-off',
-  'lock': 'lock',
-  'lock.fill': 'lock',
-  'key': 'vpn-key',
-  'key.fill': 'vpn-key',
+  gear: { name: "settings" },
+  "gear.fill": { name: "settings" },
+  person: { name: "person" },
+  "person.fill": { name: "person" },
+  photo: { name: "photo" },
+  "photo.fill": { name: "photo" },
+  camera: { name: "camera-alt" },
+  "camera.fill": { name: "camera-alt" },
+  eye: { name: "visibility" },
+  "eye.slash": { name: "visibility-off" },
+  lock: { name: "lock" },
+  "lock.fill": { name: "lock" },
+  key: { name: "vpn-key" },
+  "key.fill": { name: "vpn-key" },
 
   // Additional Action Icons
-  'pencil': 'edit',
-  'trash': 'delete',
-  'ellipsis': 'more-vert',
-  'globe': 'public',
-  'xmark': 'close',
-  'square.and.arrow.up': 'share',
+  pencil: { name: "edit" },
+  trash: { name: "delete" },
+  globe: { name: "public" },
+  xmark: { name: "close" },
+  "square.and.arrow.up": { name: "share" },
 
   // Content Icons
-  'tag': 'local-offer',
-  'tag.fill': 'local-offer',
-  'star': 'star-border',
-  'star.fill': 'star',
-  'doc': 'description',
-  'doc.fill': 'description',
-  'folder': 'folder',
-  'folder.fill': 'folder',
+  tag: { name: "local-offer" },
+  "tag.fill": { name: "local-offer" },
+  star: { name: "star-border" },
+  "star.fill": { name: "star" },
+  doc: { name: "description" },
+  "doc.fill": { name: "description" },
+  folder: { name: "folder" },
+  "folder.fill": { name: "folder" },
 
   // Other Common Icons
-  'ellipsis': 'more-horiz',
-  'ellipsis.vertical': 'more-vert',
-  'xmark': 'close',
-  'xmark.circle': 'cancel',
-  'xmark.circle.fill': 'cancel',
-  'checkmark': 'check',
-  'checkmark.circle': 'check-circle',
-  'checkmark.circle.fill': 'check-circle',
-  'info': 'info',
-  'info.circle': 'info',
-  'exclamationmark': 'warning',
-  'exclamationmark.triangle': 'warning',
-  'trash': 'delete',
-  'trash.fill': 'delete',
-  'pencil': 'edit',
-  'pencil.fill': 'edit',
+  "ellipsis.vertical": { name: "dots-vertical", lib: "MaterialCommunityIcons" },
+  "xmark.circle": { name: "cancel" },
+  "checkmark.circle": { name: "check-circle" },
+  info: { name: "info" },
+  exclamationmark: { name: "warning" },
+  "exclamationmark.triangle": { name: "warning" },
+  moon: { name: "brightness-3" },
+  "sun.max": { name: "brightness-7" },
+  shield: { name: "security" },
+  "chart.bar": { name: "bar-chart" },
+  "chart.line.uptrend.xyaxis": { name: "trending-up" },
+  "person.badge.shield": { name: "admin-panel-settings" },
+  "chevron.left.forwardslash.chevron.right": { name: "code" },
+};
 
-  // Language & Theme
-  'globe': 'language',
-  'moon': 'brightness-3',
-  'sun.max': 'brightness-7',
-  'paintbrush': 'palette',
-  'textformat': 'text-fields',
-
-  // Admin Icons
-  'shield': 'security',
-  'shield.fill': 'security',
-  'chart.bar': 'bar-chart',
-  'chart.line.uptrend.xyaxis': 'trending-up',
-  'person.badge.shield': 'admin-panel-settings',
-
-  // Legacy mappings
-  'chevron.left.forwardslash.chevron.right': 'code',
-} as IconMapping;
-
-/**
- * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
- * This ensures a consistent look across platforms, and optimal resource usage.
- * Icon `name`s are based on SF Symbols and require manual mapping to Material Icons.
- */
 export function IconSymbol({
   name,
   size = 24,
@@ -137,10 +133,9 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  if (Platform.OS === 'ios') {
-    // Use expo-symbols on iOS if available
+  if (Platform.OS === "ios") {
     try {
-      const { SymbolView } = require('expo-symbols');
+      const { SymbolView } = require("expo-symbols");
       return (
         <SymbolView
           name={name}
@@ -150,22 +145,29 @@ export function IconSymbol({
           weight={weight}
         />
       );
-    } catch {
-      // Fall back to MaterialIcons if expo-symbols is not available
-    }
+    } catch {}
   }
 
-  // Fallback to MaterialIcons for Android and web
-  const mappedName = MAPPING[name as keyof typeof MAPPING];
+  const mapped = MAPPING[name as keyof typeof MAPPING];
+  const iconLib = mapped?.lib || "MaterialIcons";
+  const iconName = mapped?.name || "help-outline";
 
-  // If no mapping found, use a default icon instead of potentially showing invalid characters
-  const iconName = mappedName || 'help-outline';
+  if (iconLib === "MaterialCommunityIcons") {
+    return (
+      <MaterialCommunityIcons
+        name={iconName}
+        size={size}
+        color={color || "#000"}
+        style={style}
+      />
+    );
+  }
 
   return (
     <MaterialIcons
       name={iconName}
       size={size}
-      color={color || '#000'}
+      color={color || "#000"}
       style={style}
       suppressHighlighting={true}
     />

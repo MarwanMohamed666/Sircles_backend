@@ -22,6 +22,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { Platform } from "react-native";
 import {
   getCircles,
   createCircle,
@@ -541,6 +542,8 @@ export default function CirclesScreen() {
           placeholderTextColor={COLORS.textMuted + "AA"}
           value={query}
           onChangeText={setQuery}
+          underlineColorAndroid="transparent"
+          selectionColor={COLORS.primary} // اختياري لتغيير لون المؤشر/التحديد
         />
       </View>
 
