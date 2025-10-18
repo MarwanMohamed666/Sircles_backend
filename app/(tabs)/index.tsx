@@ -23,7 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
 import { CircleCard } from "@/components/CircleCard";
 import { useCirclesStore } from "@/stores/circlesStore";
-import { Animated, Easing } from "react-native";
+import { Animated } from "react-native";
 
 interface Post {
   id: string;
@@ -99,6 +99,11 @@ export default function HomeScreen() {
     snooze,
     error: circlesError,
   } = useCirclesStore();
+
+  const isOwner = useCallback(
+    (post?: Post | null) => !!post?.author?.id && post.author.id === user?.id,
+    [user?.id]
+  );
 
   const loadPosts = async () => {
     if (!user?.id) {
@@ -335,8 +340,12 @@ export default function HomeScreen() {
     setEditingPost({ id: postId });
     setEditPostContent(current);
   };
+
   const handleSaveEdit = async () => {
     if (!editingPost || !editPostContent.trim() || !user?.id) return;
+    // safety: only author can edit
+    const post = posts.find((p) => p.id === editingPost.id);
+    if (!isOwner(post)) return Alert.alert("Error", "Not allowed");
     const { error } = await DatabaseService.updatePost(
       editingPost.id,
       { content: editPostContent.trim() },
@@ -347,8 +356,11 @@ export default function HomeScreen() {
     setEditPostContent("");
     await loadPosts();
   };
+
   const handleDeletePost = async (postId: string) => {
     if (!user?.id || deletePostLoading === postId) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!isOwner(post)) return Alert.alert("Error", "Not allowed");
     Alert.alert("Delete Post", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -436,11 +448,11 @@ export default function HomeScreen() {
 
   // Suggested block renderer. Two large cards side-by-side.
   function renderSuggestedSection() {
-    const H_PAD = 12; // نفس padding للكونتينر
-    const CARD_GAP = 12; // مسافة بين الكروت
-    const cardW = Math.floor((width - H_PAD * 2) * 0.72); // كارت عريض ومريح
+    const H_PAD = 12;
+    const CARD_GAP = 12;
+    const cardW = Math.floor((width - H_PAD * 2) * 0.72);
 
-    const items = suggestedCircles; // اعرض الكل في سلايدر
+    const items = suggestedCircles;
 
     return (
       <View style={[styles.card, { backgroundColor: surfaceColor }]}>
@@ -546,7 +558,6 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* نلغي سيكشن المقترحات العلوي لتجنب التكرار */}
         {loading ? (
           <View style={styles.centeredContainer}>
             <ThemedText>{texts.loading || "Loading..."}</ThemedText>
@@ -612,33 +623,45 @@ export default function HomeScreen() {
               { backgroundColor: SURFACE, borderColor: BORDER },
             ]}
           >
-            {menuFor?.type === "post" && (
-              <>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    const p = posts.find((x) => x.id === menuFor.id);
-                    if (p) handleEditPostStart(p.id, p.content || "");
-                    setMenuFor(null);
-                  }}
-                >
-                  <IconSymbol name="pencil" size={18} color={TEXT} />
-                  <ThemedText style={styles.menuText}>Edit</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    handleDeletePost(menuFor!.id);
-                    setMenuFor(null);
-                  }}
-                >
-                  <IconSymbol name="trash" size={18} color="#EF4444" />
-                  <ThemedText style={[styles.menuText, { color: "#EF4444" }]}>
-                    Delete
-                  </ThemedText>
-                </TouchableOpacity>
-              </>
-            )}
+            {menuFor?.type === "post" &&
+              (() => {
+                const p = posts.find((x) => x.id === menuFor.id) || null;
+                const owner = isOwner(p);
+                return owner ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        if (p) handleEditPostStart(p.id, p.content || "");
+                        setMenuFor(null);
+                      }}
+                    >
+                      <IconSymbol name="pencil" size={18} color={TEXT} />
+                      <ThemedText style={styles.menuText}>Edit</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        handleDeletePost(menuFor!.id);
+                        setMenuFor(null);
+                      }}
+                    >
+                      <IconSymbol name="trash" size={18} color="#EF4444" />
+                      <ThemedText
+                        style={[styles.menuText, { color: "#EF4444" }]}
+                      >
+                        Delete
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+                    <ThemedText style={{ color: SUBTLE }}>
+                      No actions available
+                    </ThemedText>
+                  </View>
+                );
+              })()}
             {menuFor?.type === "event" && (
               <View style={{ paddingHorizontal: 8, paddingVertical: 2 }}>
                 <ThemedText>Event actions coming soon</ThemedText>
@@ -1035,6 +1058,7 @@ export default function HomeScreen() {
 
   // --- UI: Post Card ---
   function renderPost({ item }: { item: Post & { interestScore?: number } }) {
+    const owner = isOwner(item);
     return (
       <View style={[styles.card, { backgroundColor: surfaceColor }]}>
         <View style={styles.cardHeader}>
@@ -1061,12 +1085,16 @@ export default function HomeScreen() {
               </View>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => setMenuFor({ type: "post", id: item.id })}
-            style={styles.menuBtn}
-          >
-            <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
-          </TouchableOpacity>
+
+          {/* أخفي زر القائمة لو البوست مش بتاعي */}
+          {owner && (
+            <TouchableOpacity
+              onPress={() => setMenuFor({ type: "post", id: item.id })}
+              style={styles.menuBtn}
+            >
+              <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.cardBody}>
@@ -1080,7 +1108,6 @@ export default function HomeScreen() {
           )}
 
           <View style={styles.actionsRow}>
-            {/* زر اللايك المتحرك كمكوّن منفصل */}
             <LikeButton
               liked={!!item.userLiked}
               count={item.likes_count || 0}
