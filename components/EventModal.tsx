@@ -16,7 +16,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
-
+import { StorageService } from "@/lib/storage";
 interface EventModalProps {
   visible: boolean;
   onClose: () => void;
@@ -243,6 +243,7 @@ export default function EventModal({
     setSelectedPhoto(asset);
   };
 
+  // Copy and replace the entire function in your file
   const handleCreateEvent = async () => {
     if (!user?.id) return;
     if (!newEvent.title.trim() || !newEvent.date || !newEvent.time) {
@@ -256,6 +257,8 @@ export default function EventModal({
       let eventDataForCallback: any = null;
 
       if (editingEvent) {
+        // ================== EDIT LOGIC STARTS HERE ==================
+
         const updateData: any = {
           title: newEvent.title.trim(),
           description: newEvent.description.trim(),
@@ -264,23 +267,60 @@ export default function EventModal({
           location: newEvent.location.trim(),
           location_url: newEvent.location_url?.trim() || null,
         };
-        if (selectedPhoto && selectedPhoto.uri !== editingEvent.photo_url) {
-          updateData.photoAsset = selectedPhoto;
+
+        // --- THE FIX ---
+        // Check if a new photo was selected. 'selectedPhoto.uri' will be a local file URI,
+        // while 'editingEvent.photo_url' is an https URL.
+        const hasNewPhoto =
+          selectedPhoto && selectedPhoto.uri !== editingEvent.photo_url;
+
+        if (hasNewPhoto) {
+          console.log("New photo selected for update, uploading now...");
+
+          // 1. Upload the new photo first to get the public URL
+          const { data: uploadData, error: uploadError } =
+            await StorageService.uploadEventPhoto(
+              editingEvent.id, // Use the existing event ID
+              selectedPhoto, // The new photo asset
+              user.id
+            );
+
+          if (uploadError) {
+            throw new Error("Failed to upload new event photo.");
+          }
+
+          // 2. Add the NEW photo URL to the update payload
+          updateData.photo_url = uploadData.publicUrl;
+          console.log("New photo uploaded, URL:", updateData.photo_url);
         }
-        const { error } = await DatabaseService.updateEvent(
+
+        // If the user removed the photo
+        if (!selectedPhoto && editingEvent.photo_url) {
+          updateData.photo_url = null;
+          // Note: You might also want to delete the old photo from storage here
+        }
+
+        // 3. Update the event with the correct data (including the new photo_url if it exists)
+        const { data: updatedEvent, error } = await DatabaseService.updateEvent(
           editingEvent.id,
           updateData
         );
+
         if (error) throw error;
 
+        // 4. Update the event interests separately
         await DatabaseService.updateEventInterests(
           editingEvent.id,
           newEvent.interests
         );
-        eventDataForCallback = { ...editingEvent, ...updateData };
+
+        eventDataForCallback = updatedEvent;
 
         Alert.alert("Success", "Event updated successfully!");
+
+        // =================== EDIT LOGIC ENDS HERE ===================
       } else {
+        // This is the CREATE logic, which is already correct. No changes needed here.
         const interestObjects = newEvent.interests.map((interestId) => ({
           interestid: interestId,
         }));
@@ -305,13 +345,13 @@ export default function EventModal({
 
       if (eventDataForCallback) onEventCreated?.(eventDataForCallback);
     } catch (e: any) {
-      console.log("OPERATION FAILED:", JSON.stringify(e, null, 2));
-      Alert.alert("Error", e?.message || "Operation failed.");
+      console.error("OPERATION FAILED:", e);
+      console.error("Error message:", e?.message);
+      console.error("Error stack:", e?.stack);
     } finally {
       setUploading(false);
     }
   };
-
   const getCircleName = () => {
     if (preSelectedCircleId)
       return (
