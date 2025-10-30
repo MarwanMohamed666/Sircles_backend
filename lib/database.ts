@@ -1,59 +1,132 @@
-import { supabase } from './supabase';
-import { StorageService } from './storage';
-import type { User, Circle, Event, Post, Interest } from '@/types/database';
+import { supabase } from "./supabase";
+import { StorageService } from "./storage";
+import type { User, Circle, Event, Post, Interest } from "@/types/database";
 
 // Export individual functions for easier importing
 export const getUser = (id: string) => DatabaseService.getUser(id);
-export const updateUser = (id: string, updates: Partial<User>) => DatabaseService.updateUser(id, updates);
+export const updateUser = (id: string, updates: Partial<User>) =>
+  DatabaseService.updateUser(id, updates);
 export const getCircles = () => DatabaseService.getCircles();
-export const getUserCircles = (userId: string) => DatabaseService.getUserCircles(userId);
-export const createCircle = (circle: Omit<Circle, 'id' | 'creationdate'>) => DatabaseService.createCircle(circle);
+export const getUserCircles = (userId: string) =>
+  DatabaseService.getUserCircles(userId);
+export const createCircle = (circle: Omit<Circle, "id" | "creationdate">) =>
+  DatabaseService.createCircle(circle);
 export const getEvents = () => DatabaseService.getEvents();
-export const createEvent = (event: Omit<Event, 'id' | 'creationdate'>) => DatabaseService.createEvent(event);
-export const getPosts = (circleId?: string) => DatabaseService.getPosts(circleId);
-export const createPost = (post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) => DatabaseService.createPost(post, photoAsset);
+export const createEvent = (event: Omit<Event, "id" | "creationdate">) =>
+  DatabaseService.createEvent(event);
+export const getPosts = (circleId?: string) =>
+  DatabaseService.getPosts(circleId);
+export const createPost = (
+  post: Omit<Post, "id" | "creationdate">,
+  photoAsset?: any
+) => DatabaseService.createPost(post, photoAsset);
 export const getInterests = () => DatabaseService.getInterests();
-export const getUserInterests = (userId: string) => DatabaseService.getUserInterests(userId);
-export const getUserLookFor = (userId: string) => DatabaseService.getUserLookFor(userId);
-export const getInterestsByCategory = () => DatabaseService.getInterestsByCategory();
-export const getUserNotifications = (userId: string) => DatabaseService.getUserNotifications(userId);
-export const markNotificationAsRead = (notificationId: string) => DatabaseService.markNotificationAsRead(notificationId);
-export const markAllNotificationsAsRead = (userId: string) => DatabaseService.markAllNotificationsAsRead(userId);
-export const joinCircle = (userId: string, circleId: string) => DatabaseService.joinCircle(userId, circleId);
-export const leaveCircle = (userId: string, circleId: string) => DatabaseService.leaveCircle(userId, circleId);
-export const getUserJoinedCircles = (userId: string) => DatabaseService.getUserJoinedCircles(userId);
-export const getCircleMessages = (circleId: string) => DatabaseService.getCircleMessages(circleId);
-export const sendMessage = (message: any) => DatabaseService.sendMessage(message);
-export const requestToJoinCircle = (userId: string, circleId: string, message?: string) => DatabaseService.requestToJoinCircle(userId, circleId, message);
-export const getCircleJoinRequests = (circleId: string) => DatabaseService.getCircleJoinRequests(circleId);
-export const handleJoinRequest = (requestId: string, action: 'accept' | 'reject') => DatabaseService.handleJoinRequest(requestId, action);
-export const getUserPendingRequest = (circleId: string, userId: string) => DatabaseService.getUserPendingRequest(circleId, userId);
-export const deleteCircle = (circleId: string, adminUserId: string) => DatabaseService.deleteCircle(circleId, adminUserId);
-export const getCircleMembers = (circleId: string) => DatabaseService.getCircleMembers(circleId);
-export const addCircleAdmin = (circleId: string, userId: string, requestingAdminId: string) => DatabaseService.addCircleAdmin(circleId, userId, requestingAdminId);
-export const removeCircleAdmin = (circleId: string, userId: string, requestingAdminId: string) => DatabaseService.removeCircleAdmin(circleId, userId, requestingAdminId);
-export const removeMemberFromCircle = (circleId: string, userId: string, adminId: string) => DatabaseService.removeMemberFromCircle(circleId, userId, adminId);
-export const isCircleAdmin = (circleId: string, userId: string) => DatabaseService.isCircleAdmin(circleId, userId);
-export const getHomePagePosts = (userId: string) => DatabaseService.getHomePagePosts(userId);
-export const getCircleInterests = (circleId: string) => DatabaseService.getCircleInterests(circleId);
-export const updateCircle = (circleId: string, updates: any, userId: string) => DatabaseService.updateCircle(circleId, updates, userId);
-export const updateCircleInterests = (circleId: string, interestIds: string[], userId: string) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
-export const deleteEvent = (eventId: string) => DatabaseService.deleteEvent(eventId);
-export const createEventRsvp = (eventId: string, status: 'going' | 'maybe' | 'no_going') => DatabaseService.createEventRsvp(eventId, status);
-export const updateEventRsvp = (eventId: string, status: 'going' | 'maybe' | 'no_going') => DatabaseService.updateEventRsvp(eventId, status);
-export const deleteEventRsvp = (eventId: string) => DatabaseService.deleteEventRsvp(eventId);
-export const getEventRsvp = (eventId: string, userId: string) => DatabaseService.getEventRsvp(eventId, userId);
-export const getEventRsvps = (eventId: string) => DatabaseService.getEventRsvps(eventId);
-export const updateEvent = (eventId: string, updates: any) => DatabaseService.updateEvent(eventId, updates);
-export const likePost = (postId: string, userId: string) => DatabaseService.likePost(postId, userId);
-export const unlikePost = (postId: string, userId: string) => DatabaseService.unlikePost(postId, userId);
-export const createComment = (postId: string, userId: string, text: string) => DatabaseService.createComment(postId, userId, text);
-export const getPostComments = (postId: string) => DatabaseService.getPostComments(postId);
-export const deleteComment = (commentId: string, userId: string) => DatabaseService.deleteComment(commentId, userId);
-export const deletePost = (postId: string, userId: string) => DatabaseService.deletePost(postId, userId);
-export const updatePost = (postId: string, updates: { content?: string; image?: string }, userId: string) => DatabaseService.updatePost(postId, updates, userId);
-export const checkFirstLogin = (userId: string) => DatabaseService.checkFirstLogin(userId);
-export const updateFirstLogin = (userId: string) => DatabaseService.updateFirstLogin(userId);
+export const getUserInterests = (userId: string) =>
+  DatabaseService.getUserInterests(userId);
+export const getUserLookFor = (userId: string) =>
+  DatabaseService.getUserLookFor(userId);
+export const getInterestsByCategory = () =>
+  DatabaseService.getInterestsByCategory();
+export const getUserNotifications = (userId: string) =>
+  DatabaseService.getUserNotifications(userId);
+export const markNotificationAsRead = (notificationId: string) =>
+  DatabaseService.markNotificationAsRead(notificationId);
+export const markAllNotificationsAsRead = (userId: string) =>
+  DatabaseService.markAllNotificationsAsRead(userId);
+export const joinCircle = (userId: string, circleId: string) =>
+  DatabaseService.joinCircle(userId, circleId);
+export const leaveCircle = (userId: string, circleId: string) =>
+  DatabaseService.leaveCircle(userId, circleId);
+export const getUserJoinedCircles = (userId: string) =>
+  DatabaseService.getUserJoinedCircles(userId);
+export const getCircleMessages = (circleId: string) =>
+  DatabaseService.getCircleMessages(circleId);
+export const sendMessage = (message: any) =>
+  DatabaseService.sendMessage(message);
+export const requestToJoinCircle = (
+  userId: string,
+  circleId: string,
+  message?: string
+) => DatabaseService.requestToJoinCircle(userId, circleId, message);
+export const getCircleJoinRequests = (circleId: string) =>
+  DatabaseService.getCircleJoinRequests(circleId);
+export const handleJoinRequest = (
+  requestId: string,
+  action: "accept" | "reject"
+) => DatabaseService.handleJoinRequest(requestId, action);
+export const getUserPendingRequest = (circleId: string, userId: string) =>
+  DatabaseService.getUserPendingRequest(circleId, userId);
+export const deleteCircle = (circleId: string, adminUserId: string) =>
+  DatabaseService.deleteCircle(circleId, adminUserId);
+export const getCircleMembers = (circleId: string) =>
+  DatabaseService.getCircleMembers(circleId);
+export const addCircleAdmin = (
+  circleId: string,
+  userId: string,
+  requestingAdminId: string
+) => DatabaseService.addCircleAdmin(circleId, userId, requestingAdminId);
+export const removeCircleAdmin = (
+  circleId: string,
+  userId: string,
+  requestingAdminId: string
+) => DatabaseService.removeCircleAdmin(circleId, userId, requestingAdminId);
+export const removeMemberFromCircle = (
+  circleId: string,
+  userId: string,
+  adminId: string
+) => DatabaseService.removeMemberFromCircle(circleId, userId, adminId);
+export const isCircleAdmin = (circleId: string, userId: string) =>
+  DatabaseService.isCircleAdmin(circleId, userId);
+export const getHomePagePosts = (userId: string) =>
+  DatabaseService.getHomePagePosts(userId);
+export const getCircleInterests = (circleId: string) =>
+  DatabaseService.getCircleInterests(circleId);
+export const updateCircle = (circleId: string, updates: any, userId: string) =>
+  DatabaseService.updateCircle(circleId, updates, userId);
+export const updateCircleInterests = (
+  circleId: string,
+  interestIds: string[],
+  userId: string
+) => DatabaseService.updateCircleInterests(circleId, interestIds, userId);
+export const deleteEvent = (eventId: string) =>
+  DatabaseService.deleteEvent(eventId);
+export const createEventRsvp = (
+  eventId: string,
+  status: "going" | "maybe" | "no_going"
+) => DatabaseService.createEventRsvp(eventId, status);
+export const updateEventRsvp = (
+  eventId: string,
+  status: "going" | "maybe" | "no_going"
+) => DatabaseService.updateEventRsvp(eventId, status);
+export const deleteEventRsvp = (eventId: string) =>
+  DatabaseService.deleteEventRsvp(eventId);
+export const getEventRsvp = (eventId: string, userId: string) =>
+  DatabaseService.getEventRsvp(eventId, userId);
+export const getEventRsvps = (eventId: string) =>
+  DatabaseService.getEventRsvps(eventId);
+export const updateEvent = (eventId: string, updates: any) =>
+  DatabaseService.updateEvent(eventId, updates);
+export const likePost = (postId: string, userId: string) =>
+  DatabaseService.likePost(postId, userId);
+export const unlikePost = (postId: string, userId: string) =>
+  DatabaseService.unlikePost(postId, userId);
+export const createComment = (postId: string, userId: string, text: string) =>
+  DatabaseService.createComment(postId, userId, text);
+export const getPostComments = (postId: string) =>
+  DatabaseService.getPostComments(postId);
+export const deleteComment = (commentId: string, userId: string) =>
+  DatabaseService.deleteComment(commentId, userId);
+export const deletePost = (postId: string, userId: string) =>
+  DatabaseService.deletePost(postId, userId);
+export const updatePost = (
+  postId: string,
+  updates: { content?: string; image?: string },
+  userId: string
+) => DatabaseService.updatePost(postId, updates, userId);
+export const checkFirstLogin = (userId: string) =>
+  DatabaseService.checkFirstLogin(userId);
+export const updateFirstLogin = (userId: string) =>
+  DatabaseService.updateFirstLogin(userId);
 
 // Add missing functions
 export const getCirclesByUser = async (userId: string) => {
@@ -61,39 +134,42 @@ export const getCirclesByUser = async (userId: string) => {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: [], error: new Error('Authentication required') };
+      return { data: [], error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('user_circles')
-      .select(`
+      .from("user_circles")
+      .select(
+        `
         circleid,
         circles!inner(
           id,
           name,
           description
         )
-      `)
-      .eq('userid', userId);
+      `
+      )
+      .eq("userid", userId);
 
     if (error) {
       // Handle RLS policy errors
-      if (error.code === 'PGRST001' || error.code === '42501') {
-        console.log('RLS policy prevented access to user circles');
+      if (error.code === "PGRST001" || error.code === "42501") {
+        console.log("RLS policy prevented access to user circles");
         return { data: [], error: null }; // Return empty array instead of error
       }
       return { data: null, error };
     }
 
     return {
-      data: data?.map(uc => ({
-        circleId: uc.circleid,
-        circles: uc.circles
-      })) || [],
-      error: null
+      data:
+        data?.map((uc) => ({
+          circleId: uc.circleid,
+          circles: uc.circles,
+        })) || [],
+      error: null,
     };
   } catch (error) {
-    console.error('Error in getCirclesByUser:', error);
+    console.error("Error in getCirclesByUser:", error);
     return { data: [], error: null };
   }
 };
@@ -102,18 +178,18 @@ export const DatabaseService = {
   // User operations
   async getUser(id: string) {
     const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', id)
+      .from("users")
+      .select("*")
+      .eq("id", id)
       .single();
     return { data, error };
   },
 
   async updateUser(id: string, updates: Partial<User>) {
     const { data, error } = await supabase
-      .from('users')
+      .from("users")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
     return { data, error };
@@ -121,9 +197,9 @@ export const DatabaseService = {
 
   async updateUserAvatar(id: string, avatarUrl: string) {
     const { data, error } = await supabase
-      .from('users')
+      .from("users")
       .update({ avatar_url: avatarUrl })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
     return { data, error };
@@ -134,12 +210,13 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('circles')
-      .select(`
+      .from("circles")
+      .select(
+        `
         *,
         circle_interests(
           interests(
@@ -148,8 +225,9 @@ export const DatabaseService = {
             category
           )
         )
-      `)
-      .order('creationdate', { ascending: false });
+      `
+      )
+      .order("creationdate", { ascending: false });
     return { data, error };
   },
 
@@ -157,40 +235,44 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: [], error: new Error('Authentication required') };
+      return { data: [], error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('circle_interests')
-      .select(`
+      .from("circle_interests")
+      .select(
+        `
         interests(
           id,
           title,
           category
         )
-      `)
-      .eq('circleid', circleId);
+      `
+      )
+      .eq("circleid", circleId);
 
     return {
-      data: data?.map(ci => ci.interests).filter(Boolean) || [],
-      error
+      data: data?.map((ci) => ci.interests).filter(Boolean) || [],
+      error,
     };
   },
 
   async getUserCircles(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('user_circles')
-        .select(`
+        .from("user_circles")
+        .select(
+          `
           circleid,
           circles (*)
-        `)
-        .eq('userid', userId);
+        `
+        )
+        .eq("userid", userId);
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          console.log('RLS policy prevented access to user circles');
+        if (error.code === "PGRST001" || error.code === "42501") {
+          console.log("RLS policy prevented access to user circles");
           return { data: [], error: null };
         }
         return { data: null, error };
@@ -198,16 +280,16 @@ export const DatabaseService = {
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getUserCircles:', error);
+      console.error("Error in getUserCircles:", error);
       return { data: [], error: null };
     }
   },
 
-  async createCircle(circle: Omit<Circle, 'id' | 'creationdate'>) {
+  async createCircle(circle: Omit<Circle, "id" | "creationdate">) {
     // Verify user exists and is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('User not authenticated') };
+      return { data: null, error: new Error("User not authenticated") };
     }
 
     const circleId = crypto.randomUUID();
@@ -225,76 +307,81 @@ export const DatabaseService = {
     try {
       // 1. Insert into circles table with the generated ID
       const { data: circleData, error: circleError } = await supabase
-        .from('circles')
+        .from("circles")
         .insert(newCircle)
         .select()
         .single();
 
       if (circleError) {
-        console.error('Error creating circle:', circleError);
+        console.error("Error creating circle:", circleError);
         return { data: null, error: circleError };
       }
 
       // 2. Add creator as admin in circle_admins using the created circle's ID
       const { error: adminError } = await supabase
-        .from('circle_admins')
+        .from("circle_admins")
         .insert({
           circleid: circleData.id, // Use the ID from the created circle
-          userid: userId
+          userid: userId,
         });
 
       if (adminError) {
-        console.error('Error adding admin:', adminError);
+        console.error("Error adding admin:", adminError);
         // Rollback circle creation if admin creation fails
-        await supabase.from('circles').delete().eq('id', circleData.id);
+        await supabase.from("circles").delete().eq("id", circleData.id);
         return { data: null, error: adminError };
       }
 
       // 3. Add creator to user_circles (join the circle) using the created circle's ID
-      const { error: joinError } = await supabase
-        .from('user_circles')
-        .insert({
-          userid: userId,
-          circleid: circleData.id // Use the ID from the created circle
-        });
+      const { error: joinError } = await supabase.from("user_circles").insert({
+        userid: userId,
+        circleid: circleData.id, // Use the ID from the created circle
+      });
 
       if (joinError) {
-        console.error('Error joining circle:', joinError);
+        console.error("Error joining circle:", joinError);
         // Rollback previous operations
-        await supabase.from('circle_admins').delete().eq('circleid', circleData.id);
-        await supabase.from('circles').delete().eq('id', circleData.id);
+        await supabase
+          .from("circle_admins")
+          .delete()
+          .eq("circleid", circleData.id);
+        await supabase.from("circles").delete().eq("id", circleData.id);
         return { data: null, error: joinError };
       }
 
       return { data: circleData, error: null };
     } catch (error) {
-      console.error('Error in createCircle transaction:', error);
+      console.error("Error in createCircle transaction:", error);
       return { data: null, error: error as Error };
     }
   },
 
-  async updateCircle(circleId: string, updates: {
-    name?: string;
-    description?: string;
-    privacy?: 'public' | 'private';
-    circle_profile_url?: string;
-  }, userId: string) {
+  async updateCircle(
+    circleId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      privacy?: "public" | "private";
+      circle_profile_url?: string;
+    },
+    userId: string
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Check if user is admin or creator
       const { data: adminCheck } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
       if (!adminCheck) {
-        return { data: null, error: new Error('Circle not found') };
+        return { data: null, error: new Error("Circle not found") };
       }
 
       const isCreator = adminCheck.creator === userId;
@@ -302,53 +389,60 @@ export const DatabaseService = {
       if (!isCreator) {
         // Check if user is admin
         const { data: isAdmin } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', circleId)
-          .eq('userid', userId)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", circleId)
+          .eq("userid", userId)
           .single();
 
         if (!isAdmin) {
-          return { data: null, error: new Error('You do not have permission to edit this circle') };
+          return {
+            data: null,
+            error: new Error("You do not have permission to edit this circle"),
+          };
         }
       }
 
       const { data, error } = await supabase
-        .from('circles')
+        .from("circles")
         .update(updates)
-        .eq('id', circleId)
+        .eq("id", circleId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating circle:', error);
+        console.error("Error updating circle:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in updateCircle:', error);
+      console.error("Error in updateCircle:", error);
       return { data: null, error: error as Error };
     }
   },
 
-  async updateCircleInterests(circleId: string, interestIds: string[], userId: string) {
+  async updateCircleInterests(
+    circleId: string,
+    interestIds: string[],
+    userId: string
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Check if user is admin or creator
       const { data: adminCheck } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
       if (!adminCheck) {
-        return { data: null, error: new Error('Circle not found') };
+        return { data: null, error: new Error("Circle not found") };
       }
 
       const isCreator = adminCheck.creator === userId;
@@ -356,63 +450,73 @@ export const DatabaseService = {
       if (!isCreator) {
         // Check if user is admin
         const { data: isAdmin } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', circleId)
-          .eq('userid', userId)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", circleId)
+          .eq("userid", userId)
           .single();
 
         if (!isAdmin) {
-          return { data: null, error: new Error('You do not have permission to edit circle interests') };
+          return {
+            data: null,
+            error: new Error(
+              "You do not have permission to edit circle interests"
+            ),
+          };
         }
       }
 
       // Get current interests
       const { data: currentInterests } = await supabase
-        .from('circle_interests')
-        .select('interestid')
-        .eq('circleid', circleId);
+        .from("circle_interests")
+        .select("interestid")
+        .eq("circleid", circleId);
 
-      const currentInterestIds = currentInterests?.map(ci => ci.interestid) || [];
+      const currentInterestIds =
+        currentInterests?.map((ci) => ci.interestid) || [];
 
       // Find interests to add and remove
-      const interestsToAdd = interestIds.filter(id => !currentInterestIds.includes(id));
-      const interestsToRemove = currentInterestIds.filter(id => !interestIds.includes(id));
+      const interestsToAdd = interestIds.filter(
+        (id) => !currentInterestIds.includes(id)
+      );
+      const interestsToRemove = currentInterestIds.filter(
+        (id) => !interestIds.includes(id)
+      );
 
       // Remove old interests
       if (interestsToRemove.length > 0) {
         const { error: removeError } = await supabase
-          .from('circle_interests')
+          .from("circle_interests")
           .delete()
-          .eq('circleid', circleId)
-          .in('interestid', interestsToRemove);
+          .eq("circleid", circleId)
+          .in("interestid", interestsToRemove);
 
         if (removeError) {
-          console.error('Error removing interests:', removeError);
+          console.error("Error removing interests:", removeError);
           return { data: null, error: removeError };
         }
       }
 
       // Add new interests
       if (interestsToAdd.length > 0) {
-        const newInterests = interestsToAdd.map(interestId => ({
+        const newInterests = interestsToAdd.map((interestId) => ({
           circleid: circleId,
-          interestid: interestId
+          interestid: interestId,
         }));
 
         const { error: addError } = await supabase
-          .from('circle_interests')
+          .from("circle_interests")
           .insert(newInterests);
 
         if (addError) {
-          console.error('Error adding interests:', addError);
+          console.error("Error adding interests:", addError);
           return { data: null, error: addError };
         }
       }
 
       return { data: { success: true }, error: null };
     } catch (error) {
-      console.error('Error in updateCircleInterests:', error);
+      console.error("Error in updateCircleInterests:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -422,22 +526,28 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     // Get events that are either general (circleid is null) or from circles the user is a member of
     const { data: events, error } = await supabase
-      .from('events')
-      .select(`
+      .from("events")
+      .select(
+        `
         *,
         creator:users!events_createdby_fkey(name),
         circle:circles!events_circleid_fkey(name),
         event_interests(
           interests(id, title, category)
         )
-      `)
-      .or(`circleid.is.null,circleid.in.(${await this.getUserCircleIds(currentUser.user.id)})`)
-      .order('creationdate', { ascending: false });
+      `
+      )
+      .or(
+        `circleid.is.null,circleid.in.(${await this.getUserCircleIds(
+          currentUser.user.id
+        )})`
+      )
+      .order("creationdate", { ascending: false });
 
     if (error) {
       return { data: null, error };
@@ -445,33 +555,35 @@ export const DatabaseService = {
 
     // Get RSVP data separately and calculate counts for each event
     if (events && events.length > 0) {
-      const eventIds = events.map(e => e.id);
+      const eventIds = events.map((e) => e.id);
 
       // Get all RSVPs for these events
       const { data: allRsvps } = await supabase
-        .from('event_rsvps')
-        .select('event_id, user_id, status')
-        .in('event_id', eventIds);
+        .from("event_rsvps")
+        .select("event_id, user_id, status")
+        .in("event_id", eventIds);
 
       // Get current user's RSVPs
       const { data: userRsvps } = await supabase
-        .from('event_rsvps')
-        .select('event_id, status')
-        .eq('user_id', currentUser.user.id)
-        .in('event_id', eventIds);
+        .from("event_rsvps")
+        .select("event_id, status")
+        .eq("user_id", currentUser.user.id)
+        .in("event_id", eventIds);
 
       // Calculate counts and add user RSVP status
-      const enhancedEvents = events.map(event => {
-        const eventRsvps = allRsvps?.filter(rsvp => rsvp.event_id === event.id) || [];
-        const userRsvp = userRsvps?.find(rsvp => rsvp.event_id === event.id);
+      const enhancedEvents = events.map((event) => {
+        const eventRsvps =
+          allRsvps?.filter((rsvp) => rsvp.event_id === event.id) || [];
+        const userRsvp = userRsvps?.find((rsvp) => rsvp.event_id === event.id);
 
         return {
           ...event,
-          going_count: eventRsvps.filter(r => r.status === 'going').length,
-          maybe_count: eventRsvps.filter(r => r.status === 'maybe').length,
-          not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
+          going_count: eventRsvps.filter((r) => r.status === "going").length,
+          maybe_count: eventRsvps.filter((r) => r.status === "maybe").length,
+          not_going_count: eventRsvps.filter((r) => r.status === "not_going")
+            .length,
           userRsvpStatus: userRsvp?.status || null,
-          circleName: event.circle?.name || null
+          circleName: event.circle?.name || null,
         };
       });
 
@@ -484,14 +596,16 @@ export const DatabaseService = {
   async getUserCircleIds(userId: string) {
     try {
       const { data } = await supabase
-        .from('user_circles')
-        .select('circleid')
-        .eq('userid', userId);
+        .from("user_circles")
+        .select("circleid")
+        .eq("userid", userId);
 
-      const circleIds = data?.map(uc => uc.circleid) || [];
-      return circleIds.length > 0 ? circleIds.join(',') : '00000000-0000-0000-0000-000000000000'; // dummy ID if no circles
+      const circleIds = data?.map((uc) => uc.circleid) || [];
+      return circleIds.length > 0
+        ? circleIds.join(",")
+        : "00000000-0000-0000-0000-000000000000"; // dummy ID if no circles
     } catch (error) {
-      return '00000000-0000-0000-0000-000000000000'; // dummy ID on error
+      return "00000000-0000-0000-0000-000000000000"; // dummy ID on error
     }
   },
 
@@ -499,21 +613,23 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data: events, error } = await supabase
-      .from('events')
-      .select(`
+      .from("events")
+      .select(
+        `
         *,
         creator:users!events_createdby_fkey(name),
         circle:circles!events_circleid_fkey(name),
         event_interests(
           interests(id, title, category)
         )
-      `)
-      .eq('circleid', circleId)
-      .order('date', { ascending: true });
+      `
+      )
+      .eq("circleid", circleId)
+      .order("date", { ascending: true });
 
     if (error) {
       return { data: null, error };
@@ -521,33 +637,35 @@ export const DatabaseService = {
 
     // Get RSVP data separately and calculate counts for each event
     if (events && events.length > 0) {
-      const eventIds = events.map(e => e.id);
+      const eventIds = events.map((e) => e.id);
 
       // Get all RSVPs for these events
       const { data: allRsvps } = await supabase
-        .from('event_rsvps')
-        .select('event_id, user_id, status')
-        .in('event_id', eventIds);
+        .from("event_rsvps")
+        .select("event_id, user_id, status")
+        .in("event_id", eventIds);
 
       // Get current user's RSVPs
       const { data: userRsvps } = await supabase
-        .from('event_rsvps')
-        .select('event_id, status')
-        .eq('user_id', currentUser.user.id)
-        .in('event_id', eventIds);
+        .from("event_rsvps")
+        .select("event_id, status")
+        .eq("user_id", currentUser.user.id)
+        .in("event_id", eventIds);
 
       // Calculate counts and add user RSVP status
-      const enhancedEvents = events.map(event => {
-        const eventRsvps = allRsvps?.filter(rsvp => rsvp.event_id === event.id) || [];
-        const userRsvp = userRsvps?.find(rsvp => rsvp.event_id === event.id);
+      const enhancedEvents = events.map((event) => {
+        const eventRsvps =
+          allRsvps?.filter((rsvp) => rsvp.event_id === event.id) || [];
+        const userRsvp = userRsvps?.find((rsvp) => rsvp.event_id === event.id);
 
         return {
           ...event,
-          going_count: eventRsvps.filter(r => r.status === 'going').length,
-          maybe_count: eventRsvps.filter(r => r.status === 'maybe').length,
-          not_going_count: eventRsvps.filter(r => r.status === 'not_going').length,
+          going_count: eventRsvps.filter((r) => r.status === "going").length,
+          maybe_count: eventRsvps.filter((r) => r.status === "maybe").length,
+          not_going_count: eventRsvps.filter((r) => r.status === "not_going")
+            .length,
           user_rsvp: userRsvp ? [{ status: userRsvp.status }] : [],
-          circleName: event.circle?.name || null
+          circleName: event.circle?.name || null,
         };
       });
 
@@ -557,11 +675,17 @@ export const DatabaseService = {
     return { data: events || [], error: null };
   },
 
-  async createEvent(event: Omit<Event, 'id' | 'creationdate'> & { interests?: any[], photoAsset?: any, location_url?: string }) {
+  async createEvent(
+    event: Omit<Event, "id" | "creationdate"> & {
+      interests?: any[];
+      photoAsset?: any;
+      location_url?: string | null;
+    }
+  ) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     try {
@@ -570,29 +694,30 @@ export const DatabaseService = {
       // Extract interests and photo from event object and create clean event data
       const { interests, photoAsset, location_url, ...eventDataClean } = event;
 
-      console.log('Database: Creating event with interests:', interests);
-      console.log('Database: Creating event with photo:', !!photoAsset);
-      console.log('Database: Creating event with location_url:', location_url);
+      console.log("Database: Creating event with interests:", interests);
+      console.log("Database: Creating event with photo:", !!photoAsset);
+      console.log("Database: Creating event with location_url:", location_url);
 
       let eventPhotoUrl = null;
 
       // Upload photo if provided
       if (photoAsset) {
-        console.log('Uploading event photo...');
-        const { data: uploadData, error: uploadError } = await StorageService.uploadEventPhoto(
-          eventId,
-          photoAsset,
-          currentUser.user.id
-        );
+        console.log("Uploading event photo...");
+        const { data: uploadData, error: uploadError } =
+          await StorageService.uploadEventPhoto(
+            eventId,
+            photoAsset,
+            currentUser.user.id
+          );
 
         if (uploadError) {
-          console.error('Error uploading event photo:', uploadError);
+          console.error("Error uploading event photo:", uploadError);
           return { data: null, error: uploadError };
         }
 
         if (uploadData?.publicUrl) {
           eventPhotoUrl = uploadData.publicUrl;
-          console.log('Event photo uploaded successfully:', eventPhotoUrl);
+          console.log("Event photo uploaded successfully:", eventPhotoUrl);
         }
       }
 
@@ -603,7 +728,7 @@ export const DatabaseService = {
         createdby: currentUser.user.id,
         creationdate: new Date().toISOString(),
         photo_url: eventPhotoUrl, // Add photo URL to event
-        location_url: location_url || null // Add location_url to event
+        location_url: location_url || null, // Add location_url to event
       };
 
       // Fix column name - use circleid not circleId
@@ -613,21 +738,24 @@ export const DatabaseService = {
       }
 
       const { data: eventData, error: eventError } = await supabase
-        .from('events')
+        .from("events")
         .insert(eventToInsert)
         .select()
         .single();
 
       if (eventError) {
-        console.error('Error creating event:', eventError);
+        console.error("Error creating event:", eventError);
         // If event creation fails and we uploaded a photo, clean it up
         if (eventPhotoUrl && photoAsset) {
           try {
-            const urlParts = eventPhotoUrl.split('/');
-            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            const urlParts = eventPhotoUrl.split("/");
+            const fileName = urlParts[urlParts.length - 1].split("?")[0];
             await StorageService.deleteEventPhoto(eventId, fileName);
           } catch (cleanupError) {
-            console.error('Error cleaning up uploaded photo after event creation failure:', cleanupError);
+            console.error(
+              "Error cleaning up uploaded photo after event creation failure:",
+              cleanupError
+            );
           }
         }
         return { data: null, error: eventError };
@@ -636,72 +764,76 @@ export const DatabaseService = {
       // Add event interests if provided
       if (interests && interests.length > 0) {
         // Handle both string array format and object array format from EventModal
-        const eventInterests = interests.map(interest => {
-          if (typeof interest === 'string') {
-            // Simple string interest ID
-            return {
-              eventid: eventData.id,
-              interestid: interest
-            };
-          } else if (interest.interestid) {
-            // Object with interestid property (from EventModal)
-            return {
-              eventid: eventData.id,
-              interestid: interest.interestid
-            };
-          } else {
-            // Fallback
-            console.warn('Unknown interest format:', interest);
-            return null;
-          }
-        }).filter(Boolean); // Remove null entries
+        const eventInterests = interests
+          .map((interest) => {
+            if (typeof interest === "string") {
+              // Simple string interest ID
+              return {
+                eventid: eventData.id,
+                interestid: interest,
+              };
+            } else if (interest.interestid) {
+              // Object with interestid property (from EventModal)
+              return {
+                eventid: eventData.id,
+                interestid: interest.interestid,
+              };
+            } else {
+              // Fallback
+              console.warn("Unknown interest format:", interest);
+              return null;
+            }
+          })
+          .filter(Boolean); // Remove null entries
 
-        console.log('Database: Inserting event interests:', eventInterests);
+        console.log("Database: Inserting event interests:", eventInterests);
 
         const { error: interestsError } = await supabase
-          .from('event_interests')
+          .from("event_interests")
           .insert(eventInterests);
 
         if (interestsError) {
-          console.error('Error adding event interests:', interestsError);
+          console.error("Error adding event interests:", interestsError);
           // Don't fail the event creation if interests fail, but log the error
         }
       }
 
       return { data: eventData, error: null };
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error("Error creating event:", error);
       return { data: null, error: error as Error };
     }
   },
 
   async deleteEvent(eventId: string) {
-    console.log('🗑️ DELETE EVENT START: eventId =', eventId);
+    console.log("🗑️ DELETE EVENT START: eventId =", eventId);
 
     try {
       // Check authentication
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        console.error('🗑️ DELETE EVENT: No authenticated user');
-        return { data: null, error: new Error('Authentication required') };
+        console.error("🗑️ DELETE EVENT: No authenticated user");
+        return { data: null, error: new Error("Authentication required") };
       }
 
-      console.log('🗑️ DELETE EVENT: Authenticated user =', currentUser.user.id);
+      console.log("🗑️ DELETE EVENT: Authenticated user =", currentUser.user.id);
 
       // First, get the event details to check permissions manually
-      console.log('🗑️ DELETE EVENT: Fetching event details for permission check...');
+      console.log(
+        "🗑️ DELETE EVENT: Fetching event details for permission check..."
+      );
       const { data: eventData, error: fetchError } = await supabase
-        .from('events')
-        .select('id, createdby, circleid')
-        .eq('id', eventId)
+        .from("events")
+        .select("id, createdby, circleid")
+        .eq("id", eventId)
         .single();
 
       if (fetchError || !eventData) {
-        console.error('🗑️ DELETE EVENT: Event not found:', fetchError);
-        return { data: null, error: new Error('Event not found') };
+        console.error("🗑️ DELETE EVENT: Event not found:", fetchError);
+        return { data: null, error: new Error("Event not found") };
       }
 
-      console.log('🗑️ DELETE EVENT: Event details:', eventData);
+      console.log("🗑️ DELETE EVENT: Event details:", eventData);
 
       // Check if user has permission to delete
       let hasPermission = false;
@@ -709,80 +841,98 @@ export const DatabaseService = {
       // 1. Event creator can delete
       if (eventData.createdby === currentUser.user.id) {
         hasPermission = true;
-        console.log('🗑️ DELETE EVENT: Permission granted - user is event creator');
+        console.log(
+          "🗑️ DELETE EVENT: Permission granted - user is event creator"
+        );
       }
 
       // 2. If it's a circle event, check if user is circle creator or admin
       if (!hasPermission && eventData.circleid) {
-        console.log('🗑️ DELETE EVENT: Checking circle permissions for circleid:', eventData.circleid);
+        console.log(
+          "🗑️ DELETE EVENT: Checking circle permissions for circleid:",
+          eventData.circleid
+        );
 
         // Check if user is circle creator
         const { data: circleData } = await supabase
-          .from('circles')
-          .select('creator')
-          .eq('id', eventData.circleid)
+          .from("circles")
+          .select("creator")
+          .eq("id", eventData.circleid)
           .single();
 
         if (circleData?.creator === currentUser.user.id) {
           hasPermission = true;
-          console.log('🗑️ DELETE EVENT: Permission granted - user is circle creator');
+          console.log(
+            "🗑️ DELETE EVENT: Permission granted - user is circle creator"
+          );
         }
 
         // Check if user is circle admin
         if (!hasPermission) {
           const { data: adminData } = await supabase
-            .from('circle_admins')
-            .select('userid')
-            .eq('circleid', eventData.circleid)
-            .eq('userid', currentUser.user.id)
+            .from("circle_admins")
+            .select("userid")
+            .eq("circleid", eventData.circleid)
+            .eq("userid", currentUser.user.id)
             .single();
 
           if (adminData) {
             hasPermission = true;
-            console.log('🗑️ DELETE EVENT: Permission granted - user is circle admin');
+            console.log(
+              "🗑️ DELETE EVENT: Permission granted - user is circle admin"
+            );
           }
         }
       }
 
       if (!hasPermission) {
-        console.error('🗑️ DELETE EVENT: Permission denied');
-        return { data: null, error: new Error('You do not have permission to delete this event') };
+        console.error("🗑️ DELETE EVENT: Permission denied");
+        return {
+          data: null,
+          error: new Error("You do not have permission to delete this event"),
+        };
       }
 
       // Now attempt to delete with service role to bypass RLS
-      console.log('🗑️ DELETE EVENT: Attempting delete with verified permissions...');
+      console.log(
+        "🗑️ DELETE EVENT: Attempting delete with verified permissions..."
+      );
 
       const { data, error } = await supabase
-        .from('events')
+        .from("events")
         .delete()
-        .eq('id', eventId)
+        .eq("id", eventId)
         .select();
 
-      console.log('🗑️ DELETE EVENT RESULT:', {
+      console.log("🗑️ DELETE EVENT RESULT:", {
         success: !error,
         hasData: !!data,
         dataLength: data?.length || 0,
         errorCode: error?.code,
         errorMessage: error?.message,
-        data: data
+        data: data,
       });
 
       if (error) {
-        console.error('🗑️ DELETE EVENT FAILED:', error);
+        console.error("🗑️ DELETE EVENT FAILED:", error);
         return { data: null, error };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ DELETE EVENT: No rows affected - event may not exist');
-        return { data: null, error: new Error('Event not found') };
+        console.error(
+          "🗑️ DELETE EVENT: No rows affected - event may not exist"
+        );
+        return { data: null, error: new Error("Event not found") };
       }
 
-      console.log('🗑️ DELETE EVENT SUCCESS: Event deleted');
+      console.log("🗑️ DELETE EVENT SUCCESS: Event deleted");
       return { data: data[0], error: null };
-
     } catch (error) {
-      console.error('🗑️ DELETE EVENT CATCH:', error);
-      return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+      console.error("🗑️ DELETE EVENT CATCH:", error);
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
   },
 
@@ -790,56 +940,61 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     try {
       // Get current interests
       const { data: currentInterests } = await supabase
-        .from('event_interests')
-        .select('interestid')
-        .eq('eventid', eventId);
+        .from("event_interests")
+        .select("interestid")
+        .eq("eventid", eventId);
 
-      const currentInterestIds = currentInterests?.map(ci => ci.interestid) || [];
+      const currentInterestIds =
+        currentInterests?.map((ci) => ci.interestid) || [];
 
       // Find interests to add and remove
-      const interestsToAdd = newInterests.filter(id => !currentInterestIds.includes(id));
-      const interestsToRemove = currentInterestIds.filter(id => !newInterests.includes(id));
+      const interestsToAdd = newInterests.filter(
+        (id) => !currentInterestIds.includes(id)
+      );
+      const interestsToRemove = currentInterestIds.filter(
+        (id) => !newInterests.includes(id)
+      );
 
       // Remove old interests
       if (interestsToRemove.length > 0) {
         const { error: removeError } = await supabase
-          .from('event_interests')
+          .from("event_interests")
           .delete()
-          .eq('eventid', eventId)
-          .in('interestid', interestsToRemove);
+          .eq("eventid", eventId)
+          .in("interestid", interestsToRemove);
 
         if (removeError) {
-          console.error('Error removing interests:', removeError);
+          console.error("Error removing interests:", removeError);
           return { data: null, error: removeError };
         }
       }
 
       // Add new interests
       if (interestsToAdd.length > 0) {
-        const newEventInterests = interestsToAdd.map(interestId => ({
+        const newEventInterests = interestsToAdd.map((interestId) => ({
           eventid: eventId,
-          interestid: interestId
+          interestid: interestId,
         }));
 
         const { error: addError } = await supabase
-          .from('event_interests')
+          .from("event_interests")
           .insert(newEventInterests);
 
         if (addError) {
-          console.error('Error adding interests:', addError);
+          console.error("Error adding interests:", addError);
           return { data: null, error: addError };
         }
       }
 
       return { data: { success: true }, error: null };
     } catch (error) {
-      console.error('Error in updateEventInterests:', error);
+      console.error("Error in updateEventInterests:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -847,12 +1002,15 @@ export const DatabaseService = {
   // Post operations
   async getPosts(circleId?: string) {
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const currentUserId = user?.id;
 
     let query = supabase
-      .from('posts')
-      .select(`
+      .from("posts")
+      .select(
+        `
         *,
         author:users!posts_userid_fkey(
           id,
@@ -863,13 +1021,14 @@ export const DatabaseService = {
           id,
           name
         )
-      `)
-      .order('creationdate', { ascending: false });
+      `
+      )
+      .order("creationdate", { ascending: false });
 
     if (circleId) {
-      query = query.eq('circleid', circleId);
+      query = query.eq("circleid", circleId);
     } else {
-      query = query.is('circleid', null);
+      query = query.is("circleid", null);
     }
 
     const { data: posts, error } = await query;
@@ -880,43 +1039,46 @@ export const DatabaseService = {
 
     // Get like counts, comments count, and user like status for each post
     if (posts && posts.length > 0) {
-      const postIds = posts.map(post => post.id);
+      const postIds = posts.map((post) => post.id);
 
       // Get all likes for these posts
       const { data: allLikes } = await supabase
-        .from('post_likes')
-        .select('postid, userid')
-        .in('postid', postIds);
+        .from("post_likes")
+        .select("postid, userid")
+        .in("postid", postIds);
 
       // Get comments count for these posts
       const { data: commentsCount } = await supabase
-        .from('comments')
-        .select('postid')
-        .in('postid', postIds);
+        .from("comments")
+        .select("postid")
+        .in("postid", postIds);
 
       // Check which posts the current user has liked
-      const userLikes = currentUserId ?
-        allLikes?.filter(like => like.userid === currentUserId) || [] : [];
-      const likedPostIds = new Set(userLikes.map(like => like.postid));
+      const userLikes = currentUserId
+        ? allLikes?.filter((like) => like.userid === currentUserId) || []
+        : [];
+      const likedPostIds = new Set(userLikes.map((like) => like.postid));
 
       // Calculate like counts for each post
-      const likeCounts = allLikes?.reduce((acc, like) => {
-        acc[like.postid] = (acc[like.postid] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
+      const likeCounts =
+        allLikes?.reduce((acc, like) => {
+          acc[like.postid] = (acc[like.postid] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
 
       // Calculate comments count for each post
-      const commentsCountMap = commentsCount?.reduce((acc, comment) => {
-        acc[comment.postid] = (acc[comment.postid] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
+      const commentsCountMap =
+        commentsCount?.reduce((acc, comment) => {
+          acc[comment.postid] = (acc[comment.postid] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {};
 
-      const postsWithLikeData = posts.map(post => ({
+      const postsWithLikeData = posts.map((post) => ({
         ...post,
         likes_count: likeCounts[post.id] || 0,
         userLiked: likedPostIds.has(post.id),
         comments_count: commentsCountMap[post.id] || 0,
-        comments: [] // Add empty comments array for compatibility
+        comments: [], // Add empty comments array for compatibility
       }));
 
       return { data: postsWithLikeData, error: null };
@@ -925,11 +1087,11 @@ export const DatabaseService = {
     return { data: posts, error };
   },
 
-  async createPost(post: Omit<Post, 'id' | 'creationdate'>, photoAsset?: any) {
+  async createPost(post: Omit<Post, "id" | "creationdate">, photoAsset?: any) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const postId = crypto.randomUUID();
@@ -939,21 +1101,22 @@ export const DatabaseService = {
 
       // Upload photo if provided
       if (photoAsset) {
-        console.log('Uploading post photo...');
-        const { data: uploadData, error: uploadError } = await StorageService.uploadPostPhoto(
-          postId,
-          photoAsset,
-          currentUser.user.id
-        );
+        console.log("Uploading post photo...");
+        const { data: uploadData, error: uploadError } =
+          await StorageService.uploadPostPhoto(
+            postId,
+            photoAsset,
+            currentUser.user.id
+          );
 
         if (uploadError) {
-          console.error('Error uploading post photo:', uploadError);
+          console.error("Error uploading post photo:", uploadError);
           return { data: null, error: uploadError };
         }
 
         if (uploadData?.publicUrl) {
           imageUrl = uploadData.publicUrl;
-          console.log('Post photo uploaded successfully:', imageUrl);
+          console.log("Post photo uploaded successfully:", imageUrl);
         }
       }
 
@@ -965,7 +1128,7 @@ export const DatabaseService = {
       };
 
       const { data, error } = await supabase
-        .from('posts')
+        .from("posts")
         .insert(newPost)
         .select()
         .single();
@@ -975,11 +1138,14 @@ export const DatabaseService = {
         if (imageUrl && photoAsset) {
           try {
             // Extract filename from URL for cleanup
-            const urlParts = imageUrl.split('/');
-            const fileName = urlParts[urlParts.length - 1].split('?')[0];
+            const urlParts = imageUrl.split("/");
+            const fileName = urlParts[urlParts.length - 1].split("?")[0];
             await StorageService.deletePostPhoto(postId, fileName);
           } catch (cleanupError) {
-            console.error('Error cleaning up uploaded photo after post creation failure:', cleanupError);
+            console.error(
+              "Error cleaning up uploaded photo after post creation failure:",
+              cleanupError
+            );
           }
         }
         return { data: null, error };
@@ -987,7 +1153,7 @@ export const DatabaseService = {
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in createPost:', error);
+      console.error("Error in createPost:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -997,30 +1163,32 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('interests')
-      .select('id, title, category')
-      .order('category, title');
+      .from("interests")
+      .select("id, title, category")
+      .order("category, title");
     return { data, error };
   },
 
   async getUserInterests(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('user_interests')
-        .select(`
+        .from("user_interests")
+        .select(
+          `
           interestid,
           interests (id, title, category)
-        `)
-        .eq('userid', userId);
+        `
+        )
+        .eq("userid", userId);
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          console.log('RLS policy prevented access to user interests');
+        if (error.code === "PGRST001" || error.code === "42501") {
+          console.log("RLS policy prevented access to user interests");
           return { data: [], error: null };
         }
         return { data: null, error };
@@ -1028,7 +1196,7 @@ export const DatabaseService = {
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getUserInterests:', error);
+      console.error("Error in getUserInterests:", error);
       return { data: [], error: null };
     }
   },
@@ -1036,17 +1204,19 @@ export const DatabaseService = {
   async getUserLookFor(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('user_look_for')
-        .select(`
+        .from("user_look_for")
+        .select(
+          `
           interestid,
           interests (id, title, category)
-        `)
-        .eq('userid', userId);
+        `
+        )
+        .eq("userid", userId);
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          console.log('RLS policy prevented access to user look_for');
+        if (error.code === "PGRST001" || error.code === "42501") {
+          console.log("RLS policy prevented access to user look_for");
           return { data: [], error: null };
         }
         return { data: null, error };
@@ -1054,7 +1224,7 @@ export const DatabaseService = {
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getUserLookFor:', error);
+      console.error("Error in getUserLookFor:", error);
       return { data: [], error: null };
     }
   },
@@ -1063,20 +1233,20 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('interests')
-      .select('id, title, category')
-      .order('category, title');
+      .from("interests")
+      .select("id, title, category")
+      .order("category, title");
 
     if (error) return { data: null, error };
 
     // Group interests by category
     const groupedInterests: { [key: string]: any[] } = {};
-    data?.forEach(interest => {
-      const category = interest.category || 'Other';
+    data?.forEach((interest) => {
+      const category = interest.category || "Other";
       if (!groupedInterests[category]) {
         groupedInterests[category] = [];
       }
@@ -1091,26 +1261,29 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('userid', userId)
-      .order('creationdate', { ascending: false });
+      .from("notifications")
+      .select("*")
+      .eq("userid", userId)
+      .order("creationdate", { ascending: false });
     return { data, error };
   },
 
   // Get single post for post detail page
   async getPost(postId: string) {
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const currentUserId = user?.id;
 
     const { data: post, error } = await supabase
-      .from('posts')
-      .select(`
+      .from("posts")
+      .select(
+        `
         *,
         author:users!posts_userid_fkey(
           name,
@@ -1120,8 +1293,9 @@ export const DatabaseService = {
           id,
           name
         )
-      `)
-      .eq('id', postId)
+      `
+      )
+      .eq("id", postId)
       .single();
 
     if (error || !post) {
@@ -1130,17 +1304,20 @@ export const DatabaseService = {
 
     // Get like count and user like status
     const { data: likes } = await supabase
-      .from('post_likes')
-      .select('userid')
-      .eq('postid', postId);
+      .from("post_likes")
+      .select("userid")
+      .eq("postid", postId);
 
     const likesCount = likes?.length || 0;
-    const userLiked = currentUserId ? likes?.some(like => like.userid === currentUserId) : false;
+    const userLiked = currentUserId
+      ? likes?.some((like) => like.userid === currentUserId)
+      : false;
 
     // Get comments
     const { data: comments } = await supabase
-      .from('comments')
-      .select(`
+      .from("comments")
+      .select(
+        `
         id,
         text as content,
         creationdate,
@@ -1148,15 +1325,16 @@ export const DatabaseService = {
           name,
           avatar_url
         )
-      `)
-      .eq('postid', postId)
-      .order('creationdate', { ascending: true });
+      `
+      )
+      .eq("postid", postId)
+      .order("creationdate", { ascending: true });
 
     const enhancedPost = {
       ...post,
       likes_count: likesCount,
       userLiked: userLiked,
-      comments: comments || []
+      comments: comments || [],
     };
 
     return { data: enhancedPost, error: null };
@@ -1165,8 +1343,9 @@ export const DatabaseService = {
   // Get single event for event detail page
   async getEvent(eventId: string) {
     return await supabase
-      .from('events')
-      .select(`
+      .from("events")
+      .select(
+        `
         *,
         creator:users!events_createdby_fkey(
           name,
@@ -1188,23 +1367,23 @@ export const DatabaseService = {
         going_count:event_rsvp!event_rsvp_eventid_fkey(count),
         maybe_count:event_rsvp!event_rsvp_eventid_fkey(count),
         no_going_count:event_rsvp!event_rsvp_eventid_fkey(count)
-      `)
-      .eq('id', eventId)
+      `
+      )
+      .eq("id", eventId)
       .single();
   },
-
 
   async markNotificationAsRead(notificationId: string) {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ read: true })
-      .eq('id', notificationId);
+      .eq("id", notificationId);
     return { data, error };
   },
 
@@ -1212,14 +1391,14 @@ export const DatabaseService = {
     // Verify user is authenticated
     const { data: currentUser } = await supabase.auth.getUser();
     if (!currentUser.user) {
-      return { data: null, error: new Error('Authentication required') };
+      return { data: null, error: new Error("Authentication required") };
     }
 
     const { data, error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ read: true })
-      .eq('userid', userId)
-      .eq('read', false);
+      .eq("userid", userId)
+      .eq("read", false);
     return { data, error };
   },
 
@@ -1228,93 +1407,116 @@ export const DatabaseService = {
     try {
       // First check if the circle is private
       const { data: circle, error: circleError } = await supabase
-        .from('circles')
-        .select('privacy')
-        .eq('id', circleId)
+        .from("circles")
+        .select("privacy")
+        .eq("id", circleId)
         .single();
 
       if (circleError) {
-        return { data: null, error: new Error('Circle not found') };
+        return { data: null, error: new Error("Circle not found") };
       }
 
       // If circle is private, user should request to join instead
-      if (circle.privacy === 'private') {
-        return { data: null, error: new Error('This is a private circle. Please request to join instead.') };
+      if (circle.privacy === "private") {
+        return {
+          data: null,
+          error: new Error(
+            "This is a private circle. Please request to join instead."
+          ),
+        };
       }
 
       const { data, error } = await supabase
-        .from('user_circles')
+        .from("user_circles")
         .insert({ userid: userId, circleid: circleId });
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          return { data: null, error: new Error('You do not have permission to join this circle') };
+        if (error.code === "PGRST001" || error.code === "42501") {
+          return {
+            data: null,
+            error: new Error("You do not have permission to join this circle"),
+          };
         }
         // Handle duplicate entry
-        if (error.code === '23505') {
-          return { data: null, error: new Error('You are already a member of this circle') };
+        if (error.code === "23505") {
+          return {
+            data: null,
+            error: new Error("You are already a member of this circle"),
+          };
         }
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in joinCircle:', error);
+      console.error("Error in joinCircle:", error);
       return { data: null, error: error as Error };
     }
   },
 
   async leaveCircle(userId: string, circleId: string) {
     const { data, error } = await supabase
-      .from('user_circles')
+      .from("user_circles")
       .delete()
-      .eq('userid', userId)
-      .eq('circleid', circleId);
+      .eq("userid", userId)
+      .eq("circleid", circleId);
     return { data, error };
   },
 
-  async requestToJoinCircle(userId: string, circleId: string, message?: string) {
+  async requestToJoinCircle(
+    userId: string,
+    circleId: string,
+    message?: string
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Check if user is already a member
       const { data: existingMember } = await supabase
-        .from('user_circles')
-        .select('userid')
-        .eq('userid', userId)
-        .eq('circleid', circleId)
+        .from("user_circles")
+        .select("userid")
+        .eq("userid", userId)
+        .eq("circleid", circleId)
         .single();
 
       if (existingMember) {
-        return { data: null, error: new Error('You are already a member of this circle') };
+        return {
+          data: null,
+          error: new Error("You are already a member of this circle"),
+        };
       }
 
       // Check if user already has a pending request
       const { data: existingRequest } = await supabase
-        .from('circle_join_requests')
-        .select('id, status')
-        .eq('userid', userId)
-        .eq('circleid', circleId)
+        .from("circle_join_requests")
+        .select("id, status")
+        .eq("userid", userId)
+        .eq("circleid", circleId)
         .single();
 
       if (existingRequest) {
-        if (existingRequest.status === 'pending') {
-          return { data: null, error: new Error('You already have a pending request for this circle') };
-        } else if (existingRequest.status === 'rejected') {
+        if (existingRequest.status === "pending") {
+          return {
+            data: null,
+            error: new Error(
+              "You already have a pending request for this circle"
+            ),
+          };
+        } else if (existingRequest.status === "rejected") {
           // Update the existing rejected request to pending with new message
           const { data, error } = await supabase
-            .from('circle_join_requests')
+            .from("circle_join_requests")
             .update({
-              message: message || '',
-              status: 'pending',
-              created_at: new Date().toISOString()
+              message: message || "",
+              status: "pending",
+              created_at: new Date().toISOString(),
             })
-            .eq('id', existingRequest.id)
+            .eq("id", existingRequest.id)
             .select()
             .single();
 
@@ -1324,19 +1526,19 @@ export const DatabaseService = {
 
       // Create new join request
       const { data, error } = await supabase
-        .from('circle_join_requests')
+        .from("circle_join_requests")
         .insert({
           id: crypto.randomUUID(),
           userid: userId,
           circleid: circleId,
-          message: message || '',
-          status: 'pending'
+          message: message || "",
+          status: "pending",
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating join request:', error);
+        console.error("Error creating join request:", error);
         return { data: null, error };
       }
 
@@ -1344,57 +1546,55 @@ export const DatabaseService = {
       try {
         // Get circle admins and creator
         const { data: circle } = await supabase
-          .from('circles')
-          .select('creator, name')
-          .eq('id', circleId)
+          .from("circles")
+          .select("creator, name")
+          .eq("id", circleId)
           .single();
 
         if (circle) {
           const { data: admins } = await supabase
-            .from('circle_admins')
-            .select('userid')
-            .eq('circleid', circleId);
+            .from("circle_admins")
+            .select("userid")
+            .eq("circleid", circleId);
 
           // Create notification for creator
-          await supabase
-            .from('notifications')
-            .insert({
-              id: crypto.randomUUID(),
-              userid: circle.creator,
-              type: 'join_request',
-              title: 'New Join Request',
-              message: `Someone requested to join "${circle.name}"`,
-              read: false,
-              timestamp: new Date().toISOString()
-            });
+          await supabase.from("notifications").insert({
+            id: crypto.randomUUID(),
+            userid: circle.creator,
+            type: "join_request",
+            title: "New Join Request",
+            message: `Someone requested to join "${circle.name}"`,
+            read: false,
+            timestamp: new Date().toISOString(),
+          });
 
-          // Create notifications for admins (excluding creator)
           if (admins) {
             for (const admin of admins) {
               if (admin.userid !== circle.creator) {
-                await supabase
-                  .from('notifications')
-                  .insert({
-                    id: crypto.randomUUID(),
-                    userid: admin.userid,
-                    type: 'join_request',
-                    title: 'New Join Request',
-                    message: `Someone requested to join "${circle.name}"`,
-                    read: false,
-                    timestamp: new Date().toISOString()
-                  });
+                await supabase.from("notifications").insert({
+                  id: crypto.randomUUID(),
+                  userid: admin.userid,
+                  type: "join_request",
+                  title: "New Join Request",
+                  message: `Someone requested to join "${circle.name}"`,
+                  read: false,
+                  timestamp: new Date().toISOString(),
+                });
               }
             }
           }
         }
       } catch (notificationError) {
-        console.error('Error creating join request notification:', notificationError);
+        console.error(
+          "Error creating join request notification:",
+          notificationError
+        );
         // Don't fail the join request if notification creation fails
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in requestToJoinCircle:', error);
+      console.error("Error in requestToJoinCircle:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -1404,31 +1604,33 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: [], error: new Error('Authentication required') };
+        return { data: [], error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('circle_join_requests')
-        .select(`
+        .from("circle_join_requests")
+        .select(
+          `
           *,
           users!circle_join_requests_userid_fkey(
             id,
             name,
             avatar_url
           )
-        `)
-        .eq('circleid', circleId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        `
+        )
+        .eq("circleid", circleId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error fetching join requests:', error);
+        console.error("Error fetching join requests:", error);
         return { data: [], error };
       }
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getCircleJoinRequests:', error);
+      console.error("Error in getCircleJoinRequests:", error);
       return { data: [], error: error as Error };
     }
   },
@@ -1438,137 +1640,148 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
-      console.log('Checking for pending request:', { circleId, userId });
+      console.log("Checking for pending request:", { circleId, userId });
 
       // Use array query with limit to avoid single row issues and add retry logic for newly created rows
       const { data, error } = await supabase
-        .from('circle_join_requests')
-        .select('*')
-        .eq('circleid', circleId)
-        .eq('userid', userId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
+        .from("circle_join_requests")
+        .select("*")
+        .eq("circleid", circleId)
+        .eq("userid", userId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
         .limit(1);
 
-      console.log('Pending request query result:', {
+      console.log("Pending request query result:", {
         hasData: !!data && data.length > 0,
         dataLength: data?.length || 0,
         hasError: !!error,
         errorCode: error?.code,
-        errorMessage: error?.message
+        errorMessage: error?.message,
       });
 
       if (error) {
-        console.error('Error checking pending request:', error);
+        console.error("Error checking pending request:", error);
         return { data: null, error };
       }
 
       // Get the most recent pending request if any exists
       const pendingRequest = data && data.length > 0 ? data[0] : null;
       const hasPending = !!pendingRequest;
-      console.log('Final pending status:', hasPending);
+      console.log("Final pending status:", hasPending);
       return { data: pendingRequest, error: null };
     } catch (error) {
-      console.error('Error in getUserPendingRequest:', error);
+      console.error("Error in getUserPendingRequest:", error);
       return { data: null, error: error as Error };
     }
   },
 
-  async handleJoinRequest(requestId: string, action: 'accept' | 'reject') {
+  async handleJoinRequest(requestId: string, action: "accept" | "reject") {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Get the join request details
       const { data: request, error: requestError } = await supabase
-        .from('circle_join_requests')
-        .select('*')
-        .eq('id', requestId)
+        .from("circle_join_requests")
+        .select("*")
+        .eq("id", requestId)
         .single();
 
       if (requestError || !request) {
-        return { data: null, error: new Error('Join request not found') };
+        return { data: null, error: new Error("Join request not found") };
       }
 
       // Update request status
       const { error: updateError } = await supabase
-        .from('circle_join_requests')
-        .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
-        .eq('id', requestId);
+        .from("circle_join_requests")
+        .update({ status: action === "accept" ? "accepted" : "rejected" })
+        .eq("id", requestId);
 
       if (updateError) {
         return { data: null, error: updateError };
       }
 
       // If accepted, add user to circle
-      if (action === 'accept') {
+      if (action === "accept") {
         const { error: joinError } = await supabase
-          .from('user_circles')
+          .from("user_circles")
           .insert({
             userid: request.userid,
-            circleid: request.circleid
+            circleid: request.circleid,
           });
 
         if (joinError) {
           // Rollback request status update
           await supabase
-            .from('circle_join_requests')
-            .update({ status: 'pending' })
-            .eq('id', requestId);
+            .from("circle_join_requests")
+            .update({ status: "pending" })
+            .eq("id", requestId);
 
-          return { data: null, error: new Error('Failed to add user to circle') };
+          return {
+            data: null,
+            error: new Error("Failed to add user to circle"),
+          };
         }
       }
 
       return { data: { success: true, action }, error: null };
     } catch (error) {
-      console.error('Error in handleJoinRequest:', error);
+      console.error("Error in handleJoinRequest:", error);
       return { data: null, error: error as Error };
     }
   },
 
   async deleteCircle(circleId: string, userId: string) {
     try {
-      console.log('Starting delete process for circle:', circleId, 'by user:', userId);
+      console.log(
+        "Starting delete process for circle:",
+        circleId,
+        "by user:",
+        userId
+      );
 
       // Check if user is the creator
       const { data: circle, error: circleError } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
       if (circleError) {
-        console.error('Error fetching circle:', circleError);
+        console.error("Error fetching circle:", circleError);
         return { data: null, error: circleError };
       }
 
       if (circle?.creator !== userId) {
-        return { data: null, error: { message: 'Only the circle creator can delete this circle' } };
+        return {
+          data: null,
+          error: { message: "Only the circle creator can delete this circle" },
+        };
       }
 
       // Delete the circle (cascade will handle related data due to foreign key constraints)
       const { error: deleteError } = await supabase
-        .from('circles')
+        .from("circles")
         .delete()
-        .eq('id', circleId)
-        .eq('creator', userId);
+        .eq("id", circleId)
+        .eq("creator", userId);
 
       if (deleteError) {
-        console.error('Error deleting circle:', deleteError);
+        console.error("Error deleting circle:", deleteError);
         return { data: null, error: deleteError };
       }
 
-      console.log('Circle deleted successfully');
+      console.log("Circle deleted successfully");
       return { data: { success: true }, error: null };
     } catch (error) {
-      console.error('Error in deleteCircle:', error);
+      console.error("Error in deleteCircle:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -1576,15 +1789,17 @@ export const DatabaseService = {
   async getCircleMembers(circleId: string) {
     try {
       const { data, error } = await supabase
-        .from('user_circles')
-        .select(`
+        .from("user_circles")
+        .select(
+          `
           userid,
           users!inner(id, name, avatar_url)
-        `)
-        .eq('circleid', circleId);
+        `
+        )
+        .eq("circleid", circleId);
 
       if (error) {
-        console.error('Error fetching circle members:', error);
+        console.error("Error fetching circle members:", error);
         return { data: [], error };
       }
 
@@ -1593,157 +1808,179 @@ export const DatabaseService = {
       }
 
       // Get admin status for each member
-      const userIds = data.map(member => member.userid);
+      const userIds = data.map((member) => member.userid);
       const { data: adminData } = await supabase
-        .from('circle_admins')
-        .select('userid')
-        .eq('circleid', circleId)
-        .in('userid', userIds);
+        .from("circle_admins")
+        .select("userid")
+        .eq("circleid", circleId)
+        .in("userid", userIds);
 
-      const adminUserIds = new Set(adminData?.map(admin => admin.userid) || []);
+      const adminUserIds = new Set(
+        adminData?.map((admin) => admin.userid) || []
+      );
 
       return {
-        data: data.map(member => ({
+        data: data.map((member) => ({
           id: member.users.id,
           name: member.users.name,
           avatar_url: member.users.avatar_url,
-          isAdmin: adminUserIds.has(member.userid)
+          isAdmin: adminUserIds.has(member.userid),
         })),
-        error: null
+        error: null,
       };
     } catch (error) {
-      console.error('Error in getCircleMembers:', error);
+      console.error("Error in getCircleMembers:", error);
       return { data: [], error: error as Error };
     }
   },
 
-  async addCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
-    console.log('🔵 DATABASE FUNCTION ENTRY: addCircleAdmin called');
-    console.log('🔵 IMMEDIATE ENTRY LOG - Function definitely started');
+  async addCircleAdmin(
+    circleId: string,
+    userId: string,
+    requestingAdminId: string
+  ) {
+    console.log("🔵 DATABASE FUNCTION ENTRY: addCircleAdmin called");
+    console.log("🔵 IMMEDIATE ENTRY LOG - Function definitely started");
     try {
-      console.log('=== DATABASE: addCircleAdmin function started ===');
-      console.log('INPUT Parameters:', {
-        circleId: circleId || 'undefined',
-        userId: userId || 'undefined',
-        requestingAdminId: requestingAdminId || 'undefined'
+      console.log("=== DATABASE: addCircleAdmin function started ===");
+      console.log("INPUT Parameters:", {
+        circleId: circleId || "undefined",
+        userId: userId || "undefined",
+        requestingAdminId: requestingAdminId || "undefined",
       });
 
       // Validate inputs
       if (!circleId) {
-        console.error('VALIDATION ERROR: circleId is required');
-        return { data: null, error: new Error('Circle ID is required') };
+        console.error("VALIDATION ERROR: circleId is required");
+        return { data: null, error: new Error("Circle ID is required") };
       }
       if (!userId) {
-        console.error('VALIDATION ERROR: userId is required');
-        return { data: null, error: new Error('User ID is required') };
+        console.error("VALIDATION ERROR: userId is required");
+        return { data: null, error: new Error("User ID is required") };
       }
       if (!requestingAdminId) {
-        console.error('VALIDATION ERROR: requestingAdminId is required');
-        return { data: null, error: new Error('Requesting admin ID is required') };
+        console.error("VALIDATION ERROR: requestingAdminId is required");
+        return {
+          data: null,
+          error: new Error("Requesting admin ID is required"),
+        };
       }
 
-      console.log('INPUT VALIDATION: All parameters are valid');
+      console.log("INPUT VALIDATION: All parameters are valid");
 
       // Get circle creator
-      console.log('STEP 1: Fetching circle creator...');
+      console.log("STEP 1: Fetching circle creator...");
       const { data: circle, error: circleError } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
-      console.log('STEP 1 RESULT:', {
+      console.log("STEP 1 RESULT:", {
         hasCircleData: !!circle,
         creator: circle?.creator,
         hasError: !!circleError,
         errorMessage: circleError?.message,
-        errorCode: circleError?.code
+        errorCode: circleError?.code,
       });
 
       if (circleError) {
-        console.error('STEP 1 FAILED: Error fetching circle:', circleError);
-        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
+        console.error("STEP 1 FAILED: Error fetching circle:", circleError);
+        return {
+          data: null,
+          error: new Error(`Failed to fetch circle: ${circleError.message}`),
+        };
       }
 
       if (!circle) {
-        console.error('STEP 1 FAILED: Circle not found');
-        return { data: null, error: new Error('Circle not found') };
+        console.error("STEP 1 FAILED: Circle not found");
+        return { data: null, error: new Error("Circle not found") };
       }
 
       // Verify requesting user is the main admin (creator) OR a regular admin
       const isCreator = circle.creator === requestingAdminId;
-      console.log('STEP 2: Permission check - isCreator:', isCreator);
-      console.log('STEP 2: Creator comparison:', {
+      console.log("STEP 2: Permission check - isCreator:", isCreator);
+      console.log("STEP 2: Creator comparison:", {
         circleCreator: circle.creator,
         requestingAdminId: requestingAdminId,
-        areEqual: circle.creator === requestingAdminId
+        areEqual: circle.creator === requestingAdminId,
       });
 
       if (!isCreator) {
         // Check if requesting user is at least an admin
-        console.log('STEP 2A: User is not creator, checking admin status...');
+        console.log("STEP 2A: User is not creator, checking admin status...");
         const { data: adminCheck, error: adminError } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', circleId)
-          .eq('userid', requestingAdminId)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", circleId)
+          .eq("userid", requestingAdminId)
           .single();
 
-        console.log('STEP 2A RESULT:', {
+        console.log("STEP 2A RESULT:", {
           hasAdminData: !!adminCheck,
           adminUserId: adminCheck?.userid,
           hasError: !!adminError,
           errorMessage: adminError?.message,
-          errorCode: adminError?.code
+          errorCode: adminError?.code,
         });
 
         if (adminError || !adminCheck) {
-          console.error('STEP 2A FAILED: Permission denied - requesting user is not an admin');
-          return { data: null, error: new Error('Only circle admins can manage admin privileges') };
+          console.error(
+            "STEP 2A FAILED: Permission denied - requesting user is not an admin"
+          );
+          return {
+            data: null,
+            error: new Error("Only circle admins can manage admin privileges"),
+          };
         }
 
-        console.log('STEP 2A PASSED: User is confirmed as admin');
+        console.log("STEP 2A PASSED: User is confirmed as admin");
       } else {
-        console.log('STEP 2 PASSED: User is creator, has permission');
+        console.log("STEP 2 PASSED: User is creator, has permission");
       }
 
       // Check if user is already an admin
-      console.log('STEP 3: Checking if target user is already an admin...');
+      console.log("STEP 3: Checking if target user is already an admin...");
       const { data: existingAdmin, error: existingError } = await supabase
-        .from('circle_admins')
-        .select('userid')
-        .eq('circleid', circleId)
-        .eq('userid', userId)
+        .from("circle_admins")
+        .select("userid")
+        .eq("circleid", circleId)
+        .eq("userid", userId)
         .single();
 
-      console.log('STEP 3 RESULT:', {
+      console.log("STEP 3 RESULT:", {
         hasExistingAdmin: !!existingAdmin,
         existingUserId: existingAdmin?.userid,
         hasError: !!existingError,
         errorMessage: existingError?.message,
-        errorCode: existingError?.code
+        errorCode: existingError?.code,
       });
 
       if (existingAdmin) {
-        console.log('STEP 3 RESULT: User is already an admin, returning early');
-        return { data: null, error: new Error('User is already an admin') };
+        console.log("STEP 3 RESULT: User is already an admin, returning early");
+        return { data: null, error: new Error("User is already an admin") };
       }
 
-      console.log('STEP 3 PASSED: User is not currently an admin, proceeding with insert');
+      console.log(
+        "STEP 3 PASSED: User is not currently an admin, proceeding with insert"
+      );
 
       // Perform the insert
-      console.log('STEP 4: Attempting to insert new admin...');
-      console.log('STEP 4: Insert payload:', { circleid: circleId, userid: userId });
+      console.log("STEP 4: Attempting to insert new admin...");
+      console.log("STEP 4: Insert payload:", {
+        circleid: circleId,
+        userid: userId,
+      });
 
       const { data, error } = await supabase
-        .from('circle_admins')
+        .from("circle_admins")
         .insert({
           circleid: circleId,
-          userid: userId
+          userid: userId,
         })
         .select();
 
-      console.log('STEP 4 RESULT:', {
+      console.log("STEP 4 RESULT:", {
         hasData: !!data,
         dataLength: data?.length || 0,
         data: data,
@@ -1751,239 +1988,312 @@ export const DatabaseService = {
         errorCode: error?.code,
         errorMessage: error?.message,
         errorDetails: error?.details,
-        errorHint: error?.hint
+        errorHint: error?.hint,
       });
 
       if (error) {
-        console.error('STEP 4 FAILED: Error inserting circle admin:', error);
-        return { data: null, error: new Error(`Failed to add admin: ${error.message}`) };
+        console.error("STEP 4 FAILED: Error inserting circle admin:", error);
+        return {
+          data: null,
+          error: new Error(`Failed to add admin: ${error.message}`),
+        };
       }
 
-      console.log('STEP 4 PASSED: Successfully added circle admin');
-      console.log('=== DATABASE: addCircleAdmin function completed successfully ===');
+      console.log("STEP 4 PASSED: Successfully added circle admin");
+      console.log(
+        "=== DATABASE: addCircleAdmin function completed successfully ==="
+      );
       return { data, error: null };
-
     } catch (error) {
-      console.error('=== DATABASE: UNEXPECTED ERROR in addCircleAdmin ===');
-      console.error('Caught error:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error("=== DATABASE: UNEXPECTED ERROR in addCircleAdmin ===");
+      console.error("Caught error:", error);
+      console.error("Error type:", typeof error);
+      console.error(
+        "Error message:",
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error(
+        "Error stack:",
+        error instanceof Error ? error.stack : "No stack"
+      );
       return { data: null, error: error as Error };
     }
   },
 
-  async removeCircleAdmin(circleId: string, userId: string, requestingAdminId: string) {
-    console.log('🔴 DATABASE FUNCTION ENTRY: removeCircleAdmin called');
-    console.log('🔴 IMMEDIATE ENTRY LOG - Function definitely started');
+  async removeCircleAdmin(
+    circleId: string,
+    userId: string,
+    requestingAdminId: string
+  ) {
+    console.log("🔴 DATABASE FUNCTION ENTRY: removeCircleAdmin called");
+    console.log("🔴 IMMEDIATE ENTRY LOG - Function definitely started");
     try {
-      console.log('=== DATABASE: removeCircleAdmin function started ===');
-      console.log('INPUT Parameters:', {
-        circleId: circleId || 'undefined',
-        userId: userId || 'undefined',
-        requestingAdminId: requestingAdminId || 'undefined'
+      console.log("=== DATABASE: removeCircleAdmin function started ===");
+      console.log("INPUT Parameters:", {
+        circleId: circleId || "undefined",
+        userId: userId || "undefined",
+        requestingAdminId: requestingAdminId || "undefined",
       });
 
       // Validate inputs
       if (!circleId) {
-        console.error('VALIDATION ERROR: circleId is required');
-        return { data: null, error: new Error('Circle ID is required') };
+        console.error("VALIDATION ERROR: circleId is required");
+        return { data: null, error: new Error("Circle ID is required") };
       }
       if (!userId) {
-        console.error('VALIDATION ERROR: userId is required');
-        return { data: null, error: new Error('User ID is required') };
+        console.error("VALIDATION ERROR: userId is required");
+        return { data: null, error: new Error("User ID is required") };
       }
       if (!requestingAdminId) {
-        console.error('VALIDATION ERROR: requestingAdminId is required');
-        return { data: null, error: new Error('Requesting admin ID is required') };
+        console.error("VALIDATION ERROR: requestingAdminId is required");
+        return {
+          data: null,
+          error: new Error("Requesting admin ID is required"),
+        };
       }
 
-      console.log('INPUT VALIDATION: All parameters are valid');
+      console.log("INPUT VALIDATION: All parameters are valid");
 
       // Get circle creator
-      console.log('STEP 1: Fetching circle creator...');
+      console.log("STEP 1: Fetching circle creator...");
       const { data: circle, error: circleError } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
-      console.log('STEP 1 RESULT:', {
+      console.log("STEP 1 RESULT:", {
         hasCircleData: !!circle,
         creator: circle?.creator,
         hasError: !!circleError,
         errorMessage: circleError?.message,
-        errorCode: circleError?.code
+        errorCode: circleError?.code,
       });
 
       if (circleError) {
-        console.error('STEP 1 FAILED: Error fetching circle:', circleError);
-        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
+        console.error("STEP 1 FAILED: Error fetching circle:", circleError);
+        return {
+          data: null,
+          error: new Error(`Failed to fetch circle: ${circleError.message}`),
+        };
       }
 
       if (!circle) {
-        console.error('STEP 1 FAILED: Circle not found');
-        return { data: null, error: new Error('Circle not found') };
+        console.error("STEP 1 FAILED: Circle not found");
+        return { data: null, error: new Error("Circle not found") };
       }
 
       // Cannot remove the main admin (creator)
-      console.log('STEP 2: Checking if trying to remove creator...');
+      console.log("STEP 2: Checking if trying to remove creator...");
       if (circle.creator === userId) {
-        console.error('STEP 2 FAILED: Cannot remove the main admin (creator)');
-        return { data: null, error: new Error('Cannot remove the main admin') };
+        console.error("STEP 2 FAILED: Cannot remove the main admin (creator)");
+        return { data: null, error: new Error("Cannot remove the main admin") };
       }
-      console.log('STEP 2 PASSED: Not trying to remove creator');
+      console.log("STEP 2 PASSED: Not trying to remove creator");
 
       // Verify requesting user is the main admin (creator) OR a regular admin
       const isCreator = circle.creator === requestingAdminId;
-      console.log('STEP 3: Permission check - isCreator:', isCreator);
-      console.log('STEP 3: Creator comparison:', {
+      console.log("STEP 3: Permission check - isCreator:", isCreator);
+      console.log("STEP 3: Creator comparison:", {
         circleCreator: circle.creator,
         requestingAdminId: requestingAdminId,
-        areEqual: circle.creator === requestingAdminId
+        areEqual: circle.creator === requestingAdminId,
       });
 
       if (!isCreator) {
         // Check if requesting user is at least an admin
-        console.log('STEP 3A: User is not creator, checking admin status...');
+        console.log("STEP 3A: User is not creator, checking admin status...");
         const { data: adminCheck, error: adminError } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', circleId)
-          .eq('userid', requestingAdminId)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", circleId)
+          .eq("userid", requestingAdminId)
           .single();
 
-        console.log('STEP 3A RESULT:', {
+        console.log("STEP 3A RESULT:", {
           hasAdminData: !!adminCheck,
           adminUserId: adminCheck?.userid,
           hasError: !!adminError,
           errorMessage: adminError?.message,
-          errorCode: adminError?.code
+          errorCode: adminError?.code,
         });
 
         if (adminError || !adminCheck) {
-          console.error('STEP 3A FAILED: Permission denied - requesting user is not an admin');
-          return { data: null, error: new Error('Only circle admins can manage admin privileges') };
+          console.error(
+            "STEP 3A FAILED: Permission denied - requesting user is not an admin"
+          );
+          return {
+            data: null,
+            error: new Error("Only circle admins can manage admin privileges"),
+          };
         }
 
-        console.log('STEP 3A PASSED: User is confirmed as admin');
+        console.log("STEP 3A PASSED: User is confirmed as admin");
       } else {
-        console.log('STEP 3 PASSED: User is creator, has permission');
+        console.log("STEP 3 PASSED: User is creator, has permission");
       }
 
       // Perform the delete
-      console.log('STEP 4: Attempting to remove admin...');
-      console.log('STEP 4: Delete conditions:', { circleid: circleId, userid: userId });
+      console.log("STEP 4: Attempting to remove admin...");
+      console.log("STEP 4: Delete conditions:", {
+        circleid: circleId,
+        userid: userId,
+      });
 
       const { data, error } = await supabase
-        .from('circle_admins')
+        .from("circle_admins")
         .delete()
-        .eq('circleid', circleId)
-        .eq('userid', userId);
+        .eq("circleid", circleId)
+        .eq("userid", userId);
 
-      console.log('STEP 4 RESULT:', {
+      console.log("STEP 4 RESULT:", {
         hasData: !!data,
         data: data,
         hasError: !!error,
         errorCode: error?.code,
         errorMessage: error?.message,
         errorDetails: error?.details,
-        errorHint: error?.hint
+        errorHint: error?.hint,
       });
 
       if (error) {
-        console.error('STEP 4 FAILED: Error removing circle admin:', error);
-        return { data: null, error: new Error(`Failed to remove admin: ${error.message}`) };
+        console.error("STEP 4 FAILED: Error removing circle admin:", error);
+        return {
+          data: null,
+          error: new Error(`Failed to remove admin: ${error.message}`),
+        };
       }
 
-      console.log('STEP 4 PASSED: Successfully removed circle admin');
-      console.log('=== DATABASE: removeCircleAdmin function completed successfully ===');
+      console.log("STEP 4 PASSED: Successfully removed circle admin");
+      console.log(
+        "=== DATABASE: removeCircleAdmin function completed successfully ==="
+      );
       return { data, error: null };
-
     } catch (error) {
-      console.error('=== DATABASE: UNEXPECTED ERROR in removeCircleAdmin ===');
-      console.error('Caught error:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error("=== DATABASE: UNEXPECTED ERROR in removeCircleAdmin ===");
+      console.error("Caught error:", error);
+      console.error("Error type:", typeof error);
+      console.error(
+        "Error message:",
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error(
+        "Error stack:",
+        error instanceof Error ? error.stack : "No stack"
+      );
       return { data: null, error: error as Error };
     }
   },
 
-  async removeMemberFromCircle(circleId: string, userId: string, adminId: string) {
+  async removeMemberFromCircle(
+    circleId: string,
+    userId: string,
+    adminId: string
+  ) {
     try {
-      console.log('removeMemberFromCircle called:', { circleId, userId, adminId });
+      console.log("removeMemberFromCircle called:", {
+        circleId,
+        userId,
+        adminId,
+      });
 
       // First check if requesting user is the creator
       const { data: circle, error: circleError } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
       if (circleError) {
-        console.error('Error fetching circle for removeMember:', circleError);
-        return { data: null, error: new Error(`Failed to fetch circle: ${circleError.message}`) };
+        console.error("Error fetching circle for removeMember:", circleError);
+        return {
+          data: null,
+          error: new Error(`Failed to fetch circle: ${circleError.message}`),
+        };
       }
 
       const isCreator = circle?.creator === adminId;
-      console.log('Admin check - isCreator:', isCreator, 'circle creator:', circle?.creator);
+      console.log(
+        "Admin check - isCreator:",
+        isCreator,
+        "circle creator:",
+        circle?.creator
+      );
 
       if (!isCreator) {
         // Check if user is admin
         const { data: adminCheck, error: adminError } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', circleId)
-          .eq('userid', adminId)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", circleId)
+          .eq("userid", adminId)
           .single();
 
         if (adminError) {
-          console.error('Error checking admin status:', adminError);
-          return { data: null, error: new Error(`Failed to verify admin status: ${adminError.message}`) };
+          console.error("Error checking admin status:", adminError);
+          return {
+            data: null,
+            error: new Error(
+              `Failed to verify admin status: ${adminError.message}`
+            ),
+          };
         }
 
         if (!adminCheck) {
-          console.error('User is not an admin and not the creator');
-          return { data: null, error: new Error('You do not have admin permissions to remove members') };
+          console.error("User is not an admin and not the creator");
+          return {
+            data: null,
+            error: new Error(
+              "You do not have admin permissions to remove members"
+            ),
+          };
         }
       }
 
       // Cannot remove the creator from their own circle
       if (circle?.creator === userId) {
-        console.error('Cannot remove the circle creator');
-        return { data: null, error: new Error('Cannot remove the circle creator') };
+        console.error("Cannot remove the circle creator");
+        return {
+          data: null,
+          error: new Error("Cannot remove the circle creator"),
+        };
       }
 
-      console.log('Removing user from circle...');
+      console.log("Removing user from circle...");
       // Remove from circle
       const { data, error } = await supabase
-        .from('user_circles')
+        .from("user_circles")
         .delete()
-        .eq('circleid', circleId)
-        .eq('userid', userId);
+        .eq("circleid", circleId)
+        .eq("userid", userId);
 
       if (error) {
-        console.error('Error removing member from circle:', error);
-        return { data: null, error: new Error(`Failed to remove member: ${error.message}`) };
+        console.error("Error removing member from circle:", error);
+        return {
+          data: null,
+          error: new Error(`Failed to remove member: ${error.message}`),
+        };
       }
 
-      console.log('Removing admin status if exists...');
+      console.log("Removing admin status if exists...");
       // Also remove admin status if they had it (ignore errors here as they might not be admin)
       const { error: adminRemoveError } = await supabase
-        .from('circle_admins')
+        .from("circle_admins")
         .delete()
-        .eq('circleid', circleId)
-        .eq('userid', userId);
+        .eq("circleid", circleId)
+        .eq("userid", userId);
 
       if (adminRemoveError) {
-        console.log('Note: Could not remove admin status (user might not be admin):', adminRemoveError);
+        console.log(
+          "Note: Could not remove admin status (user might not be admin):",
+          adminRemoveError
+        );
       }
 
-      console.log('Successfully removed member from circle');
+      console.log("Successfully removed member from circle");
       return { data, error: null };
     } catch (error) {
-      console.error('Error in removeMemberFromCircle:', error);
+      console.error("Error in removeMemberFromCircle:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -1992,27 +2302,37 @@ export const DatabaseService = {
     try {
       // Check if user is the creator
       const { data: circle } = await supabase
-        .from('circles')
-        .select('creator')
-        .eq('id', circleId)
+        .from("circles")
+        .select("creator")
+        .eq("id", circleId)
         .single();
 
       const isCreator = circle?.creator === userId;
-      if (isCreator) return { data: { isAdmin: true, isMainAdmin: true, isCreator: true }, error: null };
+      if (isCreator)
+        return {
+          data: { isAdmin: true, isMainAdmin: true, isCreator: true },
+          error: null,
+        };
 
       // Check if user is in circle_admins
       const { data: admin } = await supabase
-        .from('circle_admins')
-        .select('userid')
-        .eq('circleid', circleId)
-        .eq('userid', userId)
+        .from("circle_admins")
+        .select("userid")
+        .eq("circleid", circleId)
+        .eq("userid", userId)
         .single();
 
       const isAdmin = !!admin;
-      return { data: { isAdmin, isMainAdmin: false, isCreator: false }, error: null };
+      return {
+        data: { isAdmin, isMainAdmin: false, isCreator: false },
+        error: null,
+      };
     } catch (error) {
-      console.error('Error in isCircleAdmin:', error);
-      return { data: { isAdmin: false, isMainAdmin: false, isCreator: false }, error: error as Error };
+      console.error("Error in isCircleAdmin:", error);
+      return {
+        data: { isAdmin: false, isMainAdmin: false, isCreator: false },
+        error: error as Error,
+      };
     }
   },
 
@@ -2020,21 +2340,22 @@ export const DatabaseService = {
     try {
       // First get the user's joined circles
       const { data: userCircles, error: circlesError } = await supabase
-        .from('user_circles')
-        .select('circleid')
-        .eq('userid', userId);
+        .from("user_circles")
+        .select("circleid")
+        .eq("userid", userId);
 
       if (circlesError) {
-        console.error('Error fetching user circles:', circlesError);
+        console.error("Error fetching user circles:", circlesError);
         return { data: [], error: circlesError };
       }
 
-      const circleIds = userCircles?.map(uc => uc.circleid) || [];
+      const circleIds = userCircles?.map((uc) => uc.circleid) || [];
 
       // Get posts from user's circles or general posts (where circleid is null)
       const { data: posts, error } = await supabase
-        .from('posts')
-        .select(`
+        .from("posts")
+        .select(
+          `
           id,
           content,
           image,
@@ -2058,9 +2379,14 @@ export const DatabaseService = {
               )
             )
           )
-        `)
-        .or(circleIds.length > 0 ? `circleid.is.null,circleid.in.(${circleIds.join(',')})` : 'circleid.is.null')
-        .order('creationdate', { ascending: false });
+        `
+        )
+        .or(
+          circleIds.length > 0
+            ? `circleid.is.null,circleid.in.(${circleIds.join(",")})`
+            : "circleid.is.null"
+        )
+        .order("creationdate", { ascending: false });
 
       if (error || !posts) {
         return { data: [], error };
@@ -2068,44 +2394,47 @@ export const DatabaseService = {
 
       // Get likes and comments data separately for better control
       if (posts.length > 0) {
-        const postIds = posts.map(p => p.id);
+        const postIds = posts.map((p) => p.id);
 
         // Get all likes for these posts
         const { data: allLikes } = await supabase
-          .from('post_likes')
-          .select('postid, userid')
-          .in('postid', postIds);
+          .from("post_likes")
+          .select("postid, userid")
+          .in("postid", postIds);
 
         // Get comments count for these posts
         const { data: commentsCount } = await supabase
-          .from('comments')
-          .select('postid')
-          .in('postid', postIds);
+          .from("comments")
+          .select("postid")
+          .in("postid", postIds);
 
         // Check which posts the current user has liked
-        const userLikes = allLikes?.filter(like => like.userid === userId) || [];
-        const likedPostIds = new Set(userLikes.map(like => like.postid));
+        const userLikes =
+          allLikes?.filter((like) => like.userid === userId) || [];
+        const likedPostIds = new Set(userLikes.map((like) => like.postid));
 
         // Calculate like counts for each post
-        const likeCounts = allLikes?.reduce((acc, like) => {
-          acc[like.postid] = (acc[like.postid] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>) || {};
+        const likeCounts =
+          allLikes?.reduce((acc, like) => {
+            acc[like.postid] = (acc[like.postid] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>) || {};
 
         // Calculate comments count for each post
-        const commentsCountMap = commentsCount?.reduce((acc, comment) => {
-          acc[comment.postid] = (acc[comment.postid] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>) || {};
+        const commentsCountMap =
+          commentsCount?.reduce((acc, comment) => {
+            acc[comment.postid] = (acc[comment.postid] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>) || {};
 
         // Transform posts with proper structure
-        const transformedPosts = posts.map(post => ({
+        const transformedPosts = posts.map((post) => ({
           ...post,
-          likes: allLikes?.filter(like => like.postid === post.id) || [],
+          likes: allLikes?.filter((like) => like.postid === post.id) || [],
           likes_count: likeCounts[post.id] || 0,
           userLiked: likedPostIds.has(post.id),
           comments_count: commentsCountMap[post.id] || 0,
-          comments: [] // Add empty comments array for compatibility
+          comments: [], // Add empty comments array for compatibility
         }));
 
         return { data: transformedPosts, error: null };
@@ -2113,16 +2442,16 @@ export const DatabaseService = {
 
       return { data: posts || [], error: null };
     } catch (error) {
-      console.error('Error in getHomePagePosts:', error);
+      console.error("Error in getHomePagePosts:", error);
       return { data: [], error: error as Error };
     }
   },
 
   async getUserJoinedCircles(userId: string) {
     const { data, error } = await supabase
-      .from('user_circles')
-      .select('circleid')
-      .eq('userid', userId);
+      .from("user_circles")
+      .select("circleid")
+      .eq("userid", userId);
     return { data, error };
   },
 
@@ -2130,18 +2459,20 @@ export const DatabaseService = {
   async getCircleMessages(circleId: string) {
     try {
       const { data, error } = await supabase
-        .from('circle_messages')
-        .select(`
+        .from("circle_messages")
+        .select(
+          `
           *,
           users:senderid(name, avatar_url)
-        `)
-        .eq('circleid', circleId)
-        .order('timestamp', { ascending: true });
+        `
+        )
+        .eq("circleid", circleId)
+        .order("timestamp", { ascending: true });
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          console.log('RLS policy prevented access to circle messages');
+        if (error.code === "PGRST001" || error.code === "42501") {
+          console.log("RLS policy prevented access to circle messages");
           return { data: [], error: null }; // Return empty array for non-members
         }
         return { data: null, error };
@@ -2149,7 +2480,7 @@ export const DatabaseService = {
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getCircleMessages:', error);
+      console.error("Error in getCircleMessages:", error);
       return { data: [], error: null };
     }
   },
@@ -2174,81 +2505,92 @@ export const DatabaseService = {
       };
 
       const { data, error } = await supabase
-        .from('circle_messages')
+        .from("circle_messages")
         .insert(newMessage)
         .select()
         .single();
 
       if (error) {
         // Handle RLS policy errors
-        if (error.code === 'PGRST001' || error.code === '42501') {
-          return { data: null, error: new Error('You do not have permission to send messages in this circle') };
+        if (error.code === "PGRST001" || error.code === "42501") {
+          return {
+            data: null,
+            error: new Error(
+              "You do not have permission to send messages in this circle"
+            ),
+          };
         }
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in sendMessage:', error);
+      console.error("Error in sendMessage:", error);
       return { data: null, error: error as Error };
     }
   },
 
   // Event RSVP operations
-  async createEventRsvp(eventId: string, status: 'going' | 'maybe' | 'no_going') {
+  async createEventRsvp(
+    eventId: string,
+    status: "going" | "maybe" | "no_going"
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('event_rsvps')
+        .from("event_rsvps")
         .insert([
           {
             event_id: eventId,
             user_id: currentUser.user.id,
-            status: status
-          }
+            status: status,
+          },
         ])
         .select();
 
       if (error) {
-        console.error('Error creating RSVP:', error);
+        console.error("Error creating RSVP:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in createEventRsvp:', error);
+      console.error("Error in createEventRsvp:", error);
       return { data: null, error: error as Error };
     }
   },
 
-  async updateEventRsvp(eventId: string, status: 'going' | 'maybe' | 'no_going') {
+  async updateEventRsvp(
+    eventId: string,
+    status: "going" | "maybe" | "no_going"
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('event_rsvps')
+        .from("event_rsvps")
         .update({ status: status })
-        .eq('event_id', eventId)
-        .eq('user_id', currentUser.user.id)
+        .eq("event_id", eventId)
+        .eq("user_id", currentUser.user.id)
         .select();
 
       if (error) {
-        console.error('Error updating RSVP:', error);
+        console.error("Error updating RSVP:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in updateEventRsvp:', error);
+      console.error("Error in updateEventRsvp:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2258,23 +2600,23 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { error } = await supabase
-        .from('event_rsvps')
+        .from("event_rsvps")
         .delete()
-        .eq('event_id', eventId)
-        .eq('user_id', currentUser.user.id);
+        .eq("event_id", eventId)
+        .eq("user_id", currentUser.user.id);
 
       if (error) {
-        console.error('Error deleting RSVP:', error);
+        console.error("Error deleting RSVP:", error);
         return { data: null, error };
       }
 
       return { data: { success: true }, error: null };
     } catch (error) {
-      console.error('Error in deleteEventRsvp:', error);
+      console.error("Error in deleteEventRsvp:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2282,20 +2624,21 @@ export const DatabaseService = {
   async getEventRsvp(eventId: string, userId: string) {
     try {
       const { data, error } = await supabase
-        .from('event_rsvps')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('user_id', userId)
+        .from("event_rsvps")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("user_id", userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error getting RSVP:', error);
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 is "not found"
+        console.error("Error getting RSVP:", error);
         return { data: null, error };
       }
 
       return { data: data || null, error: null };
     } catch (error) {
-      console.error('Error in getEventRsvp:', error);
+      console.error("Error in getEventRsvp:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2303,50 +2646,55 @@ export const DatabaseService = {
   async getEventRsvps(eventId: string) {
     try {
       const { data, error } = await supabase
-        .from('event_rsvps')
-        .select(`
+        .from("event_rsvps")
+        .select(
+          `
           *,
           users!event_rsvps_user_id_fkey(name, avatar_url)
-        `)
-        .eq('event_id', eventId);
+        `
+        )
+        .eq("event_id", eventId);
 
       if (error) {
-        console.error('Error getting event RSVPs:', error);
+        console.error("Error getting event RSVPs:", error);
         return { data: null, error };
       }
 
       return { data: data || [], error: null };
     } catch (error) {
-      console.error('Error in getEventRsvps:', error);
+      console.error("Error in getEventRsvps:", error);
       return { data: [], error: error as Error };
     }
   },
 
-  async updateEvent(eventId: string, updates: {
-    title?: string;
-    description?: string;
-    date?: string;
-    time?: string;
-    location?: string;
-    photo_url?: string;
-    location_url?: string;
-  }) {
+  async updateEvent(
+    eventId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      date?: string;
+      time?: string;
+      location?: string;
+      photo_url?: string;
+      location_url?: string;
+    }
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Check if user has permission to update
       const { data: event } = await supabase
-        .from('events')
-        .select('createdby, circleid')
-        .eq('id', eventId)
+        .from("events")
+        .select("createdby, circleid")
+        .eq("id", eventId)
         .single();
 
       if (!event) {
-        return { data: null, error: new Error('Event not found') };
+        return { data: null, error: new Error("Event not found") };
       }
 
       const isCreator = event.createdby === currentUser.user.id;
@@ -2355,10 +2703,10 @@ export const DatabaseService = {
       if (!isCreator && event.circleid) {
         // Check if user is circle admin
         const { data: adminCheck } = await supabase
-          .from('circle_admins')
-          .select('userid')
-          .eq('circleid', event.circleid)
-          .eq('userid', currentUser.user.id)
+          .from("circle_admins")
+          .select("userid")
+          .eq("circleid", event.circleid)
+          .eq("userid", currentUser.user.id)
           .single();
 
         if (adminCheck) {
@@ -2366,9 +2714,9 @@ export const DatabaseService = {
         } else {
           // Check if user is circle creator
           const { data: circleCheck } = await supabase
-            .from('circles')
-            .select('creator')
-            .eq('id', event.circleid)
+            .from("circles")
+            .select("creator")
+            .eq("id", event.circleid)
             .single();
 
           if (circleCheck?.creator === currentUser.user.id) {
@@ -2378,24 +2726,27 @@ export const DatabaseService = {
       }
 
       if (!isCreator && !isCircleAdmin) {
-        return { data: null, error: new Error('You do not have permission to edit this event') };
+        return {
+          data: null,
+          error: new Error("You do not have permission to edit this event"),
+        };
       }
 
       const { data, error } = await supabase
-        .from('events')
+        .from("events")
         .update(updates)
-        .eq('id', eventId)
+        .eq("id", eventId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating event:', error);
+        console.error("Error updating event:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in updateEvent:', error);
+      console.error("Error in updateEvent:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2406,25 +2757,25 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('post_likes')
+        .from("post_likes")
         .insert({
           postid: postId,
-          userid: userId
+          userid: userId,
         })
         .select();
 
       if (error) {
-        console.error('Error liking post:', error);
+        console.error("Error liking post:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in likePost:', error);
+      console.error("Error in likePost:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2434,23 +2785,23 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('post_likes')
+        .from("post_likes")
         .delete()
-        .eq('postid', postId)
-        .eq('userid', userId);
+        .eq("postid", postId)
+        .eq("userid", userId);
 
       if (error) {
-        console.error('Error unliking post:', error);
+        console.error("Error unliking post:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in unlikePost:', error);
+      console.error("Error in unlikePost:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2461,87 +2812,87 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Generate a proper UUID for the comment ID
       const commentId = crypto.randomUUID();
       const now = new Date().toISOString();
 
-      console.log('Creating comment with data:', {
+      console.log("Creating comment with data:", {
         id: commentId,
         postid: postId,
         userid: userId,
-        text: text.substring(0, 50) + '...',
-        timestamp: now
+        text: text.substring(0, 50) + "...",
+        timestamp: now,
       });
 
       const { data, error } = await supabase
-        .from('comments')
+        .from("comments")
         .insert({
           id: commentId,
           postid: postId,
           userid: userId,
           text: text,
           timestamp: now,
-          creationdate: now
+          creationdate: now,
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating comment:', error);
+        console.error("Error creating comment:", error);
         return { data: null, error };
       }
 
       // Get the user info separately to avoid foreign key issues
       const { data: userInfo } = await supabase
-        .from('users')
-        .select('name, avatar_url')
-        .eq('id', userId)
+        .from("users")
+        .select("name, avatar_url")
+        .eq("id", userId)
         .single();
 
       // Transform the response to match expected format
       const transformedData = {
         ...data,
-        author: userInfo || { name: 'Unknown User', avatar_url: null }
+        author: userInfo || { name: "Unknown User", avatar_url: null },
       };
 
-      console.log('Comment created successfully:', transformedData.id);
+      console.log("Comment created successfully:", transformedData.id);
       return { data: transformedData, error: null };
     } catch (error) {
-      console.error('Error in createComment:', error);
+      console.error("Error in createComment:", error);
       return { data: null, error: error as Error };
     }
   },
 
   async getPostComments(postId: string) {
     try {
-      console.log('Fetching comments for post:', postId);
+      console.log("Fetching comments for post:", postId);
 
       const { data, error } = await supabase
-        .from('comments')
-        .select('*')
-        .eq('postid', postId)
-        .order('creationdate', { ascending: true });
+        .from("comments")
+        .select("*")
+        .eq("postid", postId)
+        .order("creationdate", { ascending: true });
 
       if (error) {
-        console.error('Error getting comments:', error);
+        console.error("Error getting comments:", error);
         return { data: [], error };
       }
 
-      console.log('Raw comments data:', data?.length || 0, 'comments found');
+      console.log("Raw comments data:", data?.length || 0, "comments found");
 
       if (!data || data.length === 0) {
         return { data: [], error: null };
       }
 
       // Get user info for each comment
-      const userIds = [...new Set(data.map(comment => comment.userid))];
+      const userIds = [...new Set(data.map((comment) => comment.userid))];
       const { data: users } = await supabase
-        .from('users')
-        .select('id, name, avatar_url')
-        .in('id', userIds);
+        .from("users")
+        .select("id, name, avatar_url")
+        .in("id", userIds);
 
       // Create a map of user info
       const userMap = (users || []).reduce((acc, user) => {
@@ -2550,85 +2901,97 @@ export const DatabaseService = {
       }, {} as Record<string, any>);
 
       // Transform the response to match expected format
-      const transformedData = data.map(comment => ({
+      const transformedData = data.map((comment) => ({
         ...comment,
-        author: userMap[comment.userid] || { name: 'Unknown User', avatar_url: null }
+        author: userMap[comment.userid] || {
+          name: "Unknown User",
+          avatar_url: null,
+        },
       }));
 
-      console.log('Transformed comments:', transformedData.length);
+      console.log("Transformed comments:", transformedData.length);
       return { data: transformedData, error: null };
     } catch (error) {
-      console.error('Error in getPostComments:', error);
+      console.error("Error in getPostComments:", error);
       return { data: [], error: error as Error };
     }
   },
 
-  async updatePost(postId: string, updates: { content?: string; image?: string }, userId: string) {
+  async updatePost(
+    postId: string,
+    updates: { content?: string; image?: string },
+    userId: string
+  ) {
     try {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       // Check if user owns the post
       const { data: post, error: fetchError } = await supabase
-        .from('posts')
-        .select('userid')
-        .eq('id', postId)
+        .from("posts")
+        .select("userid")
+        .eq("id", postId)
         .single();
 
       if (fetchError || !post) {
-        return { data: null, error: new Error('Post not found') };
+        return { data: null, error: new Error("Post not found") };
       }
 
       if (post.userid !== userId) {
-        return { data: null, error: new Error('You can only edit your own posts') };
+        return {
+          data: null,
+          error: new Error("You can only edit your own posts"),
+        };
       }
 
       // Update the post
       const { data, error } = await supabase
-        .from('posts')
+        .from("posts")
         .update(updates)
-        .eq('id', postId)
+        .eq("id", postId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating post:', error);
+        console.error("Error updating post:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in updatePost:', error);
+      console.error("Error in updatePost:", error);
       return { data: null, error: error as Error };
     }
   },
 
   async deleteComment(commentId: string, userId: string) {
-    console.log('🗑️ deleteComment called:', { commentId, userId });
+    console.log("🗑️ deleteComment called:", { commentId, userId });
 
     try {
       // Verify user is authenticated
-      const { data: currentUser, error: authError } = await supabase.auth.getUser();
+      const { data: currentUser, error: authError } =
+        await supabase.auth.getUser();
 
       if (!currentUser?.user || authError) {
-        console.error('🗑️ Authentication failed:', authError);
-        return { data: null, error: new Error('Authentication required') };
+        console.error("🗑️ Authentication failed:", authError);
+        return { data: null, error: new Error("Authentication required") };
       }
 
       if (currentUser.user.id !== userId) {
-        console.error('🗑️ User ID mismatch');
-        return { data: null, error: new Error('Authentication mismatch') };
+        console.error("🗑️ User ID mismatch");
+        return { data: null, error: new Error("Authentication mismatch") };
       }
 
-      console.log('🗑️ Auth verified, checking permissions...');
+      console.log("🗑️ Auth verified, checking permissions...");
 
       // Get comment and related permissions in one query
       const { data: commentData, error: fetchError } = await supabase
-        .from('comments')
-        .select(`
+        .from("comments")
+        .select(
+          `
           userid,
           id,
           text,
@@ -2641,13 +3004,14 @@ export const DatabaseService = {
               circle_admins(userid)
             )
           )
-        `)
-        .eq('id', commentId)
+        `
+        )
+        .eq("id", commentId)
         .single();
 
       if (fetchError || !commentData) {
-        console.error('🗑️ Comment not found:', fetchError);
-        return { data: null, error: new Error('Comment not found') };
+        console.error("🗑️ Comment not found:", fetchError);
+        return { data: null, error: new Error("Comment not found") };
       }
 
       // Check permissions
@@ -2656,13 +3020,13 @@ export const DatabaseService = {
       // 1. Comment owner can delete their own comment
       if (commentData.userid === userId) {
         hasPermission = true;
-        console.log('🗑️ Permission: comment owner');
+        console.log("🗑️ Permission: comment owner");
       }
 
       // 2. Post owner can delete comments on their post
       if (commentData.posts?.userid === userId) {
         hasPermission = true;
-        console.log('🗑️ Permission: post owner');
+        console.log("🗑️ Permission: post owner");
       }
 
       // 3. Circle admin or creator can delete comments in their circle
@@ -2670,94 +3034,111 @@ export const DatabaseService = {
         const circle = commentData.posts.circles;
         if (circle?.creator === userId) {
           hasPermission = true;
-          console.log('🗑️ Permission: circle creator');
+          console.log("🗑️ Permission: circle creator");
         }
 
         const circleAdmins = circle?.circle_admins || [];
         if (circleAdmins.some((admin: any) => admin.userid === userId)) {
           hasPermission = true;
-          console.log('🗑️ Permission: circle admin');
+          console.log("🗑️ Permission: circle admin");
         }
       }
 
       if (!hasPermission) {
-        console.error('🗑️ Permission denied');
-        return { data: null, error: new Error('You do not have permission to delete this comment') };
+        console.error("🗑️ Permission denied");
+        return {
+          data: null,
+          error: new Error("You do not have permission to delete this comment"),
+        };
       }
 
-      console.log('🗑️ Permission verified, deleting comment...');
+      console.log("🗑️ Permission verified, deleting comment...");
 
       // Delete the comment
       const { data, error } = await supabase
-        .from('comments')
+        .from("comments")
         .delete()
-        .eq('id', commentId)
-        .select('*');
+        .eq("id", commentId)
+        .select("*");
 
       if (error) {
-        console.error('🗑️ Delete failed:', error);
-        return { data: null, error: new Error(`Failed to delete comment: ${error.message}`) };
+        console.error("🗑️ Delete failed:", error);
+        return {
+          data: null,
+          error: new Error(`Failed to delete comment: ${error.message}`),
+        };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ No rows affected');
-        return { data: null, error: new Error('Comment not found or already deleted') };
+        console.error("🗑️ No rows affected");
+        return {
+          data: null,
+          error: new Error("Comment not found or already deleted"),
+        };
       }
 
-      console.log('🗑️ Comment deleted successfully');
+      console.log("🗑️ Comment deleted successfully");
       return { data: { success: true, deletedComment: data[0] }, error: null };
-
     } catch (error) {
-      console.error('🗑️ Unexpected error:', error);
-      return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+      console.error("🗑️ Unexpected error:", error);
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
   },
 
   async deletePost(postId: string, userId: string) {
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    console.log('🗑️ DELETE POST FUNCTION STARTED');
-    console.log('🗑️ ═══════════════════════════════════════════════════════════');
-    console.log('🗑️ STEP 0: Initial parameters');
-    console.log('🗑️ - postId:', postId);
-    console.log('🗑️ - userId:', userId);
-    console.log('🗑️ - postId type:', typeof postId);
-    console.log('🗑️ - userId type:', typeof userId);
-    console.log('🗑️ - postId length:', postId?.length);
-    console.log('🗑️ - userId length:', userId?.length);
+    console.log(
+      "🗑️ ═══════════════════════════════════════════════════════════"
+    );
+    console.log("🗑️ DELETE POST FUNCTION STARTED");
+    console.log(
+      "🗑️ ═══════════════════════════════════════════════════════════"
+    );
+    console.log("🗑️ STEP 0: Initial parameters");
+    console.log("🗑️ - postId:", postId);
+    console.log("🗑️ - userId:", userId);
+    console.log("🗑️ - postId type:", typeof postId);
+    console.log("🗑️ - userId type:", typeof userId);
+    console.log("🗑️ - postId length:", postId?.length);
+    console.log("🗑️ - userId length:", userId?.length);
 
     try {
-      console.log('🗑️ STEP 1: Starting authentication check...');
+      console.log("🗑️ STEP 1: Starting authentication check...");
 
       // Verify user is authenticated
-      const { data: currentUser, error: authError } = await supabase.auth.getUser();
+      const { data: currentUser, error: authError } =
+        await supabase.auth.getUser();
 
-      console.log('🗑️ STEP 1 RESULT: Authentication check completed');
-      console.log('🗑️ - hasCurrentUser:', !!currentUser);
-      console.log('🗑️ - hasCurrentUserUser:', !!currentUser?.user);
-      console.log('🗑️ - currentUserId:', currentUser?.user?.id);
-      console.log('🗑️ - authError:', authError);
-      console.log('🗑️ - authErrorMessage:', authError?.message);
-      console.log('🗑️ - authErrorCode:', authError?.code);
+      console.log("🗑️ STEP 1 RESULT: Authentication check completed");
+      console.log("🗑️ - hasCurrentUser:", !!currentUser);
+      console.log("🗑️ - hasCurrentUserUser:", !!currentUser?.user);
+      console.log("🗑️ - currentUserId:", currentUser?.user?.id);
+      console.log("🗑️ - authError:", authError);
+      console.log("🗑️ - authErrorMessage:", authError?.message);
+      console.log("🗑️ - authErrorCode:", authError?.code);
 
       if (!currentUser?.user || authError) {
-        console.error('🗑️ STEP 1 FAILED: Authentication failed');
-        console.error('🗑️ - Missing user object:', !currentUser?.user);
-        console.error('🗑️ - Has auth error:', !!authError);
-        console.error('🗑️ - Auth error details:', authError);
-        return { data: null, error: new Error('Authentication required') };
+        console.error("🗑️ STEP 1 FAILED: Authentication failed");
+        console.error("🗑️ - Missing user object:", !currentUser?.user);
+        console.error("🗑️ - Has auth error:", !!authError);
+        console.error("🗑️ - Auth error details:", authError);
+        return { data: null, error: new Error("Authentication required") };
       }
 
-      console.log('🗑️ STEP 1 PASSED: User authenticated');
-      console.log('🗑️ - Authenticated user ID:', currentUser.user.id);
-      console.log('🗑️ - Provided user ID:', userId);
-      console.log('🗑️ - IDs match:', currentUser.user.id === userId);
+      console.log("🗑️ STEP 1 PASSED: User authenticated");
+      console.log("🗑️ - Authenticated user ID:", currentUser.user.id);
+      console.log("🗑️ - Provided user ID:", userId);
+      console.log("🗑️ - IDs match:", currentUser.user.id === userId);
 
-      console.log('🗑️ STEP 2: Fetching post details for permission check...');
+      console.log("🗑️ STEP 2: Fetching post details for permission check...");
 
       // Get post details first to understand permissions
       const { data: postDetails, error: fetchError } = await supabase
-        .from('posts')
-        .select(`
+        .from("posts")
+        .select(
+          `
           id,
           userid,
           content,
@@ -2769,60 +3150,65 @@ export const DatabaseService = {
             creator,
             circle_admins(userid)
           )
-        `)
-        .eq('id', postId)
+        `
+        )
+        .eq("id", postId)
         .single();
-
-      console.log('🗑️ STEP 2 RESULT: Post details fetch completed');
-      console.log('🗑️ - hasPostDetails:', !!postDetails);
-      console.log('🗑️ - fetchError:', fetchError);
-      console.log('🗑️ - fetchErrorCode:', fetchError?.code);
-      console.log('🗑️ - fetchErrorMessage:', fetchError?.message);
+      console.log("🗑️ STEP 2 RESULT: Post details fetch completed");
+      console.log("🗑️ - hasPostDetails:", !!postDetails);
+      console.log("🗑️ - fetchError:", fetchError);
+      console.log("🗑️ - fetchErrorCode:", fetchError?.code);
+      console.log("🗑️ - fetchErrorMessage:", fetchError?.message);
 
       if (postDetails) {
-        console.log('🗑️ - Post owner ID:', postDetails.userid);
-        console.log('🗑️ - Post circle ID:', postDetails.circleid);
-        console.log('🗑️ - Post content length:', postDetails.content?.length);
-        console.log('🗑️ - Post creation date:', postDetails.creationdate);
+        console.log("🗑️ - Post owner ID:", postDetails.userid);
+        console.log("🗑️ - Post circle ID:", postDetails.circleid);
+        console.log("🗑️ - Post content length:", postDetails.content?.length);
+        console.log("🗑️ - Post creation date:", postDetails.creationdate);
 
         if (postDetails.circles) {
-          console.log('🗑️ - Circle name:', postDetails.circles.name);
-          console.log('🗑️ - Circle creator:', postDetails.circles.creator);
-          console.log('🗑️ - Circle admins:', postDetails.circles.circle_admins);
+          console.log("🗑️ - Circle name:", postDetails.circles.name);
+          console.log("🗑️ - Circle creator:", postDetails.circles.creator);
+          console.log("🗑️ - Circle admins:", postDetails.circles.circle_admins);
         }
       }
 
       if (fetchError || !postDetails) {
-        console.error('🗑️ STEP 2 FAILED: Post not found or fetch error');
-        console.error('🗑️ - Error details:', fetchError);
-        return { data: null, error: new Error(`Post not found: ${fetchError?.message || 'Unknown error'}`) };
+        console.error("🗑️ STEP 2 FAILED: Post not found or fetch error");
+        console.error("🗑️ - Error details:", fetchError);
+        return {
+          data: null,
+          error: new Error(
+            `Post not found: ${fetchError?.message || "Unknown error"}`
+          ),
+        };
       }
 
-      console.log('🗑️ STEP 2 PASSED: Post details fetched successfully');
+      console.log("🗑️ STEP 2 PASSED: Post details fetched successfully");
 
-      console.log('🗑️ STEP 3: Checking permissions...');
+      console.log("🗑️ STEP 3: Checking permissions...");
 
       let hasPermission = false;
-      let permissionReason = 'none';
+      let permissionReason = "none";
 
       // Check if user owns the post
       if (postDetails.userid === currentUser.user.id) {
         hasPermission = true;
-        permissionReason = 'post_owner';
-        console.log('🗑️ - Permission granted: User is post owner');
+        permissionReason = "post_owner";
+        console.log("🗑️ - Permission granted: User is post owner");
       }
 
       // Check circle permissions if post is in a circle
       if (!hasPermission && postDetails.circleid && postDetails.circles) {
-        console.log('🗑️ - Checking circle permissions...');
-        console.log('🗑️ - Circle creator:', postDetails.circles.creator);
-        console.log('🗑️ - Current user:', currentUser.user.id);
+        console.log("🗑️ - Checking circle permissions...");
+        console.log("🗑️ - Circle creator:", postDetails.circles.creator);
+        console.log("🗑️ - Current user:", currentUser.user.id);
 
         // Check if user is circle creator
         if (postDetails.circles.creator === currentUser.user.id) {
           hasPermission = true;
-          permissionReason = 'circle_creator';
-          console.log('🗑️ - Permission granted: User is circle creator');
+          permissionReason = "circle_creator";
+          console.log("🗑️ - Permission granted: User is circle creator");
         }
 
         // Check if user is circle admin
@@ -2832,100 +3218,126 @@ export const DatabaseService = {
           );
           if (isAdmin) {
             hasPermission = true;
-            permissionReason = 'circle_admin';
-            console.log('🗑️ - Permission granted: User is circle admin');
+            permissionReason = "circle_admin";
+            console.log("🗑️ - Permission granted: User is circle admin");
           }
         }
       }
 
-      console.log('🗑️ STEP 3 RESULT: Permission check completed');
-      console.log('🗑️ - hasPermission:', hasPermission);
-      console.log('🗑️ - permissionReason:', permissionReason);
+      console.log("🗑️ STEP 3 RESULT: Permission check completed");
+      console.log("🗑️ - hasPermission:", hasPermission);
+      console.log("🗑️ - permissionReason:", permissionReason);
 
       if (!hasPermission) {
-        console.error('🗑️ STEP 3 FAILED: Permission denied');
-        console.error('🗑️ - User ID:', currentUser.user.id);
-        console.error('🗑️ - Post owner ID:', postDetails.userid);
-        console.error('🗑️ - Circle ID:', postDetails.circleid);
-        console.error('🗑️ - Circle creator:', postDetails.circles?.creator);
-        return { data: null, error: new Error('You do not have permission to delete this post') };
+        console.error("🗑️ STEP 3 FAILED: Permission denied");
+        console.error("🗑️ - User ID:", currentUser.user.id);
+        console.error("🗑️ - Post owner ID:", postDetails.userid);
+        console.error("🗑️ - Circle ID:", postDetails.circleid);
+        console.error("🗑️ - Circle creator:", postDetails.circles?.creator);
+        return {
+          data: null,
+          error: new Error("You do not have permission to delete this post"),
+        };
       }
 
-      console.log('🗑️ STEP 3 PASSED: Permission check successful');
+      console.log("🗑️ STEP 3 PASSED: Permission check successful");
 
-      console.log('🗑️ STEP 4: Attempting to delete post...');
-      console.log('🗑️ - Post ID to delete:', postId);
-      console.log('🗑️ - Using RLS with authenticated user:', currentUser.user.id);
+      console.log("🗑️ STEP 4: Attempting to delete post...");
+      console.log("🗑️ - Post ID to delete:", postId);
+      console.log(
+        "🗑️ - Using RLS with authenticated user:",
+        currentUser.user.id
+      );
 
       // Perform the delete
       const { data, error } = await supabase
-        .from('posts')
+        .from("posts")
         .delete()
-        .eq('id', postId)
-        .select('*');
+        .eq("id", postId)
+        .select("*");
 
-      console.log('🗑️ STEP 4 RESULT: Delete operation completed');
-      console.log('🗑️ - hasData:', !!data);
-      console.log('🗑️ - dataLength:', data?.length || 0);
-      console.log('🗑️ - hasError:', !!error);
-      console.log('🗑️ - errorCode:', error?.code);
-      console.log('🗑️ - errorMessage:', error?.message);
-      console.log('🗑️ - errorDetails:', error?.details);
-      console.log('🗑️ - errorHint:', error?.hint);
+      console.log("🗑️ STEP 4 RESULT: Delete operation completed");
+      console.log("🗑️ - hasData:", !!data);
+      console.log("🗑️ - dataLength:", data?.length || 0);
+      console.log("🗑️ - hasError:", !!error);
+      console.log("🗑️ - errorCode:", error?.code);
+      console.log("🗑️ - errorMessage:", error?.message);
+      console.log("🗑️ - errorDetails:", error?.details);
+      console.log("🗑️ - errorHint:", error?.hint);
 
       if (data && data.length > 0) {
-        console.log('🗑️ - Deleted post details:', {
+        console.log("🗑️ - Deleted post details:", {
           id: data[0].id,
-          content: data[0].content?.substring(0, 50) + '...',
+          content: data[0].content?.substring(0, 50) + "...",
           userid: data[0].userid,
-          circleid: data[0].circleid
+          circleid: data[0].circleid,
         });
       }
 
       if (error) {
-        console.error('🗑️ STEP 4 FAILED: Delete operation failed');
-        console.error('🗑️ - Full error object:', JSON.stringify(error, null, 2));
-        return { 
-          data: null, 
-          error: new Error(`Failed to delete post: ${error.message} (Code: ${error.code})`) 
+        console.error("🗑️ STEP 4 FAILED: Delete operation failed");
+        console.error(
+          "🗑️ - Full error object:",
+          JSON.stringify(error, null, 2)
+        );
+        return {
+          data: null,
+          error: new Error(
+            `Failed to delete post: ${error.message} (Code: ${error.code})`
+          ),
         };
       }
 
       if (!data || data.length === 0) {
-        console.error('🗑️ STEP 4 FAILED: No rows affected by delete');
-        console.error('🗑️ - This could indicate:');
-        console.error('🗑️   1. Post ID does not exist');
-        console.error('🗑️   2. RLS policy is blocking the delete');
-        console.error('🗑️   3. Post was already deleted');
-        console.error('🗑️ - Post ID attempted:', postId);
-        console.error('🗑️ - User ID:', currentUser.user.id);
-        return { 
-          data: null, 
-          error: new Error('Post not found or already deleted') 
+        console.error("🗑️ STEP 4 FAILED: No rows affected by delete");
+        console.error("🗑️ - This could indicate:");
+        console.error("🗑️   1. Post ID does not exist");
+        console.error("🗑️   2. RLS policy is blocking the delete");
+        console.error("🗑️   3. Post was already deleted");
+        console.error("🗑️ - Post ID attempted:", postId);
+        console.error("🗑️ - User ID:", currentUser.user.id);
+        return {
+          data: null,
+          error: new Error("Post not found or already deleted"),
         };
       }
 
-      console.log('🗑️ STEP 4 PASSED: Delete operation successful');
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
-      console.log('🗑️ DELETE POST FUNCTION COMPLETED SUCCESSFULLY');
-      console.log('🗑️ ═══════════════════════════════════════════════════════════');
+      console.log("🗑️ STEP 4 PASSED: Delete operation successful");
+      console.log(
+        "🗑️ ═══════════════════════════════════════════════════════════"
+      );
+      console.log("🗑️ DELETE POST FUNCTION COMPLETED SUCCESSFULLY");
+      console.log(
+        "🗑️ ═══════════════════════════════════════════════════════════"
+      );
 
       return { data: { success: true, deletedPost: data[0] }, error: null };
-
     } catch (error) {
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      console.error('🗑️ DELETE POST FUNCTION FAILED WITH EXCEPTION');
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
-      console.error('🗑️ EXCEPTION DETAILS:');
-      console.error('🗑️ - Error type:', typeof error);
-      console.error('🗑️ - Error message:', error instanceof Error ? error.message : String(error));
-      console.error('🗑️ - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('🗑️ - Error object:', error);
-      console.error('🗑️ ═══════════════════════════════════════════════════════════');
+      console.error(
+        "🗑️ ═══════════════════════════════════════════════════════════"
+      );
+      console.error("🗑️ DELETE POST FUNCTION FAILED WITH EXCEPTION");
+      console.error(
+        "🗑️ ═══════════════════════════════════════════════════════════"
+      );
+      console.error("🗑️ EXCEPTION DETAILS:");
+      console.error("🗑️ - Error type:", typeof error);
+      console.error(
+        "🗑️ - Error message:",
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error(
+        "🗑️ - Error stack:",
+        error instanceof Error ? error.stack : "No stack trace"
+      );
+      console.error("🗑️ - Error object:", error);
+      console.error(
+        "🗑️ ═══════════════════════════════════════════════════════════"
+      );
 
-      return { 
-        data: null, 
-        error: error instanceof Error ? error : new Error(String(error)) 
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   },
@@ -2935,23 +3347,23 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('users')
-        .select('first_login')
-        .eq('id', userId)
+        .from("users")
+        .select("first_login")
+        .eq("id", userId)
         .single();
 
       if (error) {
-        console.error('Error checking first login:', error);
+        console.error("Error checking first login:", error);
         return { data: null, error };
       }
 
       return { data: data?.first_login || false, error: null };
     } catch (error) {
-      console.error('Error in checkFirstLogin:', error);
+      console.error("Error in checkFirstLogin:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2961,24 +3373,24 @@ export const DatabaseService = {
       // Verify user is authenticated
       const { data: currentUser } = await supabase.auth.getUser();
       if (!currentUser.user || currentUser.user.id !== userId) {
-        return { data: null, error: new Error('Authentication required') };
+        return { data: null, error: new Error("Authentication required") };
       }
 
       const { data, error } = await supabase
-        .from('users')
+        .from("users")
         .update({ first_login: false })
-        .eq('id', userId)
+        .eq("id", userId)
         .select()
         .single();
 
       if (error) {
-        console.error('Error updating first login:', error);
+        console.error("Error updating first login:", error);
         return { data: null, error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('Error in updateFirstLogin:', error);
+      console.error("Error in updateFirstLogin:", error);
       return { data: null, error: error as Error };
     }
   },
@@ -2987,21 +3399,19 @@ export const DatabaseService = {
   async createUserInterest(userId: string, interestId: string) {
     try {
       // Use upsert to handle duplicates gracefully
-      const { data, error } = await supabase
-        .from('user_interests')
-        .upsert(
-          {
-            userid: userId,
-            interestid: interestId
-          },
-          {
-            onConflict: 'userid,interestid'
-          }
-        );
+      const { data, error } = await supabase.from("user_interests").upsert(
+        {
+          userid: userId,
+          interestid: interestId,
+        },
+        {
+          onConflict: "userid,interestid",
+        }
+      );
 
       return { data, error };
     } catch (error) {
-      console.error('Error creating user interest:', error);
+      console.error("Error creating user interest:", error);
       return { data: null, error };
     }
   },
@@ -3010,21 +3420,19 @@ export const DatabaseService = {
   async createUserLookingFor(userId: string, interestId: string) {
     try {
       // Use upsert to handle duplicates gracefully
-      const { data, error } = await supabase
-        .from('user_look_for')
-        .upsert(
-          {
-            userid: userId,
-            interestid: interestId
-          },
-          {
-            onConflict: 'userid,interestid'
-          }
-        );
+      const { data, error } = await supabase.from("user_look_for").upsert(
+        {
+          userid: userId,
+          interestid: interestId,
+        },
+        {
+          onConflict: "userid,interestid",
+        }
+      );
 
       return { data, error };
     } catch (error) {
-      console.error('Error creating user looking for:', error);
+      console.error("Error creating user looking for:", error);
       return { data: null, error };
     }
   },

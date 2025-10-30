@@ -8,19 +8,19 @@ import {
   TextInput,
   Alert,
   Image,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-
+import { DatePickerModal, TimePickerModal } from "react-native-paper-dates";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
 
 interface EventModalProps {
   visible: boolean;
   onClose: () => void;
-  onEventCreated: () => void;
+  onEventCreated: (event: any) => void;
   preSelectedCircleId?: string;
   circles?: Array<{ id: string; name: string }>;
   editingEvent?: any | null;
@@ -31,7 +31,7 @@ interface NewEvent {
   date: string;
   time: string;
   location: string;
-  location_url: string;
+  location_url: string | null;
   description: string;
   circleId: string;
   interests: string[];
@@ -46,7 +46,6 @@ export default function EventModal({
   editingEvent = null,
 }: EventModalProps) {
   const { user } = useAuth();
-  const { texts } = useLanguage();
 
   const PRIMARY = "#198F4B";
   const BG = "#FFFFFF";
@@ -60,7 +59,7 @@ export default function EventModal({
     date: "",
     time: "",
     location: "",
-    location_url: "",
+    location_url: null,
     description: "",
     circleId: preSelectedCircleId || "",
     interests: [],
@@ -68,8 +67,45 @@ export default function EventModal({
 
   const [interests, setInterests] = useState<{ [category: string]: any[] }>({});
   const [uploading, setUploading] = useState(false);
+  const [date, setDate] = useState(new Date());
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisible] = useState(false);
   const [selectedPhoto, setSelectedPhoto] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
+
+  // القيود على الأنواع
+  const ALLOWED_MIME = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ]);
+  const ALLOWED_EXT = new Set([".jpeg", ".jpg", ".png", ".webp"]);
+
+  function hasAllowedExt(uriOrName: string) {
+    const lower = uriOrName.toLowerCase();
+    for (const ext of ALLOWED_EXT) if (lower.endsWith(ext)) return true;
+    return false;
+  }
+
+  function isAllowedImage(asset: ImagePicker.ImagePickerAsset) {
+    if (asset.mimeType && ALLOWED_MIME.has(asset.mimeType)) return true;
+    if ((asset as any).fileName && hasAllowedExt((asset as any).fileName))
+      return true;
+    if (asset.uri && hasAllowedExt(asset.uri)) return true;
+    return false;
+  }
+
+  function notifyTypeRestriction() {
+    const msgWeb = "Allowed image types: PNG or JPEG (JPG).";
+    const msgNativeTitle = "تحذير";
+    const msgNativeBody = "الصور المسموح بها: PNG أو JPEG (JPG).";
+    if (Platform.OS === "web") {
+      globalThis?.alert?.(msgWeb);
+    } else {
+      Alert.alert(msgNativeTitle, msgNativeBody);
+    }
+  }
 
   useEffect(() => {
     if (preSelectedCircleId)
@@ -83,11 +119,17 @@ export default function EventModal({
         date: editingEvent.date || "",
         time: editingEvent.time || "",
         location: editingEvent.location || "",
-        location_url: editingEvent.location_url || "",
+        location_url: editingEvent.location_url || null,
         description: editingEvent.description || "",
         circleId: editingEvent.circleid || preSelectedCircleId || "",
         interests: editingEvent.interests || [],
       });
+      if (editingEvent.date) {
+        const eventDate = new Date(editingEvent.date);
+        if (!isNaN(eventDate.getTime())) setDate(eventDate);
+      } else {
+        setDate(new Date());
+      }
       setSelectedPhoto(
         editingEvent.photo_url ? ({ uri: editingEvent.photo_url } as any) : null
       );
@@ -126,9 +168,44 @@ export default function EventModal({
       description: "",
       circleId: preSelectedCircleId || "",
       interests: [],
-    });
+    } as any);
     setSelectedPhoto(null);
   };
+
+  const onDismissDatePicker = React.useCallback(() => {
+    setDatePickerVisible(false);
+  }, [setDatePickerVisible]);
+
+  const onConfirmDatePicker = React.useCallback(
+    (params: { date?: Date; startDate?: Date; endDate?: Date }) => {
+      setDatePickerVisible(false);
+      if (params.date) {
+        const localDate = params.date;
+        setDate(localDate);
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, "0");
+        const day = String(localDate.getDate()).padStart(2, "0");
+        const formattedDate = `${year}-${month}-${day}`;
+        setNewEvent((prev) => ({ ...prev, date: formattedDate }));
+      }
+    },
+    [setDatePickerVisible, setDate]
+  );
+
+  const onDismissTimePicker = React.useCallback(() => {
+    setTimePickerVisible(false);
+  }, [setTimePickerVisible]);
+
+  const onConfirmTimePicker = React.useCallback(
+    ({ hours, minutes }: { hours: number; minutes: number }) => {
+      setTimePickerVisible(false);
+      const formattedHours = String(hours).padStart(2, "0");
+      const formattedMinutes = String(minutes).padStart(2, "0");
+      const timeIn24HourFormat = `${formattedHours}:${formattedMinutes}`;
+      setNewEvent((prev) => ({ ...prev, time: timeIn24HourFormat }));
+    },
+    []
+  );
 
   const pickEventPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -143,14 +220,27 @@ export default function EventModal({
       quality: 0.8,
       base64: false,
     });
-    if (!result.canceled && result.assets?.length) {
-      const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert("Error", "Image must be under 5MB");
-        return;
-      }
-      setSelectedPhoto(asset);
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+
+    // النوع
+    if (!isAllowedImage(asset)) {
+      notifyTypeRestriction();
+      return;
     }
+
+    // الحجم
+    if ((asset as any).fileSize && (asset as any).fileSize > 5 * 1024 * 1024) {
+      if (Platform.OS === "web") {
+        globalThis?.alert?.("Image must be under 5MB.");
+      } else {
+        Alert.alert("تحذير", "حجم الصورة يجب أن يكون أقل من 5MB.");
+      }
+      return;
+    }
+
+    setSelectedPhoto(asset);
   };
 
   const handleCreateEvent = async () => {
@@ -161,7 +251,10 @@ export default function EventModal({
     }
 
     setUploading(true);
+
     try {
+      let eventDataForCallback: any = null;
+
       if (editingEvent) {
         const updateData: any = {
           title: newEvent.title.trim(),
@@ -169,7 +262,7 @@ export default function EventModal({
           date: newEvent.date,
           time: newEvent.time,
           location: newEvent.location.trim(),
-          location_url: newEvent.location_url.trim(),
+          location_url: newEvent.location_url?.trim() || null,
         };
         if (selectedPhoto && selectedPhoto.uri !== editingEvent.photo_url) {
           updateData.photoAsset = selectedPhoto;
@@ -184,25 +277,35 @@ export default function EventModal({
           editingEvent.id,
           newEvent.interests
         );
+        eventDataForCallback = { ...editingEvent, ...updateData };
 
         Alert.alert("Success", "Event updated successfully!");
       } else {
         const interestObjects = newEvent.interests.map((interestId) => ({
           interestid: interestId,
         }));
-        const { error } = await DatabaseService.createEvent({
-          ...newEvent,
-          interests: interestObjects,
-          photoAsset: selectedPhoto,
-        });
+
+        const { data: newEventFromDB, error } =
+          await DatabaseService.createEvent({
+            ...newEvent,
+            location_url: newEvent.location_url?.trim() || null,
+            interests: interestObjects,
+            photoAsset: selectedPhoto,
+          });
+
         if (error) throw error;
+
+        eventDataForCallback = newEventFromDB;
+
         Alert.alert("Success", "Event created successfully!");
       }
 
       resetForm();
       onClose();
-      onEventCreated?.();
+
+      if (eventDataForCallback) onEventCreated?.(eventDataForCallback);
     } catch (e: any) {
+      console.log("OPERATION FAILED:", JSON.stringify(e, null, 2));
       Alert.alert("Error", e?.message || "Operation failed.");
     } finally {
       setUploading(false);
@@ -332,33 +435,52 @@ export default function EventModal({
 
           {/* Date & Time */}
           <View style={styles.dateTimeRow}>
-            <Field
-              label="Date *"
-              value={newEvent.date}
-              onChangeText={(t: string) =>
-                setNewEvent((p) => ({ ...p, date: t }))
-              }
-              placeholder="YYYY-MM-DD"
-              containerStyle={{ flex: 1, marginRight: 8 }}
-              TEXT={TEXT}
-              SURFACE={SURFACE}
-              BORDER={BORDER}
-              PRIMARY={PRIMARY}
-            />
-            <Field
-              label="Time *"
-              value={newEvent.time}
-              onChangeText={(t: string) =>
-                setNewEvent((p) => ({ ...p, time: t }))
-              }
-              placeholder="HH:MM"
-              containerStyle={{ flex: 1, marginLeft: 8 }}
-              TEXT={TEXT}
-              SURFACE={SURFACE}
-              BORDER={BORDER}
-              PRIMARY={PRIMARY}
-            />
+            <View style={[{ flex: 1, marginRight: 8 }]}>
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                Date *
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => setDatePickerVisible(true)}
+                style={[styles.textInput, { justifyContent: "center" }]}
+              >
+                <ThemedText style={{ color: newEvent.date ? TEXT : "#9CA3AF" }}>
+                  {newEvent.date || "YYYY-MM-DD"}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[{ flex: 1, marginLeft: 8 }]}>
+              <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
+                Time *
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => setTimePickerVisible(true)}
+                style={[styles.textInput, { justifyContent: "center" }]}
+              >
+                <ThemedText style={{ color: newEvent.time ? TEXT : "#9CA3AF" }}>
+                  {newEvent.time || "HH:MM"}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
+
+          <DatePickerModal
+            locale="en"
+            mode="single"
+            visible={isDatePickerVisible}
+            onDismiss={onDismissDatePicker}
+            date={date}
+            onConfirm={onConfirmDatePicker}
+          />
+
+          <TimePickerModal
+            visible={isTimePickerVisible}
+            onDismiss={onDismissTimePicker}
+            onConfirm={onConfirmTimePicker}
+            hours={12}
+            minutes={0}
+            use24HourClock={false}
+          />
 
           {/* Location */}
           <Field
@@ -399,10 +521,7 @@ export default function EventModal({
               onPress={pickEventPhoto}
               style={[
                 styles.photoPickerButton,
-                {
-                  backgroundColor: SURFACE,
-                  borderColor: BORDER,
-                },
+                { backgroundColor: SURFACE, borderColor: BORDER },
                 selectedPhoto && styles.selectedPhotoContainer,
               ]}
             >
@@ -480,7 +599,7 @@ export default function EventModal({
                       {category}
                     </ThemedText>
                     <View style={styles.interestChips}>
-                      {categoryInterests.map((interest: any) => (
+                      {(categoryInterests as any[]).map((interest: any) => (
                         <Chip
                           key={interest.id}
                           label={interest.title}
@@ -575,7 +694,6 @@ function Field(props: any) {
             backgroundColor: SURFACE,
             color: TEXT,
             borderColor: focused ? PRIMARY : BORDER,
-            // Web focus ring off
             outlineWidth: 0,
             outlineColor: "transparent",
             outlineStyle: "none",

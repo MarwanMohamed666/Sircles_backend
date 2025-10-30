@@ -11,9 +11,10 @@ import {
   TextInput,
   FlatList,
   useWindowDimensions,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -23,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
 import { CircleCard } from "@/components/CircleCard";
 import { useCirclesStore } from "@/stores/circlesStore";
-import { Animated } from "react-native";
+import EventModal from "@/components/EventModal";
 
 interface Post {
   id: string;
@@ -46,6 +47,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { texts } = useLanguage();
   const { width } = useWindowDimensions();
+
   // theme
   const PRIMARY = "#198F4B";
   const SURFACE = "#FFFFFF";
@@ -79,6 +81,10 @@ export default function HomeScreen() {
   const [deletePostLoading, setDeletePostLoading] = useState<string | null>(
     null
   );
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any | null>(null);
+  const [isEventModalVisible, setEventModalVisible] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
 
   // menu state
   const [menuFor, setMenuFor] = useState<{
@@ -89,6 +95,43 @@ export default function HomeScreen() {
   // search
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
+  const PALETTE = {
+    background: "#FFFFFF",
+    surface: "#FFFFFF",
+    border: "#E5E7EB",
+    text: "#111827",
+    muted: "#6B7280",
+    tint: "#0E7F45",
+    success: "#0E7F45",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+    link: "#0EA5E9",
+    overlay: "rgba(0,0,0,0.6)",
+  };
+
+  const isAllowedImageAsset = (
+    asset: ImagePicker.ImagePickerAsset | null | undefined
+  ) => {
+    if (!asset) return false;
+
+    const allowedMimes = new Set(["image/png", "image/jpeg", "image/jpg"]);
+    const allowedExts = new Set(["png", "jpg", "jpeg"]);
+
+    const mime = asset.mimeType?.toLowerCase();
+    if (mime && allowedMimes.has(mime)) return true;
+
+    const nameOrUri = (asset.fileName || asset.uri || "").toLowerCase();
+    const ext = nameOrUri.split(".").pop();
+    if (ext && allowedExts.has(ext)) return true;
+
+    return false;
+  };
+
+  const showUnsupportedAlert = () =>
+    Alert.alert(
+      "Unsupported Format",
+      "Only PNG, JPG, or JPEG images are allowed.\nPlease select a valid image format."
+    );
 
   // suggested circles store
   const {
@@ -100,8 +143,16 @@ export default function HomeScreen() {
     error: circlesError,
   } = useCirclesStore();
 
+  useFocusEffect(
+    useCallback(() => {
+      loadPosts();
+      loadSuggested();
+      loadEvents();
+    }, [])
+  );
+
   const isOwner = useCallback(
-    (post?: Post | null) => !!post?.author?.id && post.author.id === user?.id,
+    (post?: Post | null) => !!post?.author?.id && post?.author?.id === user?.id,
     [user?.id]
   );
 
@@ -121,9 +172,10 @@ export default function HomeScreen() {
       } else {
         const postsWithLikes = (data || []).map((post: any) => ({
           ...post,
-          likes_count: post.likes?.length || 0,
+          likes_count: post.likes?.length || post.likes_count || 0,
           userLiked:
-            post.likes?.some((like: any) => like.userid === user.id) || false,
+            post.userLiked ??
+            (post.likes?.some((like: any) => like.userid === user.id) || false),
         }));
         setPosts(postsWithLikes);
       }
@@ -141,6 +193,38 @@ export default function HomeScreen() {
       setError("Unable to load events. Please try again.");
     }
   };
+
+  // ✅ تعديل الحذف ليطابق صفحة Events: حذف من الـDB ثم إعادة التحميل
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!eventId) {
+      Alert.alert("Error", "Invalid event ID");
+      return;
+    }
+    const { error } = await DatabaseService.deleteEvent(eventId);
+    if (error) {
+      Alert.alert("Error", error.message || "Failed to delete event");
+      return;
+    }
+    await loadEvents(); // أعد تحميل الأحداث لكي يتحدّث الـfeed
+    Alert.alert("Success", "Event deleted successfully");
+  };
+
+  function formatTo12Hour(timeString: string | undefined) {
+    if (!timeString) {
+      return "";
+    }
+    const [hours, minutes] = timeString.split(":");
+    const hoursNum = parseInt(hours, 10);
+    if (isNaN(hoursNum)) return "";
+
+    const period = hoursNum >= 12 ? "PM" : "AM";
+    let displayHours = hoursNum % 12;
+    if (displayHours === 0) {
+      displayHours = 12;
+    }
+
+    return `${displayHours}:${minutes} ${period}`;
+  }
 
   const calculateInterestScore = (item: any) => {
     if (!userInterests?.length) return 0;
@@ -162,7 +246,6 @@ export default function HomeScreen() {
     return itemInterests.filter((id) => userIds.includes(id)).length;
   };
 
-  // insert suggested block after the 3rd post/event item
   const combineFeedItems = () => {
     const combined = [
       ...posts.map((post) => ({
@@ -173,7 +256,7 @@ export default function HomeScreen() {
       ...events.map((event) => ({
         ...event,
         type: "event",
-        sortDate: new Date(event.creationdate),
+        sortDate: new Date(event.creationdate || event.date || Date.now()),
       })),
     ];
     combined.forEach((i) => (i.interestScore = calculateInterestScore(i)));
@@ -183,7 +266,6 @@ export default function HomeScreen() {
         (b.sortDate as any) - (a.sortDate as any)
     );
 
-    // add suggested section after item index 2 if suggestions exist
     let withSuggested = combined;
     if (suggestedCircles && suggestedCircles.length > 0) {
       const insertAt = Math.min(3, combined.length);
@@ -271,6 +353,7 @@ export default function HomeScreen() {
     return date.toLocaleDateString();
   };
 
+  // ====== اختيار صورة مع تحقق الصيغة ======
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -283,7 +366,15 @@ export default function HomeScreen() {
       aspect: [4, 3],
       quality: 0.9,
     });
-    if (!result.canceled) setSelectedPostImage(result.assets[0]);
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!isAllowedImageAsset(asset)) {
+      showUnsupportedAlert();
+      return;
+    }
+
+    setSelectedPostImage(asset!);
   };
 
   const handleLikePost = async (postId: string) => {
@@ -308,24 +399,36 @@ export default function HomeScreen() {
     }
   };
 
+  // ====== إنشاء بوست مع تحقق الصيغة قبل الرفع ======
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() || !selectedCircle)
-      return Alert.alert("Error", "Content & circle required");
-    if (!user?.id) return Alert.alert("Error", "Login first");
+    if (!newPostContent.trim() || !selectedCircle) {
+      Alert.alert("Error", "Content & circle required");
+      return;
+    }
+    if (!user?.id) {
+      Alert.alert("Error", "Login first");
+      return;
+    }
+    if (selectedPostImage && !isAllowedImageAsset(selectedPostImage)) {
+      showUnsupportedAlert();
+      return;
+    }
+
     try {
-      let imageUrl: string | undefined;
-      if (selectedPostImage) {
-        const up = await DatabaseService.uploadImage(selectedPostImage);
-        if (up.error) return Alert.alert("Error", "Failed to upload image");
-        imageUrl = up.url;
+      const { error } = await DatabaseService.createPost(
+        {
+          userid: user.id,
+          content: newPostContent.trim(),
+          circleid: selectedCircle,
+        },
+        selectedPostImage || undefined
+      );
+
+      if (error) {
+        Alert.alert("Error", error.message || "Failed to create post");
+        return;
       }
-      const { error } = await DatabaseService.createPost({
-        userid: user.id,
-        content: newPostContent.trim(),
-        circleid: selectedCircle,
-        image: imageUrl,
-      });
-      if (error) return Alert.alert("Error", "Failed to create post");
+
       setShowPostModal(false);
       setNewPostContent("");
       setSelectedCircle("");
@@ -343,7 +446,6 @@ export default function HomeScreen() {
 
   const handleSaveEdit = async () => {
     if (!editingPost || !editPostContent.trim() || !user?.id) return;
-    // safety: only author can edit
     const post = posts.find((p) => p.id === editingPost.id);
     if (!isOwner(post)) return Alert.alert("Error", "Not allowed");
     const { error } = await DatabaseService.updatePost(
@@ -358,55 +460,82 @@ export default function HomeScreen() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!user?.id || deletePostLoading === postId) return;
-    const post = posts.find((p) => p.id === postId);
-    if (!isOwner(post)) return Alert.alert("Error", "Not allowed");
-    Alert.alert("Delete Post", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setDeletePostLoading(postId);
-            const { error } = await DatabaseService.deletePost(postId, user.id);
-            if (error)
-              return Alert.alert("Error", error.message || "Failed to delete");
-            setPosts((prev) => prev.filter((p) => p.id !== postId));
-            setFeedItems((prev) =>
-              prev.filter((i) => !(i.type === "post" && i.id === postId))
-            );
-          } finally {
-            setDeletePostLoading(null);
-          }
-        },
-      },
-    ]);
+    if (!user?.id) {
+      Alert.alert("Error", "You must be logged in to delete posts");
+      return;
+    }
+    setPostToDelete(postId);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete || !user?.id) return;
+    try {
+      setDeletePostLoading(postToDelete);
+      setShowDeleteConfirmModal(false);
+      const { data, error } = await DatabaseService.deletePost(
+        postToDelete,
+        user.id
+      );
+      if (error) {
+        Alert.alert("Error", error.message || "Failed to delete post");
+        return;
+      }
+      setPosts((prevPosts) =>
+        prevPosts.filter((post) => post.id !== postToDelete)
+      );
+      Alert.alert("Success", "Post deleted successfully");
+    } catch (error) {
+      Alert.alert("Error", "Failed to delete post");
+    } finally {
+      setDeletePostLoading(null);
+      setPostToDelete(null);
+    }
   };
 
   const handleJoinSuggestedCircle = async (circleId: string) => {
     if (!user?.id) return Alert.alert("Error", "Login first");
+
+    const circleToJoinAndDismiss = suggestedCircles.find(
+      (c) => c.id === circleId
+    );
+    if (!circleToJoinAndDismiss) {
+      console.error("Circle not found in suggestions list");
+      return;
+    }
+
     const { error } = await DatabaseService.joinCircle(user.id, circleId);
     if (error) {
       if (error.message?.includes("private")) {
-        const { error: reqErr } = await DatabaseService.requestToJoinCircle(
-          user.id,
-          circleId
-        );
-        if (reqErr) Alert.alert("Error", reqErr.message);
-        else {
-          Alert.alert("Request Sent", "Waiting for approval");
-          dismiss(circleId);
-        }
-      } else Alert.alert("Error", error.message);
+      } else {
+        Alert.alert("Error", error.message);
+      }
       return;
     }
+
     Alert.alert("Success", "Joined circle");
-    dismiss(circleId);
+
+    dismiss(circleToJoinAndDismiss);
+
     await loadUserCircles();
   };
 
-  // filter feed
+  const handleEditEventStart = (event: any) => {
+    setEditingEvent(event);
+    setEventModalVisible(true);
+  };
+  const handleEventSave = (savedEvent: any) => {
+    if (editingEvent) {
+      setEvents((prevEvents) =>
+        prevEvents.map((event) =>
+          event.id === savedEvent.id ? savedEvent : event
+        )
+      );
+    } else {
+      setEvents((prevEvents) => [savedEvent, ...prevEvents]);
+    }
+  };
+
   const filteredFeed = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return feedItems;
@@ -418,10 +547,12 @@ export default function HomeScreen() {
       } else if (item.type === "event") {
         const title = String(item.title || "").toLowerCase();
         const desc = String(item.description || "").toLowerCase();
-        const circle = String(item.circle?.name || "").toLowerCase();
+        const circle = String(
+          item.circle?.name || item.circleName || ""
+        ).toLowerCase();
         return title.includes(q) || desc.includes(q) || circle.includes(q);
       }
-      return true; // suggested section passes through
+      return true;
     });
   }, [feedItems, query]);
 
@@ -446,7 +577,6 @@ export default function HomeScreen() {
     );
   }
 
-  // Suggested block renderer. Two large cards side-by-side.
   function renderSuggestedSection() {
     const H_PAD = 12;
     const CARD_GAP = 12;
@@ -572,7 +702,10 @@ export default function HomeScreen() {
             <ThemedText style={styles.emptyText}>{error}</ThemedText>
             <TouchableOpacity
               style={[styles.primaryBtn, { backgroundColor: tintColor }]}
-              onPress={loadPosts}
+              onPress={() => {
+                loadPosts();
+                loadEvents();
+              }}
             >
               <ThemedText style={styles.primaryBtnText}>
                 {texts.retry || "Retry"}
@@ -637,7 +770,11 @@ export default function HomeScreen() {
                       }}
                     >
                       <IconSymbol name="pencil" size={18} color={TEXT} />
-                      <ThemedText style={styles.menuText}>Edit</ThemedText>
+                      <ThemedText
+                        style={[styles.menuText, { color: "#000000ff" }]}
+                      >
+                        Edit
+                      </ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.menuItem}
@@ -649,6 +786,7 @@ export default function HomeScreen() {
                       <IconSymbol name="trash" size={18} color="#EF4444" />
                       <ThemedText
                         style={[styles.menuText, { color: "#EF4444" }]}
+                        onPress={confirmDeletePost}
                       >
                         Delete
                       </ThemedText>
@@ -662,11 +800,49 @@ export default function HomeScreen() {
                   </View>
                 );
               })()}
-            {menuFor?.type === "event" && (
-              <View style={{ paddingHorizontal: 8, paddingVertical: 2 }}>
-                <ThemedText>Event actions coming soon</ThemedText>
-              </View>
-            )}
+            {menuFor?.type === "event" &&
+              (() => {
+                const event = events.find((e) => e.id === menuFor.id);
+                const owner = event?.createdby === user?.id;
+                return owner ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        handleEditEventStart(event);
+                        setMenuFor(null);
+                      }}
+                    >
+                      <IconSymbol name="pencil" size={18} color={TEXT} />
+                      <ThemedText
+                        style={[styles.menuText, { color: "#000000ff" }]}
+                      >
+                        Edit Event
+                      </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => {
+                        setMenuFor(null);
+                        handleDeleteEvent(String(event.id)); // ✅ يستخدم الدالة المعدّلة
+                      }}
+                    >
+                      <IconSymbol name="trash" size={18} color="#EF4444" />
+                      <ThemedText
+                        style={[styles.menuText, { color: "#EF4444" }]}
+                      >
+                        Delete Event
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+                    <ThemedText style={{ color: SUBTLE }}>
+                      No actions available
+                    </ThemedText>
+                  </View>
+                );
+              })()}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -753,7 +929,7 @@ export default function HomeScreen() {
 
             <View style={styles.inputSection}>
               <ThemedText style={[styles.inputLabel, { color: TEXT }]}>
-                What's on your mind?
+                What is on your mind?
               </ThemedText>
               <TextInput
                 style={[
@@ -882,11 +1058,90 @@ export default function HomeScreen() {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Delete Post Confirm */}
+      <Modal
+        visible={showDeleteConfirmModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowDeleteConfirmModal(false);
+          setPostToDelete(null);
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View
+            style={[
+              styles.deleteModalContent,
+              { backgroundColor: surfaceColor },
+            ]}
+          >
+            <View style={styles.deleteModalHeader}>
+              <ThemedText style={[styles.deleteModalTitle, { color: "#000" }]}>
+                Delete Post
+              </ThemedText>
+            </View>
+
+            <View style={styles.deleteModalBody}>
+              <ThemedText
+                style={[styles.deleteModalMessage, { color: "#000" }]}
+              >
+                Are you sure you want to delete this post? This action cannot be
+                undone.
+              </ThemedText>
+            </View>
+
+            <View style={styles.deleteModalFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.deleteModalButton,
+                  styles.cancelDeleteButton,
+                  { backgroundColor: "#F9FAFB", borderColor: PALETTE.border },
+                ]}
+                onPress={() => {
+                  setShowDeleteConfirmModal(false);
+                  setPostToDelete(null);
+                }}
+              >
+                <ThemedText style={{ color: textColor }}>Cancel</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.deleteModalButton,
+                  { backgroundColor: PALETTE.danger },
+                ]}
+                onPress={confirmDeletePost}
+                disabled={deletePostLoading === postToDelete}
+              >
+                <ThemedText style={{ color: "#fff", fontWeight: "600" }}>
+                  {deletePostLoading === postToDelete
+                    ? "Deleting..."
+                    : "Delete"}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <EventModal
+        visible={isEventModalVisible}
+        onClose={() => {
+          setEventModalVisible(false);
+          setEditingEvent(null);
+        }}
+        onEventCreated={handleEventSave}
+        editingEvent={editingEvent}
+        circles={userCircles}
+      />
     </SafeAreaView>
   );
 
   // --- UI: Event Card ---
   function renderEvent({ item }: { item: any }) {
+    const isEventOwner = item.createdby === user?.id;
+
     return (
       <View style={[styles.card, { backgroundColor: surfaceColor }]}>
         <View style={styles.cardHeader}>
@@ -901,23 +1156,28 @@ export default function HomeScreen() {
             </View>
             <View style={styles.headerTextWrap}>
               <ThemedText style={[styles.headerTitle, { color: TEXT }]}>
-                {item.circle?.name || "Event"}
+                {item.circle?.name || item.circleName || "Event"}
               </ThemedText>
               <ThemedText style={[styles.headerSub, { color: SUBTLE }]}>
                 Event • {formatTimeAgo(item.creationdate)}
               </ThemedText>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => setMenuFor({ type: "event", id: item.id })}
-            style={styles.menuBtn}
-          >
-            <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
-          </TouchableOpacity>
+          {isEventOwner && (
+            <TouchableOpacity
+              onPress={() => setMenuFor({ type: "event", id: item.id })}
+              style={styles.menuBtn}
+            >
+              <IconSymbol name="ellipsis" size={20} color={SUBTLE} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {item.image && (
-          <Image source={{ uri: item.image }} style={styles.cardImage} />
+        {(item.photo_url || item.image) && (
+          <Image
+            source={{ uri: item.photo_url || item.image }}
+            style={styles.cardImage}
+          />
         )}
         <View style={styles.cardBody}>
           <ThemedText
@@ -927,7 +1187,7 @@ export default function HomeScreen() {
           </ThemedText>
           <ThemedText style={[styles.eventMeta, { color: PRIMARY }]}>
             📅 {item.date ? new Date(item.date).toLocaleDateString() : "TBD"} •{" "}
-            {item.time || "TBD"}
+            {formatTo12Hour(item.time) || "TBD"}
           </ThemedText>
           {item.description ? (
             <ThemedText style={[styles.desc, { color: TEXT }]}>
@@ -964,6 +1224,7 @@ export default function HomeScreen() {
       </View>
     );
   }
+
   function LikeButton({
     liked,
     count,
@@ -1059,6 +1320,7 @@ export default function HomeScreen() {
   // --- UI: Post Card ---
   function renderPost({ item }: { item: Post & { interestScore?: number } }) {
     const owner = isOwner(item);
+
     return (
       <View style={[styles.card, { backgroundColor: surfaceColor }]}>
         <View style={styles.cardHeader}>
@@ -1086,7 +1348,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* أخفي زر القائمة لو البوست مش بتاعي */}
           {owner && (
             <TouchableOpacity
               onPress={() => setMenuFor({ type: "post", id: item.id })}
@@ -1122,7 +1383,7 @@ export default function HomeScreen() {
             >
               <IconSymbol name="bubble.left" size={18} color={SUBTLE} />
               <ThemedText style={styles.actionTxt}>
-                {item.comments?.length || 0}
+                {item.comments_count || 0}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -1131,6 +1392,7 @@ export default function HomeScreen() {
     );
   }
 }
+
 /* Styles */
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -1302,7 +1564,58 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   imagePickerTxt: { fontSize: 13, fontWeight: "700" },
-
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteModalContent: {
+    width: "85%",
+    maxWidth: 300,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  deleteModalHeader: {
+    padding: 20,
+    paddingBottom: 16,
+    alignItems: "center",
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  deleteModalBody: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    alignItems: "center",
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  deleteModalFooter: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  cancelDeleteButton: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
   /* Buttons */
   primaryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   primaryBtnText: { color: "#fff", fontWeight: "700" },

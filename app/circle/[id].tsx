@@ -10,6 +10,7 @@ import {
   Image,
   RefreshControl,
   FlatList,
+  Platform, // <-- added
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
@@ -19,11 +20,9 @@ import * as Linking from "expo-linking";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import { useThemeColor } from "@/hooks/useThemeColor";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
-import { uploadCircleProfileImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { StorageService } from "@/lib/storage";
 import EventModal from "@/components/EventModal";
@@ -50,6 +49,7 @@ interface Post {
   image?: string;
   creationdate: string;
   author: {
+    id?: string;
     name: string;
     avatar_url?: string;
   };
@@ -76,18 +76,17 @@ interface JoinRequest {
   };
 }
 
-/** تصميم الألوان */
 const PALETTE = {
   background: "#FFFFFF",
   surface: "#FFFFFF",
   border: "#E5E7EB",
   text: "#111827",
   muted: "#6B7280",
-  tint: "#0E7F45", // الأخضر الأساسي
-  success: "#0E7F45", // نفس الأخضر
-  warning: "#F59E0B", // برتقالي
-  danger: "#EF4444", // أحمر
-  link: "#0EA5E9", // أزرق خفيف للروابط إن لزم
+  tint: "#0E7F45",
+  success: "#0E7F45",
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  link: "#0EA5E9",
   overlay: "rgba(0,0,0,0.6)",
 };
 
@@ -98,7 +97,6 @@ export default function CircleScreen() {
   const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
 
-  // تجاهل ألوان الثيم واستخدم البالِت لتطابق التصميم
   const backgroundColor = PALETTE.background;
   const surfaceColor = PALETTE.surface;
   const tintColor = PALETTE.tint;
@@ -175,55 +173,37 @@ export default function CircleScreen() {
       const { data, error } = await DatabaseService.getEventsByCircle(
         circleId as string
       );
-      if (error) {
-        console.error("Error loading events:", error);
-        return;
-      }
+      if (error) return;
       setEvents(data || []);
-    } catch (error) {
-      console.error("Error loading events:", error);
-    }
+    } catch {}
   };
 
   const loadInterests = async () => {
     try {
       const { data, error } = await DatabaseService.getInterestsByCategory();
-      if (error) {
-        console.error("Error loading interests:", error);
-        return;
-      }
+      if (error) return;
       setInterests(data || {});
-    } catch (error) {
-      console.error("Error loading interests:", error);
-    }
+    } catch {}
   };
 
   const handleSaveCircleChanges = async () => {
-    console.log("Saving edited circle data...");
     await handleSaveChanges();
   };
 
   const deleteEvent = async (eventId: string) => {
-    console.log(
-      "🗑️ CIRCLE PAGE: Delete event button pressed for eventId:",
-      eventId
-    );
     if (!eventId) {
-      console.error("🗑️ CIRCLE PAGE: No eventId provided");
       Alert.alert("Error", "Invalid event ID");
       return;
     }
     try {
-      const { data, error } = await DatabaseService.deleteEvent(eventId);
+      const { error } = await DatabaseService.deleteEvent(eventId);
       if (error) {
-        console.error("🗑️ CIRCLE PAGE: Error deleting event:", error);
         Alert.alert("Error", "Failed to delete event: " + error.message);
         return;
       }
       Alert.alert("Success", "Event deleted successfully");
       await loadEvents();
-    } catch (error) {
-      console.error("🗑️ CIRCLE PAGE: Unexpected error deleting event:", error);
+    } catch {
       Alert.alert("Error", "An unexpected error occurred.");
     }
   };
@@ -260,13 +240,12 @@ export default function CircleScreen() {
 
       if (editingEvent._selectedImageAsset) {
         try {
-          const { data: uploadData, error: uploadError } =
-            await StorageService.uploadEventPhoto(
-              editingEvent.id,
-              editingEvent._selectedImageAsset,
-              user.id
-            );
-          if (!uploadError && uploadData?.publicUrl)
+          const { data: uploadData } = await StorageService.uploadEventPhoto(
+            editingEvent.id,
+            editingEvent._selectedImageAsset,
+            user.id
+          );
+          if (uploadData?.publicUrl)
             updateData.photo_url = uploadData.publicUrl;
         } catch {}
       }
@@ -335,7 +314,7 @@ export default function CircleScreen() {
             : null
         );
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to pick image");
     }
   };
@@ -382,6 +361,7 @@ export default function CircleScreen() {
       Alert.alert("Error", "Failed to update RSVP");
     }
   };
+
   const loadCircleData = async () => {
     if (!circleId || circleId === "undefined" || !user?.id) {
       setLoading(false);
@@ -399,7 +379,7 @@ export default function CircleScreen() {
       let isJoined = false;
       let isAdmin = false;
       let isMainAdmin = false;
-      let hasPendingRequest = false;
+      let hasPendingRequestLocal = false;
 
       if (user?.id) {
         const { data: joinedCircles } =
@@ -420,7 +400,7 @@ export default function CircleScreen() {
               circleId as string,
               user.id
             );
-          hasPendingRequest = !!pendingRequest;
+          hasPendingRequestLocal = !!pendingRequest;
         }
       }
 
@@ -429,19 +409,20 @@ export default function CircleScreen() {
           ?.map((ci: any) => ci.interests?.title)
           .filter(Boolean) || [];
 
-      const updatedCircle = {
+      const updatedCircle: Circle = {
         ...currentCircle,
+        createdby: currentCircle.createdby,
         isJoined,
         isAdmin,
         isMainAdmin,
         memberCount: currentCircle.member_count || 0,
         interests,
         creator: currentCircle.creator || currentCircle.createdby,
-        hasPendingRequest,
+        hasPendingRequest: hasPendingRequestLocal,
       };
 
       setCircle(updatedCircle);
-      setHasPendingRequest(hasPendingRequest);
+      setHasPendingRequest(hasPendingRequestLocal);
 
       if (isJoined || currentCircle.privacy === "public") {
         const { data: postsData } = await DatabaseService.getPosts(
@@ -464,7 +445,7 @@ export default function CircleScreen() {
           await DatabaseService.getCircleJoinRequests(circleId as string);
         setJoinRequests(requestsData || []);
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to load circle data");
     } finally {
       setLoading(false);
@@ -498,11 +479,38 @@ export default function CircleScreen() {
     }
   };
 
+  // ------------ fixed: delete circle works on web + native ------------
   const handleDeleteCircle = async () => {
     if (!user?.id || !circleId) {
       Alert.alert("Error", "Unable to delete circle. Please try again.");
       return;
     }
+
+    // Web confirmation
+    if (Platform.OS === "web") {
+      const ok = window.confirm("Are you sure you want to delete the circle?");
+      if (!ok) return;
+      try {
+        setLoading(true);
+        const { error } = await DatabaseService.deleteCircle(
+          circleId as string,
+          user.id
+        );
+        if (error) {
+          Alert.alert("Error", error.message || "Failed to delete circle");
+          return;
+        }
+        alert("Circle deleted successfully");
+        router.replace("/(tabs)/circles");
+      } catch {
+        Alert.alert("Error", "Failed to delete circle");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // iOS/Android alert
     Alert.alert(
       "Delete Circle",
       "Are you sure you want to delete the circle?",
@@ -515,7 +523,7 @@ export default function CircleScreen() {
             try {
               setLoading(true);
               const { error } = await DatabaseService.deleteCircle(
-                circleId,
+                circleId as string,
                 user.id
               );
               if (error) {
@@ -542,6 +550,7 @@ export default function CircleScreen() {
       { cancelable: false }
     );
   };
+  // --------------------------------------------------------------------
 
   const handleRemoveMember = async (memberId: string, memberName: string) => {
     if (!circle?.isAdmin) return;
@@ -584,7 +593,7 @@ export default function CircleScreen() {
       }
       Alert.alert("Success", `${memberName} has been removed from the circle`);
       await loadCircleData();
-    } catch (error) {
+    } catch {
       Alert.alert("Error", `Unexpected error occurred`);
     }
   };
@@ -622,7 +631,7 @@ export default function CircleScreen() {
       setLoading(true);
       await loadCircleData();
       setLoading(false);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Unexpected error occurred");
     }
   };
@@ -735,16 +744,11 @@ export default function CircleScreen() {
     try {
       const { data: interestsData, error } =
         await DatabaseService.getInterestsByCategory();
-      if (error) {
-        console.error("Error loading interests:", error);
-        return;
-      }
+      if (error) return;
       setInterestsByCategory(interestsData || {});
       const allInterestsFlat = Object.values(interestsData || {}).flat();
       setAllInterests(allInterestsFlat);
-    } catch (error) {
-      console.error("Error loading interests:", error);
-    }
+    } catch {}
   };
 
   const handleEditCircle = async () => {
@@ -820,7 +824,7 @@ export default function CircleScreen() {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"] as any,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
@@ -829,7 +833,7 @@ export default function CircleScreen() {
         const selectedAsset = result.assets[0];
         await uploadCircleImage(selectedAsset);
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to select image. Please try again.");
     }
   };
@@ -914,7 +918,7 @@ export default function CircleScreen() {
           Alert.alert("Error", "Invalid image selected");
           return;
         }
-        if (asset.fileSize && asset.fileSize > 3145728) {
+        if ((asset as any).fileSize && (asset as any).fileSize > 3145728) {
           Alert.alert("Error", "Image size must be less than 3MB");
           return;
         }
@@ -1041,10 +1045,7 @@ export default function CircleScreen() {
     try {
       setDeletePostLoading(postToDelete);
       setShowDeleteConfirmModal(false);
-      const { data, error } = await DatabaseService.deletePost(
-        postToDelete,
-        user.id
-      );
+      const { error } = await DatabaseService.deletePost(postToDelete, user.id);
       if (error) {
         Alert.alert("Error", error.message || "Failed to delete post");
         return;
@@ -1053,7 +1054,7 @@ export default function CircleScreen() {
         prevPosts.filter((post) => post.id !== postToDelete)
       );
       Alert.alert("Success", "Post deleted successfully");
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to delete post");
     } finally {
       setDeletePostLoading(null);
@@ -1142,6 +1143,7 @@ export default function CircleScreen() {
     if (tab && ["feed", "events", "chat", "admin"].includes(tab as string))
       setActiveTab(tab as any);
   }, [tab]);
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -1252,12 +1254,13 @@ export default function CircleScreen() {
         >
           <IconSymbol name="bubble.left" size={20} color={textColor} />
           <ThemedText style={styles.actionText}>
-            {post.comments_count || post.comments?.length || 0}
+            {(post as any).comments_count || post.comments?.length || 0}
           </ThemedText>
         </TouchableOpacity>
       </View>
     </View>
   );
+
   const renderMember = (member: Member) => (
     <View
       key={member.id}
@@ -1479,7 +1482,7 @@ export default function CircleScreen() {
               </TouchableOpacity>
             )}
 
-          {circle?.isJoined && circle?.creator !== user?.id && (
+          {circle?.isJoined && circle?.createdby !== user?.id && (
             <TouchableOpacity
               style={[styles.leaveButton, { backgroundColor: PALETTE.danger }]}
               onPress={handleLeaveCircle}
@@ -1513,7 +1516,7 @@ export default function CircleScreen() {
             </TouchableOpacity>
           )}
 
-          {circle?.creator === user?.id && (
+          {circle?.createdby === user?.id && (
             <TouchableOpacity
               style={[styles.deleteButton, { backgroundColor: PALETTE.danger }]}
               onPress={handleDeleteCircle}
@@ -1760,7 +1763,7 @@ export default function CircleScreen() {
         )}
         {activeTab === "events" && (
           <View style={styles.eventsContainer}>
-            {(circle?.creator === user?.id || circle.isAdmin) && (
+            {(circle?.createdby === user?.id || circle.isAdmin) && (
               <TouchableOpacity
                 style={[
                   styles.createPostButton,
@@ -1769,6 +1772,7 @@ export default function CircleScreen() {
                 onPress={() => setShowEventModal(true)}
               >
                 <IconSymbol name="plus" size={20} color="#fff" />
+
                 <ThemedText style={styles.createPostButtonText}>
                   Create Event
                 </ThemedText>
@@ -1790,7 +1794,7 @@ export default function CircleScreen() {
                   ]}
                 >
                   <View style={styles.eventHeader}>
-                    <View className="eventInfo" style={styles.eventInfo as any}>
+                    <View style={styles.eventInfo}>
                       <ThemedText style={styles.eventTitle}>
                         {item.title}
                       </ThemedText>
@@ -1844,7 +1848,7 @@ export default function CircleScreen() {
                           />
                         </TouchableOpacity>
                       )}
-                      {(circle?.creator === user?.id ||
+                      {(circle?.createdby === user?.id ||
                         circle.isAdmin ||
                         item.createdby === user?.id) && (
                         <TouchableOpacity
@@ -2087,7 +2091,7 @@ export default function CircleScreen() {
               style={[styles.sectionTitle, { marginTop: 24 }]}
             >
               Circle Members ({members.length})
-            </ThemedText>{" "}
+            </ThemedText>
             <View
               style={[
                 styles.searchContainer,
@@ -2129,13 +2133,6 @@ export default function CircleScreen() {
                 </ThemedText>
               )}
             </View>
-            {/* <View style={[styles.debugInfo, { backgroundColor: "#F3F4F6" }]}>
-              <ThemedText style={styles.debugText}>
-                Debug Info: isAdmin={String(circle.isAdmin)}, isMainAdmin=
-                {String(circle.isMainAdmin)}, creator={circle.creator},
-                currentUser={user?.id}
-              </ThemedText>
-            </View> */}
           </View>
         )}
       </ScrollView>
@@ -2150,7 +2147,7 @@ export default function CircleScreen() {
       )}
 
       {/* Create Post Modal */}
-      <Modal
+    <Modal
         visible={showPostModal}
         animationType="slide"
         transparent
@@ -2164,7 +2161,9 @@ export default function CircleScreen() {
             ]}
           >
             <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>Create Post</ThemedText>
+              <ThemedText style={[styles.modalTitle, { color: tintColor }]}>
+                Create Post
+              </ThemedText>
               <TouchableOpacity onPress={() => setShowPostModal(false)}>
                 <IconSymbol name="xmark" size={20} color={textColor} />
               </TouchableOpacity>
@@ -2172,7 +2171,9 @@ export default function CircleScreen() {
 
             <View style={styles.modalBody}>
               <View style={styles.inputSection}>
-                <ThemedText style={styles.postingInLabel}>
+                <ThemedText
+                  style={[styles.postingInLabel, { color: "#6B7280" }]}
+                >
                   Posting in:
                 </ThemedText>
                 <ThemedText style={[styles.circleName, { color: tintColor }]}>
@@ -2181,8 +2182,8 @@ export default function CircleScreen() {
               </View>
 
               <View style={styles.inputSection}>
-                <ThemedText style={styles.inputLabel}>
-                  What's on your mind?
+                <ThemedText style={[styles.inputLabel, { color: "#6B7280" }]}>
+                  What is on your mind?
                 </ThemedText>
                 <TextInput
                   style={[
@@ -2204,7 +2205,9 @@ export default function CircleScreen() {
               </View>
 
               <View style={styles.inputSection}>
-                <ThemedText style={styles.inputLabel}>Add Photo</ThemedText>
+                <ThemedText style={[styles.inputLabel, { color: "#6B7280" }]}>
+                  Add Photo
+                </ThemedText>
                 <TouchableOpacity
                   onPress={pickPostImage}
                   style={[
@@ -2262,14 +2265,17 @@ export default function CircleScreen() {
                 style={[
                   styles.modalButton,
                   styles.cancelButton,
-                  { backgroundColor: "#F9FAFB", borderColor: PALETTE.border },
+                  {
+                    backgroundColor: "#F9FAFB",
+                    borderColor: PALETTE.muted,
+                  },
                 ]}
                 onPress={() => {
                   setShowPostModal(false);
                   setSelectedPostImage(null);
                 }}
               >
-                <ThemedText>Cancel</ThemedText>
+                <ThemedText style={{ color: PALETTE.muted }}>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: tintColor }]}
@@ -2530,7 +2536,7 @@ export default function CircleScreen() {
                           {category}
                         </ThemedText>
                         <View style={styles.interestsGrid}>
-                          {interests.map((interest: any) => (
+                          {(interests as any[]).map((interest: any) => (
                             <TouchableOpacity
                               key={interest.id}
                               style={[
@@ -2669,16 +2675,19 @@ export default function CircleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    // removed boxShadow (unsupported)
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerTitle: {
     fontSize: 18,
@@ -2797,7 +2806,12 @@ const styles = StyleSheet.create({
   postCard: {
     padding: 16,
     borderRadius: 12,
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    // removed boxShadow (unsupported)
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   postHeader: {
     flexDirection: "row",
@@ -2884,7 +2898,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 12,
     borderRadius: 8,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    // removed boxShadow (unsupported)
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 1,
   },
   memberInfo: {
     flexDirection: "row",
@@ -2928,7 +2947,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderRadius: 12,
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    // removed boxShadow (unsupported)
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
   adminMemberInfo: {
     flexDirection: "row",
@@ -2986,7 +3010,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 12,
     borderRadius: 8,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    // removed boxShadow (unsupported)
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 1,
   },
   requestInfo: {
     flexDirection: "row",
@@ -3107,7 +3136,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
   },
-  // Circle image styles for main page
   circleImageContainer: {
     position: "relative",
     marginBottom: 12,
@@ -3160,7 +3188,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  // Edit modal styles (keeping existing ones for other elements)
   imageContainer: {
     position: "relative",
     borderRadius: 12,
@@ -3242,7 +3269,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  // Interests editing styles
   interestsContainer: {
     gap: 16,
   },
@@ -3269,7 +3295,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
-  // Header actions styles
   headerActions: {
     flexDirection: "row",
     gap: 8,
@@ -3349,7 +3374,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginLeft: 8,
   },
-  // Edit modal styles
   modalFooter: {
     flexDirection: "row",
     gap: 12,
@@ -3449,7 +3473,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 24,
   },
-  // Added styles for image picker functionality
   imagePickerButton: {
     height: 120,
     borderRadius: 8,
@@ -3504,7 +3527,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  // Modal styles for Create Event
   modalContainer: {
     flex: 1,
     width: "100%",
@@ -3554,7 +3576,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
-  // Added styles for events
   eventsContainer: {
     flex: 1,
     padding: 16,
@@ -3623,27 +3644,6 @@ const styles = StyleSheet.create({
   deleteEventButton: {
     padding: 8,
   },
-  // Reusing dateTimeRow and interest styles from create event modal
-  // interestsScrollView: {
-  //   maxHeight: 200,
-  // },
-  // interestCategory: {
-  //   marginBottom: 16,
-  // },
-  // interestChips: {
-  //   flexDirection: 'row',
-  //   flexWrap: 'wrap',
-  //   gap: 8,
-  // },
-  // textAreaInput: { // Reusing from above
-  //   borderWidth: 1,
-  //   borderColor: '#ddd',
-  //   borderRadius: 8,
-  //   padding: 12,
-  //   fontSize: 16,
-  //   minHeight: 100,
-  //   textAlignVertical: 'top',
-  // },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -3653,14 +3653,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.6,
   },
-  // Reusing placeholder and image styles from post creation
-  // imagePickerButton: { ... },
-  // selectedImageContainer: { ... },
-  // selectedPostImage: { ... },
-  // imageOverlay: { ... },
-  // changeImageText: { ... },
-  // imagePlaceholder: { ... },
-  // imagePickerText: { ... },
   eventRsvpSection: {
     marginTop: 12,
     borderTopWidth: 1,
@@ -3713,22 +3705,12 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  // textAreaInput: { // Reusing from above
-  //   borderWidth: 1,
-  //   borderColor: '#ddd',
-  //   borderRadius: 8,
-  //   padding: 12,
-  //   fontSize: 16,
-  //   minHeight: 100,
-  //   textAlignVertical: 'top',
-  // },
   selectedEventImage: {
     width: "100%",
     height: "100%",
     borderRadius: 8,
   },
   backButton: {
-    // Added for the new early return case
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -3739,7 +3721,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // Added for the edit post modal
   modalContent: {
     flex: 1,
     padding: 20,
@@ -3748,7 +3729,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // Delete confirmation modal styles
   deleteModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -3800,5 +3780,14 @@ const styles = StyleSheet.create({
   cancelDeleteButton: {
     borderWidth: 1,
     borderColor: "#ddd",
+  },
+  textAreaInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: "top",
   },
 });

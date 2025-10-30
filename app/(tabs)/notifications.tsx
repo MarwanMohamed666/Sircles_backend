@@ -10,7 +10,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,6 +32,8 @@ interface Notification {
   linkedItemType?: string;
 }
 
+type Category = "all" | "event" | "interactions";
+
 export default function NotificationsScreen() {
   const { user } = useAuth();
   const { texts, isRTL } = useLanguage();
@@ -43,6 +44,36 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [category, setCategory] = useState<Category>("all");
+
+  const getCategoryForType = (
+    type: string
+  ): "event" | "interactions" | "announcement" => {
+    const t = (type || "").toLowerCase();
+    if (t.includes("event") || t === "event") return "event";
+    if (t.includes("like") || t.includes("comment") || t.includes("message"))
+      return "interactions";
+    return "announcement";
+  };
+
+  // إجمالي العدّادات (اختياري لو حبيت ترجع لها)
+  const counts = {
+    event: notifications.filter((n) => getCategoryForType(n.type) === "event")
+      .length,
+    interactions: notifications.filter(
+      (n) => getCategoryForType(n.type) === "interactions"
+    ).length,
+  };
+
+  // عدّادات غير المقروء فقط (المطلوب للبادج)
+  const unreadCounts = {
+    event: notifications.filter(
+      (n) => !n.read && getCategoryForType(n.type) === "event"
+    ).length,
+    interactions: notifications.filter(
+      (n) => !n.read && getCategoryForType(n.type) === "interactions"
+    ).length,
+  };
 
   const loadNotifications = async () => {
     if (!user?.id) return;
@@ -113,43 +144,14 @@ export default function NotificationsScreen() {
   }, [user]);
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "circle_join":
-        return "person.badge.plus";
-      case "circle_invite":
-        return "person.3.fill";
-      case "event_reminder":
-        return "calendar";
-      case "new_message":
-        return "message.fill";
-      case "event_created":
-        return "calendar.badge.plus";
-      case "post_like":
-        return "heart.fill";
-      case "comment":
-        return "bubble.left.fill";
-      default:
-        return "bell.fill";
-    }
-  };
-
-  const getNotificationColor = (type: string) => {
-    switch (type) {
-      case "circle_join":
-      case "circle_invite":
-        return "#4CAF50";
-      case "event_reminder":
-      case "event_created":
-        return "#FF9800";
-      case "new_message":
-        return "#2196F3";
-      case "post_like":
-        return "#E91E63";
-      case "comment":
-        return "#9C27B0";
-      default:
-        return tintColor;
-    }
+    const t = (type || "").toLowerCase();
+    if (t.includes("circle_join")) return "person.badge.plus";
+    if (t.includes("circle_invite")) return "person.3.fill";
+    if (t.includes("event")) return "calendar";
+    if (t.includes("message")) return "message.fill";
+    if (t.includes("like")) return "heart.fill";
+    if (t.includes("comment")) return "bubble.left.fill";
+    return "bell.fill";
   };
 
   const formatNotificationTime = (creationdate: string) => {
@@ -182,19 +184,28 @@ export default function NotificationsScreen() {
     }
   };
 
-  const filtered = notifications.filter((n) => filter === "all" || !n.read);
+  // فلترة: الاعلان يظهر في All فقط
+  const filtered = notifications.filter((n) => {
+    const cat = getCategoryForType(n.type);
+    const passRead = filter === "all" || !n.read;
+    const passCategory = category === "all" ? true : cat === category;
+    return passRead && passCategory;
+  });
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const renderNotification = (n: Notification) => {
     const isRead = n.read;
+    const baseGreen = "#00692C";
+    const paleGreen = "#E7F7EE";
+    const iconBG = isRead ? "#EEF1F4" : paleGreen;
+
     return (
       <TouchableOpacity
         key={n.id}
         style={[
           styles.notificationItem,
-          {
-            backgroundColor: isRead ? "#F9FAFB" : tintColor + "12", 
-          },
+          { backgroundColor: isRead ? "#F9FAFB" : paleGreen },
         ]}
         onPress={() => handleNotificationPress(n)}
       >
@@ -204,20 +215,11 @@ export default function NotificationsScreen() {
             isRTL && styles.notificationContentRTL,
           ]}
         >
-          <View
-            style={[
-              styles.iconContainer,
-              {
-                backgroundColor: isRead
-                  ? "#EEF1F4"
-                  : getNotificationColor(n.type) + "22",
-              },
-            ]}
-          >
+          <View style={[styles.iconContainer, { backgroundColor: iconBG }]}>
             <IconSymbol
               name={getNotificationIcon(n.type)}
               size={20}
-              color={isRead ? "#7F8B97" : getNotificationColor(n.type)}
+              color={baseGreen}
               style={{ opacity: isRead ? 0.85 : 1 }}
             />
           </View>
@@ -246,10 +248,10 @@ export default function NotificationsScreen() {
               </ThemedText>
 
               {isRead ? (
-                <View style={styles.readPill} />
+                <View className="read-pill" style={styles.readPill} />
               ) : (
                 <View
-                  style={[styles.unreadDot, { backgroundColor: tintColor }]}
+                  style={[styles.unreadDot, { backgroundColor: baseGreen }]}
                 />
               )}
             </View>
@@ -276,7 +278,7 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs: All / Unread */}
       <View className="tabs" style={styles.tabsContainer}>
         <TouchableOpacity onPress={() => setFilter("all")}>
           <ThemedText
@@ -309,23 +311,61 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filter + Mark all */}
+      {/* Category filter: Event / Interactions / All */}
       <View style={styles.filterSection}>
         <View style={styles.filterTabs}>
           <TouchableOpacity
-            style={[styles.filterTab, { backgroundColor: "#F6F6F6" }]}
+            style={[
+              styles.filterTab,
+              category === "event" && styles.activeFilterTab,
+            ]}
+            onPress={() => setCategory("event")}
           >
-            <ThemedText style={styles.filterTabText}>Event</ThemedText>
+            <ThemedText
+              style={[
+                styles.filterTabText,
+                category === "event" && styles.activeFilterTabText,
+              ]}
+            >
+              Event{unreadCounts.event ? ` (${unreadCounts.event})` : ""}
+            </ThemedText>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.filterTab, { backgroundColor: "#F6F6F6" }]}
+            style={[
+              styles.filterTab,
+              category === "interactions" && styles.activeFilterTab,
+            ]}
+            onPress={() => setCategory("interactions")}
           >
-            <ThemedText style={styles.filterTabText}>Announcement</ThemedText>
+            <ThemedText
+              style={[
+                styles.filterTabText,
+                category === "interactions" && styles.activeFilterTabText,
+              ]}
+            >
+              Interactions
+              {unreadCounts.interactions
+                ? ` (${unreadCounts.interactions})`
+                : ""}
+            </ThemedText>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.filterTab, { backgroundColor: "#F6F6F6" }]}
+            style={[
+              styles.filterTab,
+              category === "all" && styles.activeFilterTab,
+            ]}
+            onPress={() => setCategory("all")}
           >
-            <ThemedText style={styles.filterTabText}>Interactions</ThemedText>
+            <ThemedText
+              style={[
+                styles.filterTabText,
+                category === "all" && styles.activeFilterTabText,
+              ]}
+            >
+              All
+            </ThemedText>
           </TouchableOpacity>
         </View>
 
@@ -372,6 +412,9 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
+
+const baseGreen = "#00692C";
+const paleGreen = "#E7F7EE";
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -434,19 +477,26 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: "#fff",
   },
-  filterTabs: { flexDirection: "row", gap: 8 },
+  filterTabs: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   filterTab: {
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
     backgroundColor: "#F6F6F6",
   },
+  activeFilterTab: {
+    backgroundColor: paleGreen,
+    borderWidth: 1,
+    borderColor: baseGreen + "33",
+  },
   filterTabText: { fontSize: 13, color: "#000", fontWeight: "500" },
+  activeFilterTabText: { color: baseGreen, fontWeight: "700" },
+
   markAsReadWrapper: { alignItems: "flex-end" },
   markAsReadText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#00692C",
+    color: baseGreen,
     paddingVertical: 16,
   },
 
@@ -477,14 +527,9 @@ const styles = StyleSheet.create({
   },
   textContainer: { flex: 1 },
 
-  // text states
   notificationText: { fontSize: 14, lineHeight: 20, marginBottom: 4 },
   unreadText: { color: "#111", fontWeight: "600" },
-  mutedText: {
-    color: "#374151", 
-    fontWeight: "500",
-    opacity: 0.9, 
-  },
+  mutedText: { color: "#374151", fontWeight: "500", opacity: 0.9 },
 
   notificationFooter: {
     flexDirection: "row",
@@ -500,7 +545,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E6E8EC", 
+    backgroundColor: "#E6E8EC",
   },
 
   emptyContainer: {

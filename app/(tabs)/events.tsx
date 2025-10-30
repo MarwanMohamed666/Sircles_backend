@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -18,6 +18,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatabaseService } from "@/lib/database";
 import EventModal from "@/components/EventModal";
+import { useFocusEffect } from "expo-router";
 
 interface Event {
   id: string;
@@ -85,6 +86,12 @@ export default function EventsScreen() {
     }
   }, [user]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (user) fetchEvents();
+    }, [user])
+  );
+  
   const fetchEvents = async () => {
     if (!user) return;
     setLoading(true);
@@ -560,7 +567,7 @@ export default function EventsScreen() {
                           },
                         ]}
                       >
-                        Can't Go ({event.not_going_count || 0})
+                        Cannot Go ({event.not_going_count || 0})
                       </ThemedText>
                     </TouchableOpacity>
                   </View>
@@ -956,7 +963,7 @@ const styles = StyleSheet.create({
   pillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   moreInterests: { fontSize: 12, color: "#6B7280", fontWeight: "600" },
 
-  title: { fontSize: 16, marginTop: 4, marginBottom: 4, color: "#000000ff", },
+  title: { fontSize: 16, marginTop: 4, marginBottom: 4, color: "#000000ff" },
   eventDescription: {
     color: "#3d3d3dff",
     opacity: 0.9,

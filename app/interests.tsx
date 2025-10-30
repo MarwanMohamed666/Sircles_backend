@@ -24,9 +24,21 @@ const DATA = [
   { id: "int_teaching_english", title: "English", category: "Teaching" },
   { id: "int_teaching_math", title: "Math", category: "Teaching" },
   { id: "int_teaching_physics", title: "Physics", category: "Teaching" },
-  { id: "int_teaching_quran_memorization", title: "Quran Memorization", category: "Teaching" },
-  { id: "int_teaching_reading_club", title: "Reading Club", category: "Teaching" },
-  { id: "int_teaching_language_exchange", title: "Language Exchange", category: "Teaching" },
+  {
+    id: "int_teaching_quran_memorization",
+    title: "Quran Memorization",
+    category: "Teaching",
+  },
+  {
+    id: "int_teaching_reading_club",
+    title: "Reading Club",
+    category: "Teaching",
+  },
+  {
+    id: "int_teaching_language_exchange",
+    title: "Language Exchange",
+    category: "Teaching",
+  },
 
   // Engineering
   { id: "int_eng_civil", title: "Civil", category: "Engineering" },
@@ -39,7 +51,11 @@ const DATA = [
   { id: "int_sports_swimming", title: "Swimming", category: "Sports" },
   { id: "int_sports_football", title: "Football", category: "Sports" },
   { id: "int_sports_tennis", title: "Tennis", category: "Sports" },
-  { id: "int_sports_paddle_tennis", title: "Paddle Tennis", category: "Sports" },
+  {
+    id: "int_sports_paddle_tennis",
+    title: "Paddle Tennis",
+    category: "Sports",
+  },
   { id: "int_sports_basketball", title: "Basketball", category: "Sports" },
   { id: "int_sports_volleyball", title: "Volleyball", category: "Sports" },
   { id: "int_sports_running", title: "Running", category: "Sports" },
@@ -55,21 +71,49 @@ const DATA = [
   { id: "int_art_guitar", title: "Guitar", category: "Art" },
   { id: "int_art_acting_theater", title: "Acting/Theater", category: "Art" },
   { id: "int_art_photography", title: "Photography", category: "Art" },
-  { id: "int_art_drawing_for_kids", title: "Drawing for Kids", category: "Art" },
+  {
+    id: "int_art_drawing_for_kids",
+    title: "Drawing for Kids",
+    category: "Art",
+  },
 
   // Handcrafts
   { id: "int_hand_pottery", title: "Pottery", category: "Handcrafts" },
   { id: "int_hand_crochet", title: "Crochet", category: "Handcrafts" },
-  { id: "int_hand_car_mechanics", title: "Car Mechanics", category: "Handcrafts" },
+  {
+    id: "int_hand_car_mechanics",
+    title: "Car Mechanics",
+    category: "Handcrafts",
+  },
   { id: "int_hand_plumbing", title: "Plumbing", category: "Handcrafts" },
   { id: "int_hand_carpentry", title: "Carpentry", category: "Handcrafts" },
-  { id: "int_hand_handmade_accessories", title: "Handmade Accessories", category: "Handcrafts" },
+  {
+    id: "int_hand_handmade_accessories",
+    title: "Handmade Accessories",
+    category: "Handcrafts",
+  },
 
   // Kids Activities
-  { id: "int_kids_face_painting", title: "Face Painting", category: "Kids Activities" },
-  { id: "int_kids_puppet_shows", title: "Puppet Shows", category: "Kids Activities" },
-  { id: "int_kids_outdoor_games", title: "Outdoor Games", category: "Kids Activities" },
-  { id: "int_kids_storytelling", title: "Storytelling", category: "Kids Activities" },
+  {
+    id: "int_kids_face_painting",
+    title: "Face Painting",
+    category: "Kids Activities",
+  },
+  {
+    id: "int_kids_puppet_shows",
+    title: "Puppet Shows",
+    category: "Kids Activities",
+  },
+  {
+    id: "int_kids_outdoor_games",
+    title: "Outdoor Games",
+    category: "Kids Activities",
+  },
+  {
+    id: "int_kids_storytelling",
+    title: "Storytelling",
+    category: "Kids Activities",
+  },
   { id: "int_kids_kids_yoga", title: "Kids Yoga", category: "Kids Activities" },
 
   // Community
@@ -77,8 +121,16 @@ const DATA = [
   { id: "int_comm_bbq_night", title: "BBQ Night", category: "Community" },
   { id: "int_comm_movie_night", title: "Movie Night", category: "Community" },
   { id: "int_comm_board_games", title: "Board Games", category: "Community" },
-  { id: "int_comm_potluck_dinner", title: "Potluck Dinner", category: "Community" },
-  { id: "int_comm_recycling_activities", title: "Recycling Activities", category: "Community" },
+  {
+    id: "int_comm_potluck_dinner",
+    title: "Potluck Dinner",
+    category: "Community",
+  },
+  {
+    id: "int_comm_recycling_activities",
+    title: "Recycling Activities",
+    category: "Community",
+  },
 
   // Pets
   { id: "int_pets_pet_walking", title: "Pet Walking", category: "Pets" },
@@ -89,15 +141,75 @@ const DATA = [
   { id: "int_well_meditation", title: "Meditation", category: "Wellness" },
   { id: "int_well_yoga", title: "Yoga", category: "Wellness" },
   { id: "int_well_pilates", title: "Pilates", category: "Wellness" },
-  { id: "int_well_massage_workshop", title: "Massage Workshop", category: "Wellness" },
-  { id: "int_well_nutrition_coaching", title: "Nutrition Coaching", category: "Wellness" },
+  {
+    id: "int_well_massage_workshop",
+    title: "Massage Workshop",
+    category: "Wellness",
+  },
+  {
+    id: "int_well_nutrition_coaching",
+    title: "Nutrition Coaching",
+    category: "Wellness",
+  },
 
   // Tech & DIY
-  { id: "int_techdiy_coding_for_kids", title: "Coding for Kids", category: "Tech & DIY" },
-  { id: "int_techdiy_tech_meetups", title: "Tech Meetups", category: "Tech & DIY" },
-  { id: "int_techdiy_robotics_club", title: "Robotics Club", category: "Tech & DIY" },
-  { id: "int_techdiy_drone_flying", title: "Drone Flying", category: "Tech & DIY" },
-  { id: "int_techdiy_diy_home_repairs", title: "DIY Home Repairs", category: "Tech & DIY" },
+  {
+    id: "int_techdiy_coding_for_kids",
+    title: "Coding for Kids",
+    category: "Tech & DIY",
+  },
+  {
+    id: "int_techdiy_tech_meetups",
+    title: "Tech Meetups",
+    category: "Tech & DIY",
+  },
+  {
+    id: "int_techdiy_robotics_club",
+    title: "Robotics Club",
+    category: "Tech & DIY",
+  },
+  {
+    id: "int_techdiy_drone_flying",
+    title: "Drone Flying",
+    category: "Tech & DIY",
+  },
+  {
+    id: "int_techdiy_diy_home_repairs",
+    title: "DIY Home Repairs",
+    category: "Tech & DIY",
+  },
+
+  {
+    id: "int_skincare_routines",
+    title: "Skincare Routines",
+    category: "Skincare",
+  },
+  {
+    id: "int_skincare_acne_blemishes",
+    title: "Acne & Blemishes",
+    category: "Skincare",
+  },
+  { id: "int_skincare_anti_aging", title: "Anti-Aging", category: "Skincare" },
+  {
+    id: "int_skincare_sun_protection",
+    title: "Sun Protection",
+    category: "Skincare",
+  },
+  {
+    id: "int_skincare_ingredients",
+    title: "Skincare Ingredients",
+    category: "Skincare",
+  },
+  {
+    id: "int_skincare_natural_beauty",
+    title: "Natural & Clean Beauty",
+    category: "Skincare",
+  },
+  {
+    id: "int_skincare_product_reviews",
+    title: "Product Reviews",
+    category: "Skincare",
+  },
 ];
 
 export default function InterestsScreen() {

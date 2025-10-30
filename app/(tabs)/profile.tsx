@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -81,58 +82,105 @@ export default function ProfileScreen() {
 
   // ===== avatar =====
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission needed",
-        "Please grant photo library access to change your avatar"
-      );
-      return;
+    if (Platform.OS !== "web") {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "Please grant photo library access to change your avatar"
+        );
+        return;
+      }
     }
+
+    // يدعم الإصدارات الجديدة وقديمة كـ fallback
+    const mediaType =
+      (ImagePicker as any).MediaType?.Image ??
+      (ImagePicker as any).MediaTypeOptions?.Images;
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: [mediaType],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.9,
+      exif: false,
+      base64: false,
     });
-    if (!result.canceled && result.assets?.length)
+
+    if (!result.canceled && result.assets?.length) {
       await uploadAvatar(result.assets[0]);
+    }
+  };
+
+  const normalizeToJpg = async (uri: string) => {
+    const out = await ImageManipulator.manipulateAsync(uri, [], {
+      compress: 0.9,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+    return out.uri;
+  };
+
+  const detectExt = (asset: any) => {
+    let ext =
+      asset.mimeType?.split("/")[1]?.toLowerCase() ||
+      asset.uri.split("?")[0].split(".").pop()?.toLowerCase() ||
+      "jpg";
+    if (ext === "jpeg") ext = "jpg";
+    if (ext === "heic" || ext === "heif") ext = "heic";
+    return ext;
   };
 
   const uploadAvatar = async (asset: any) => {
     if (!user?.id) return;
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+
+    const { data: sessionRes } = await supabase.auth.getSession();
+    if (!sessionRes?.session) {
       router.replace("/login");
       return;
     }
+
     setUploading(true);
     try {
-      let ext = asset.uri.startsWith("data:image/")
-        ? asset.uri.match(/data:image\/([^;]+)/)?.[1] || "png"
-        : asset.uri.split(".").pop()?.toLowerCase() || "png";
-      if (ext === "jpeg") ext = "jpg";
-      if (!["png", "jpg"].includes(ext)) {
-        Alert.alert("Error", "Please select PNG or JPG");
-        return;
+      let ext = detectExt(asset);
+      let uploadUri = asset.uri;
+
+      // أي صيغة غير jpg/png تتحول إلى jpg
+      if (ext !== "jpg" && ext !== "png") {
+        uploadUri = await normalizeToJpg(asset.uri);
+        ext = "jpg";
+      }
+
+      // web: File | native: { uri }
+      let fileForUpload: any = { uri: uploadUri };
+      if (Platform.OS === "web") {
+        const res = await fetch(uploadUri);
+        const blob = await res.blob();
+        fileForUpload = new File([blob], `${user.id}.${ext}`, {
+          type: `image/${ext}`,
+        });
       }
 
       const { data, error } = await StorageService.uploadAvatar(
         user.id,
-        asset,
+        fileForUpload,
         ext
       );
       if (error || !data?.publicUrl) {
         Alert.alert("Error", error?.message || "Upload failed");
         return;
       }
-      await DatabaseService.updateUserAvatar(user.id, data.publicUrl);
-      setAvatarUrl(data.publicUrl);
-      if (updateUserProfile)
-        await updateUserProfile({ avatar: data.publicUrl });
+
+      const raw = data.publicUrl; // يُخزَّن في DB
+      const view = `${raw}?t=${Date.now()}`; // يُعرض مع cache-buster
+
+      await DatabaseService.updateUserAvatar(user.id, raw);
+      setAvatarUrl(view);
+      if (updateUserProfile) await updateUserProfile({ avatar: raw });
+
       Alert.alert("Success", "Avatar updated successfully");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Unexpected error");
     } finally {
       setUploading(false);
     }
@@ -155,7 +203,7 @@ export default function ProfileScreen() {
   const checkExistingAvatar = async () => {
     if (!user?.id) return;
     if (userProfile?.avatar) {
-      setAvatarUrl(userProfile.avatar);
+      setAvatarUrl(`${userProfile.avatar}?t=${Date.now()}`);
       return;
     }
     const { exists, extension } = await StorageService.checkAvatarExists(
@@ -163,7 +211,7 @@ export default function ProfileScreen() {
     );
     if (exists && extension) {
       const url = StorageService.getAvatarUrl(user.id, extension);
-      setAvatarUrl(url);
+      setAvatarUrl(`${url}?t=${Date.now()}`);
       await DatabaseService.updateUserAvatar(user.id, url);
     }
   };
@@ -563,9 +611,7 @@ const SectionWithEdit = ({ title, onEdit, children }: any) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.pageBg },
-
   pageContent: { paddingBottom: 24 },
-
   hero: {
     width: "100%",
     height: 120,
@@ -595,18 +641,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   centerColumn: {
     width: "100%",
     maxWidth: 420,
     alignSelf: "center",
     paddingHorizontal: 16,
   },
-
-  avatarWrap: {
-    alignSelf: "center",
-    marginTop: -46,
-  },
+  avatarWrap: { alignSelf: "center", marginTop: -46 },
   avatarGreen: {
     width: 92,
     height: 92,
@@ -648,7 +689,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
-
   blockCard: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
@@ -658,7 +698,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.cardBorder,
     width: "100%",
   },
-
   fieldLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -688,7 +727,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
   },
-
   sectionCard: {
     backgroundColor: COLORS.white,
     borderRadius: 16,
@@ -714,7 +752,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sectionBody: { backgroundColor: "#F6F7F8", borderRadius: 12, padding: 12 },
-
   catTitle: {
     fontSize: 12,
     fontWeight: "600",
@@ -729,7 +766,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   tagText: { fontSize: 12, fontWeight: "600", color: COLORS.chipText },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -758,7 +794,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: COLORS.primary,
   },
-
   optionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   optionBtn: {
     borderWidth: 1,
@@ -768,7 +803,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   optionText: { fontSize: 12, fontWeight: "600" },
-
   emptyText: {
     color: COLORS.muted,
     fontSize: 13,
